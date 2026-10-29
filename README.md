@@ -21,3 +21,5 @@ Old WordPress URLs (`/client-galleries/gallery/...`) are redirected by `.htacces
 Every push to `main` runs `.github/workflows/deploy.yml`: it builds the site and uploads it to DreamHost over SSH (adds and updates files only, never deletes).
 - Secret `DEPLOY_SSH_KEY`: private key whose public half is in the DreamHost user's `~/.ssh/authorized_keys`.
 - Repository variable `DEPLOY_DIR` (optional): folder to upload to. Default is `new.everettallenphotography.com` (staging). Set it to `everettallenphotography.com` to deploy to the live site.
+
+Last deploy test: 2026-10-29
