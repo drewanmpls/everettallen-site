@@ -10,7 +10,8 @@ content:
     fields:
       - { name: title, label: Title, type: string }
       - { name: category, label: Category, type: select, options: { values: [portraits, events] } }
-      - { name: date, label: Date (YYYY-MM-DD), type: string }
+      - { name: year, label: Event year (groups the Events page), type: string }
+      - { name: date, label: Date (YYYY-MM-DD, newest first within a year), type: string }
       - { name: cover, label: Cover photo ID (e.g. 001), type: string }
       - { name: description, label: Description, type: text }
       - name: images
@@ -27,6 +28,7 @@ content:
     format: json
     fields:
       - { name: tagline, label: Home tagline, type: string }
+      - { name: featured_portraits, label: Featured portraits on the home page (gallery names, in order), type: string, list: true }
       - { name: contact_intro, label: Contact page intro, type: text }
       - { name: usage_note, label: Note under each gallery, type: text }
       - { name: facebook, label: Facebook URL, type: string }
