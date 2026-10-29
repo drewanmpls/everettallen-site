@@ -27,7 +27,7 @@ def page(title,body,path,section,desc=''):
 <link rel="icon" href="/assets/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Archivo+Narrow:wght@500&display=swap" rel="stylesheet"><link rel="stylesheet" href="/css/style.css"></head>
 <body><a class="skip" href="#content">Skip to content</a>
-<header class="top"><a class="brand" href="{'/events/' if section=='Events' else '/'}">EA / {section}</a><nav>{nav}</nav></header>
+<header class="top"><span class="brand">{'<a href="/">EA</a>' if path=='/' else '<a href="/">Everett Allen Photography</a>'} / {section}</span><nav>{nav}</nav></header>
 <main id="content">{body}</main>
 <footer><span>Copyright 2026 Everett Allen Photography</span><span>{SOC}</span></footer>
 <script src="/js/site.js" defer></script></body></html>'''
