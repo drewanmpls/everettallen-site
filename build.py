@@ -37,12 +37,13 @@ def w(path,content):
 def img(g,size): return f'/photos/{g["slug"]}/{g["cover"]}-{size}.jpg'
 shutil.rmtree('dist',ignore_errors=True); shutil.copytree('static','dist')
 portraits=[g for g in G if g['category']=='portraits']
+tag_lines=''.join(f'<span class="ln">{e(x)}</span>' for x in re.split(r'(?<=[.!?])\s+',site['tagline'].strip()))
 events=sorted([g for g in G if g['category']=='events'],key=newest,reverse=True)
 # ---- Home (portraits face)
 feat=[by_slug[s] for s in site['featured_portraits'] if s in by_slug]
 strip=''.join(f'<a class="fcard" href="/gallery/{g["slug"]}/"><img loading="lazy" src="{img(g,"l")}" alt=""><span>{e(g["title"])} / {g["year"]}</span></a>' for g in feat)
 home=f'''<section class="homehead"><h1 class="giant">Everett<br>Allen<span class="photo">Photography</span></h1>
-<div class="sub"><p class="lede">{e(site["tagline"])}</p><p class="meta">{len(portraits)} portrait sessions / {min(g["year"] for g in portraits)} &ndash; {max(g["year"] for g in portraits)} / Scroll &rarr;</p></div></section>
+<div class="sub"><p class="lede">{tag_lines}</p><p class="meta">{len(portraits)} portrait sessions / {min(g["year"] for g in portraits)} &ndash; {max(g["year"] for g in portraits)} / Scroll &rarr;</p></div></section>
 <div class="strip" tabindex="0" aria-label="Featured portraits">{strip}</div>
 <p class="allp"><a href="/portraits/">All portraits A to Z</a></p>
 <a class="band" href="/events/"><span class="bigword">Events</span><span class="bandtxt">Pride, TCLFW, contests and community nights, by year &rarr;</span></a>
