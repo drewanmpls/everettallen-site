@@ -41,7 +41,7 @@ events=sorted([g for g in G if g['category']=='events'],key=newest,reverse=True)
 # ---- Home (portraits face)
 feat=[by_slug[s] for s in site['featured_portraits'] if s in by_slug]
 strip=''.join(f'<a class="fcard" href="/gallery/{g["slug"]}/"><img loading="lazy" src="{img(g,"l")}" alt=""><span>{e(g["title"])} / {g["year"]}</span></a>' for g in feat)
-home=f'''<section class="homehead"><h1 class="giant">Everett<br>Allen</h1>
+home=f'''<section class="homehead"><h1 class="giant">Everett<br>Allen<span class="photo">Photography</span></h1>
 <div class="sub"><p class="lede">{e(site["tagline"])}</p><p class="meta">{len(portraits)} portrait sessions / {min(g["year"] for g in portraits)} &ndash; {max(g["year"] for g in portraits)} / Scroll &rarr;</p></div></section>
 <div class="strip" tabindex="0" aria-label="Featured portraits">{strip}</div>
 <p class="allp"><a href="/portraits/">All portraits A to Z</a></p>
