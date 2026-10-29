@@ -1,0 +1,26 @@
+name: Deploy to DreamHost
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency: deploy
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: python3 build.py
+      - name: Set up SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H iad1-shared-b7-19.dreamhost.com >> ~/.ssh/known_hosts
+      - name: Upload (adds and updates files only, never deletes)
+        env:
+          DEPLOY_DIR: ${{ vars.DEPLOY_DIR || 'new.everettallenphotography.com' }}
+        run: |
+          rsync -av -e "ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes" dist/ "dh_dbvmkc@iad1-shared-b7-19.dreamhost.com:~/${DEPLOY_DIR}/"

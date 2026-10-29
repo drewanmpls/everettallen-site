@@ -16,3 +16,8 @@ Photos are NOT in this repo (about 2,700 files). They live on the server in `pho
 3. Check the site, then go live the same way as the other sites (back up old WordPress files and database first).
 
 Old WordPress URLs (`/client-galleries/gallery/...`) are redirected by `.htaccess`.
+
+## Automatic deploys
+Every push to `main` runs `.github/workflows/deploy.yml`: it builds the site and uploads it to DreamHost over SSH (adds and updates files only, never deletes).
+- Secret `DEPLOY_SSH_KEY`: private key whose public half is in the DreamHost user's `~/.ssh/authorized_keys`.
+- Repository variable `DEPLOY_DIR` (optional): folder to upload to. Default is `new.everettallenphotography.com` (staging). Set it to `everettallenphotography.com` to deploy to the live site.
