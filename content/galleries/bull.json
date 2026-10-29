@@ -1,0 +1,29 @@
+{
+ "title": "Bull",
+ "category": "portraits",
+ "date": "2018-03-03",
+ "cover": "002",
+ "description": "",
+ "images": [
+  {
+   "id": "001",
+   "ratio": 1.5
+  },
+  {
+   "id": "002",
+   "ratio": 1.5
+  },
+  {
+   "id": "003",
+   "ratio": 1.5
+  },
+  {
+   "id": "004",
+   "ratio": 1.5
+  },
+  {
+   "id": "005",
+   "ratio": 1.5
+  }
+ ]
+}

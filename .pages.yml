@@ -1,0 +1,33 @@
+media:
+  input: static/assets
+  output: /assets
+content:
+  - name: galleries
+    label: Galleries
+    type: collection
+    path: content/galleries
+    format: json
+    fields:
+      - { name: title, label: Title, type: string }
+      - { name: category, label: Category, type: select, options: { values: [portraits, events] } }
+      - { name: date, label: Date (YYYY-MM-DD), type: string }
+      - { name: cover, label: Cover photo ID (e.g. 001), type: string }
+      - { name: description, label: Description, type: text }
+      - name: images
+        label: Photos
+        type: object
+        list: true
+        fields:
+          - { name: id, label: Photo ID (files are photos/GALLERY/ID-t.jpg and ID-l.jpg), type: string }
+          - { name: ratio, label: Width divided by height, type: number }
+  - name: site
+    label: Site settings
+    type: file
+    path: content/site.json
+    format: json
+    fields:
+      - { name: tagline, label: Home tagline, type: string }
+      - { name: contact_intro, label: Contact page intro, type: text }
+      - { name: usage_note, label: Note under each gallery, type: text }
+      - { name: facebook, label: Facebook URL, type: string }
+      - { name: instagram, label: Instagram URL, type: string }

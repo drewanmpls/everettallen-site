@@ -1,0 +1,25 @@
+{
+ "title": "Pack",
+ "category": "portraits",
+ "date": "2015-01-01",
+ "cover": "002",
+ "description": "",
+ "images": [
+  {
+   "id": "001",
+   "ratio": 1.4002
+  },
+  {
+   "id": "002",
+   "ratio": 1.2791
+  },
+  {
+   "id": "003",
+   "ratio": 0.6443
+  },
+  {
+   "id": "004",
+   "ratio": 1.3052
+  }
+ ]
+}

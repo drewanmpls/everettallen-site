@@ -1,0 +1,25 @@
+{
+ "title": "Pups After Dark",
+ "category": "portraits",
+ "date": "2015-12-12",
+ "cover": "001",
+ "description": "",
+ "images": [
+  {
+   "id": "001",
+   "ratio": 0.6667
+  },
+  {
+   "id": "002",
+   "ratio": 0.8971
+  },
+  {
+   "id": "003",
+   "ratio": 0.6667
+  },
+  {
+   "id": "004",
+   "ratio": 1.5179
+  }
+ ]
+}
