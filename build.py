@@ -100,13 +100,12 @@ for pf in sorted(glob.glob('content/pages/*.json')):
 SV=json.load(open('content/services.json'))
 def svc_card(c):
     items=''.join(f'<li>{md_inline(i)}</li>' for i in c['items'])
-    badge=f'<span class="sbadge">{e(c["badge"])}</span>' if c.get('badge') else ''
-    unit=f' <small>{e(c["unit"])}</small>' if c.get('unit') else ''
-    cls='scard'+(' feat' if c.get('badge') else '')+(' wide' if c.get('wide') else '')
-    return f'<div class="{cls}">{badge}<h3>{e(c["title"])}</h3><div class="sprice">{e(c["price"])}{unit}</div><p class="smeta">{e(c["meta"])}</p><ul>{items}</ul></div>'
+    pop=f' <em class="pop">{e(c["badge"])}</em>' if c.get('badge') else ''
+    unit=f'<small>{e(c["unit"])}</small>' if c.get('unit') else ''
+    return f'<div class="rate"><div class="rl"><h3>{e(c["title"])}{pop}</h3><p class="smeta">{e(c["meta"])}</p></div><ul class="rm">{items}</ul><div class="rp">{e(c["price"])}{unit}</div></div>'
 callout=md_inline(SV['callout']).replace('Umbra Arts Minneapolis','<strong>Umbra Arts Minneapolis</strong>')
 callout=re.sub(r'([\w.]+@[\w.]+\.com)',r'<a href="mailto:\1">\1</a>',callout)
-w('/services/',page(SV['title'],f'<div class="wrap"><h1 class="h1">{e(SV["title"])}</h1><p class="lede2">{e(SV["lede"])}</p><p class="deliv"><strong>All-digital delivery.</strong> {e(SV["delivery"])}</p><p class="callout">{callout}</p><div class="sgrid">{"".join(svc_card(c) for c in SV["cards"])}</div><section class="cta"><span>{e(SV["cta"])}</span><a class="btn" href="/contact/">Contact me</a></section></div>','/services/','Services','Portrait and event photography rates from Everett Allen Photography, delivered as digital files.'))
+w('/services/',page(SV['title'],f'<div class="wrap"><h1 class="h1">{e(SV["title"])}</h1><p class="lede2">{e(SV["lede"])}</p><p class="deliv"><strong>All-digital delivery.</strong> {e(SV["delivery"])}</p><p class="callout">{callout}</p><div class="rates">{"".join(svc_card(c) for c in SV["cards"])}</div><section class="cta"><span>{e(SV["cta"])}</span><a class="btn" href="/contact/">Contact me</a></section></div>','/services/','Services','Portrait and event photography rates from Everett Allen Photography, delivered as digital files.'))
 w('/thanks/',page('Thanks','<div class="wrap narrow"><h1 class="h1">Thanks!</h1><p class="lede2">Your message was sent. I\'ll get back to you soon.</p><p><a href="/">Back home</a></p></div>','/thanks/','Contact'))
 w('/404.html',page('Not found','<div class="wrap narrow"><h1 class="h1">Page not found</h1><p class="lede2"><a href="/">Back home</a> or browse <a href="/portraits/">Portraits</a> and <a href="/events/">Events</a>.</p></div>','/404','Contact'))
 urls=['/','/portraits/','/events/','/services/','/contact/']+[f'/{k}/' for k in TP]+[f'/gallery/{g["slug"]}/' for g in G]
