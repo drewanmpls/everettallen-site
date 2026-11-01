@@ -331,7 +331,7 @@ function drive_upload(int $clientId): array {
         $j = is_string($res) ? json_decode($res, true) : null;
         $r = is_array($j) && !empty($j['ok']) ? ['ok' => true, 'url' => (string)($j['url'] ?? '')] : ['ok' => false, 'error' => $err ?: (is_array($j) ? (string)($j['error'] ?? 'Drive refused it') : 'No usable answer from Google')];
     }
-    db()->prepare('UPDATE clients SET drive_status = ?, drive_url = ? WHERE id = ?')->execute([$r['ok'] ? 'saved' : 'failed: ' . $r['error'], $r['url'] ?? '', $clientId]);
+    db()->prepare('UPDATE clients SET drive_status = ?, drive_url = ? WHERE id = ?')->execute([$r['ok'] ? 'saved' : 'failed: ' . $r['error'] . ($url !== '' ? ' [called ...' . substr($url, -14) . ']' : ''), $r['url'] ?? '', $clientId]);
     return $r;
 }
 const CLIENT_STATUSES = ['new' => 'New', 'contacted' => 'Contacted', 'booked' => 'Booked', 'shot' => 'Shot', 'delivered' => 'Delivered', 'archived' => 'Archived'];
