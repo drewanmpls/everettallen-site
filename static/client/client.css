@@ -7,7 +7,7 @@ a{color:inherit}
 .kicker{font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:14px;color:var(--mut);margin:0}
 .wrap{padding:0 28px 64px}
 .narrow{max-width:520px;margin:12vh auto;padding:0 24px}
-h1{font-weight:800;text-transform:uppercase;letter-spacing:-.03em;line-height:.95;font-size:clamp(40px,8vw,96px);margin:8px 0 12px}
+h1{font-weight:800;text-transform:uppercase;letter-spacing:-.03em;word-spacing:.18em;line-height:.95;font-size:clamp(40px,8vw,96px);margin:8px 0 12px}
 .narrow h1{font-size:clamp(32px,6vw,52px)}
 .who{font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;margin:0 0 8px}
 .note{max-width:62ch;font-size:18px}.help{max-width:62ch;color:var(--mut);font-size:14px}
