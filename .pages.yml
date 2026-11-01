@@ -11,6 +11,7 @@ content:
       - { name: title, label: Title, type: string }
       - { name: category, label: Category, type: select, options: { values: [portraits, events] } }
       - { name: year, label: Event year (groups the Events page), type: string }
+      - { name: series, label: Recurring event series (shows on the Events page and gets its own page), type: select, options: { values: [tclfw, leather-at-twin-cities-pride, mnlp, atons, iml-imbb, twin-cities-pride, floggapalooza, deconstructed-pride, mr-minnesota-leather] } }
       - { name: date, label: Date (YYYY-MM-DD, newest first within a year), type: string }
       - { name: cover, label: Cover photo ID (e.g. 001), type: string }
       - { name: description, label: Description, type: text }
@@ -21,6 +22,21 @@ content:
         fields:
           - { name: id, label: Photo ID (files are photos/GALLERY/ID-t.jpg and ID-l.jpg), type: string }
           - { name: ratio, label: Width divided by height, type: number }
+  - name: series
+    label: Event series (names, short labels, descriptions)
+    type: file
+    path: content/series.json
+    format: json
+    fields:
+      - name: series
+        label: Series
+        type: object
+        list: true
+        fields:
+          - { name: slug, label: Slug (lowercase, dashes; also add it to the Series list on galleries), type: string }
+          - { name: name, label: Full name, type: string }
+          - { name: short, label: Short label for the By event row, type: string }
+          - { name: desc, label: Short description, type: text }
   - name: pages
     label: Pages (About, Press and licensing, Photo removal)
     type: collection

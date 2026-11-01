@@ -1,0 +1,13 @@
+{
+  "series": [
+    {"slug": "tclfw", "name": "Twin Cities Leather & Fetish Weekend", "short": "TCLFW", "desc": "The annual weekend of contests, community and celebration, including the Twin Cities Leather and Twin Cities Fetish contests and Floggapalooza."},
+    {"slug": "leather-at-twin-cities-pride", "name": "Leather at Twin Cities Pride", "short": "Leather at Pride", "desc": "The leather contingent at the Twin Cities Pride parade and festival, year by year."},
+    {"slug": "mnlp", "name": "Minnesota Leather Pride", "short": "MNLP", "desc": "Events, title holders and community nights from Minnesota Leather Pride."},
+    {"slug": "atons", "name": "Atons of Minneapolis", "short": "Atons", "desc": "Portraits and events with the Atons of Minneapolis."},
+    {"slug": "iml-imbb", "name": "International Mister Leather and Bootblack", "short": "IML / IMBB / IMLBB", "desc": "International Mister Leather and International Mister Bootblack weekend in Chicago."},
+    {"slug": "twin-cities-pride", "name": "Twin Cities Pride", "short": "TC Pride", "desc": "The Twin Cities Pride parade and festival."},
+    {"slug": "floggapalooza", "name": "Floggapalooza", "short": "Floggapalooza", "desc": "MNLP's Floggapalooza."},
+    {"slug": "deconstructed-pride", "name": "Deconstructed Pride / Ritual Acts", "short": "Deconstructed Pride", "desc": "Deconstructed Pride and Ritual Acts."},
+    {"slug": "mr-minnesota-leather", "name": "Mr. Minnesota Leather and title contests", "short": "MN titles", "desc": "Mr. Minnesota Leather and other title contests."}
+  ]
+}
