@@ -23,7 +23,7 @@ def esc_desc(t):
     return ''.join(f'<p>{p}</p>' for p in t.split('\n\n') if p.strip())
 SOC=f'<a href="{site["facebook"]}" target="_blank" rel="noopener">Facebook</a> / <a href="{site["instagram"]}" target="_blank" rel="noopener">Instagram</a>'
 FL='<a href="/services/">Services</a> / <a href="/about/">About</a> / <a href="/licensing/">Press and licensing</a> / <a href="/removal/">Photo removal</a>'
-def page(title,body,path,section,desc=''):
+def page(title,body,path,section,desc='',image=''):
     t=site['title'] if not title else f"{title} | {site['title']}"
     d=e(desc or site['tagline'])
     if section=='Portraits': nav='<a href="/events/">Events &rarr;</a><a href="/search/">Search</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
@@ -31,7 +31,7 @@ def page(title,body,path,section,desc=''):
     else: nav='<a href="/">Portraits</a><a href="/events/">Events</a><a href="/search/">Search</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(t)}</title><meta name="description" content="{d}"><link rel="canonical" href="{site['base_url']}{path}">
-<meta property="og:title" content="{e(t)}"><meta property="og:description" content="{d}"><meta property="og:type" content="website">
+<meta property="og:title" content="{e(t)}"><meta property="og:description" content="{d}"><meta property="og:type" content="website"><meta property="og:site_name" content="{e(site['title'])}"><meta property="og:url" content="{site['base_url']}{path}"><meta property="og:image" content="{site['base_url']}{image or '/assets/og-default.jpg'}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{e(t)}"><meta name="twitter:description" content="{d}"><meta name="twitter:image" content="{site['base_url']}{image or '/assets/og-default.jpg'}">
 <link rel="icon" href="/assets/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Archivo+Narrow:wght@500&display=swap" rel="stylesheet"><link rel="stylesheet" href="/css/style.css"></head>
 <body><a class="skip" href="#content">Skip to content</a>
@@ -83,12 +83,12 @@ for x in active:
     yrs=sorted({g['year'] for g in gs},reverse=True)
     cards=''.join(f'<a class="card" href="/gallery/{g["slug"]}/"><img loading="lazy" src="{img(g,"t")}" alt=""><span><b>{e(g["title"])}</b><small>{g["year"]} / {len(g["images"])} photos</small></span></a>' for g in gs)
     n=sum(len(g['images']) for g in gs)
-    w(f'/series/{x["slug"]}/',page(x['name'],f'<div class="wrap"><p class="meta"><a href="/events/">&larr; Events</a></p><h1 class="h1">{e(x["name"])}</h1><p class="meta">{len(gs)} galleries / {n} photos / {yrs[-1]}{"" if yrs[-1]==yrs[0] else " &ndash; "+yrs[0]}</p><div class="desc"><p>{e(x["desc"])}</p></div><div class="cards">{cards}</div></div>','/events/','Events',x['desc'][:160]))
+    w(f'/series/{x["slug"]}/',page(x['name'],f'<div class="wrap"><p class="meta"><a href="/events/">&larr; Events</a></p><h1 class="h1">{e(x["name"])}</h1><p class="meta">{len(gs)} galleries / {n} photos / {yrs[-1]}{"" if yrs[-1]==yrs[0] else " &ndash; "+yrs[0]}</p><div class="desc"><p>{e(x["desc"])}</p></div><div class="cards">{cards}</div></div>','/events/','Events',x['desc'][:160],img(gs[0],'l')))
 # ---- Tag pages, search page and index
 for ts,tv in TAGS.items():
     gs=sorted(tv['g'],key=newest,reverse=True)
     cards=''.join(f'<a class="card" href="/gallery/{g["slug"]}/"><img loading="lazy" src="{img(g,"t")}" alt=""><span><b>{e(g["title"])}</b><small>{g["year"]} / {len(g["images"])} photos</small></span></a>' for g in gs)
-    w(f'/tag/{ts}/',page(tv['name'],f'<div class="wrap"><p class="meta"><a href="/search/">&larr; Search</a></p><h1 class="h1">{e(tv["name"])}</h1><p class="meta">{len(gs)} galleries</p><div class="cards">{cards}</div></div>','/search/','Events',f'Galleries tagged {tv["name"]}'))
+    w(f'/tag/{ts}/',page(tv['name'],f'<div class="wrap"><p class="meta"><a href="/search/">&larr; Search</a></p><h1 class="h1">{e(tv["name"])}</h1><p class="meta">{len(gs)} galleries</p><div class="cards">{cards}</div></div>','/search/','Events',f'Galleries tagged {tv["name"]}',img(gs[0],'l')))
 idx=[{'t':g['title'],'u':f'/gallery/{g["slug"]}/','i':img(g,'t'),'y':g['year'],'c':cats[g['category']],'s':ser_by[g['series']]['name'] if g.get('series') in ser_by else '','g':g['tags'],'k':ser_by[g['series']]['short'] if g.get('series') in ser_by else '','n':len(g['images'])} for g in sorted(G,key=newest,reverse=True)]
 open('dist/search-index.json','w').write(json.dumps(idx,separators=(',',':')))
 chips=''.join(f'<a href="#" data-q="{e(x["short"])}">{e(x["short"])}</a>' for x in active)+''.join(f'<a href="#" data-q="{e(tv["name"])}">{e(tv["name"])}</a>' for tv in sorted(TAGS.values(),key=lambda v:v['name'].lower()))+''.join(f'<a href="#" data-q="{y}">{y}</a>' for y in sorted({g['year'] for g in G},reverse=True))
@@ -103,7 +103,7 @@ for g in G:
     tg=''.join(f'<a href="/tag/{slugify(t)}/">{e(t)}</a>' for t in g['tags'])
     tg=f'<p class="tags">{tg}</p>' if tg else ''
     back=f'<a href="/{g["category"]}/">&larr; {sec}</a>'
-    w(f'/gallery/{s}/',page(g['title'],f'<div class="wrap"><p class="meta">{back}</p><h1 class="h1">{e(g["title"])}</h1><p class="meta">{g["year"]} / {len(g["images"])} photos{sx}</p><div class="desc">{d}</div>{tg}<div class="grid">{items}</div><p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div>',f'/{g["category"]}/',sec,re.sub('<[^>]+>','',d)[:160] or f'{g["title"]} by Everett Allen Photography'))
+    w(f'/gallery/{s}/',page(g['title'],f'<div class="wrap"><p class="meta">{back}</p><h1 class="h1">{e(g["title"])}</h1><p class="meta">{g["year"]} / {len(g["images"])} photos{sx}</p><div class="desc">{d}</div>{tg}<div class="grid">{items}</div><p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div>',f'/{g["category"]}/',sec,re.sub('<[^>]+>','',d)[:160] or f'{g["title"]} by Everett Allen Photography',f'/photos/{s}/{g["cover"]}-l.jpg'))
 # ---- Contact etc.
 w('/contact/',page('Contact',f'<div class="wrap narrow"><h1 class="h1">Let\'s connect</h1><p class="lede2">{e(site["contact_intro"])}</p><form class="contact" method="post" action="/contact/send.php"><div class="row2"><label>First name<input name="first" required autocomplete="given-name"></label><label>Last name<input name="last" autocomplete="family-name"></label></div><label>Email<input type="email" name="email" required autocomplete="email"></label><label>Message<textarea name="message" rows="6" required></textarea></label><input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn" type="submit">Send</button></form></div>','/contact/','Contact','Contact Everett Allen Photography'))
 
