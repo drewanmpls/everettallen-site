@@ -11,6 +11,11 @@ for f in glob.glob('content/galleries/*.json'):
 G=[g for g in G if g['images']]
 SER=json.load(open('content/series.json'))['series']
 ser_by={x['slug']:x for x in SER}
+def slugify(t): return re.sub(r'[^a-z0-9]+','-',t.lower()).strip('-')
+TAGS={}
+for g in G:
+    g['tags']=[t.strip() for t in g.get('tags',[]) if t.strip()]
+    for t in g['tags']: TAGS.setdefault(slugify(t),{'name':t,'g':[]})['g'].append(g)
 by_slug={g['slug']:g for g in G}
 newest=lambda g:(g['year'],g['date'],g['slug'])
 def esc_desc(t):
@@ -21,9 +26,9 @@ FL='<a href="/services/">Services</a> / <a href="/about/">About</a> / <a href="/
 def page(title,body,path,section,desc=''):
     t=site['title'] if not title else f"{title} | {site['title']}"
     d=e(desc or site['tagline'])
-    if section=='Portraits': nav='<a href="/events/">Events &rarr;</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
-    elif section=='Events': nav='<a href="/">&larr; Portraits</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
-    else: nav='<a href="/">Portraits</a><a href="/events/">Events</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
+    if section=='Portraits': nav='<a href="/events/">Events &rarr;</a><a href="/search/">Search</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
+    elif section=='Events': nav='<a href="/">&larr; Portraits</a><a href="/search/">Search</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
+    else: nav='<a href="/">Portraits</a><a href="/events/">Events</a><a href="/search/">Search</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(t)}</title><meta name="description" content="{d}"><link rel="canonical" href="{site['base_url']}{path}">
 <meta property="og:title" content="{e(t)}"><meta property="og:description" content="{d}"><meta property="og:type" content="website">
@@ -79,6 +84,15 @@ for x in active:
     cards=''.join(f'<a class="card" href="/gallery/{g["slug"]}/"><img loading="lazy" src="{img(g,"t")}" alt=""><span><b>{e(g["title"])}</b><small>{g["year"]} / {len(g["images"])} photos</small></span></a>' for g in gs)
     n=sum(len(g['images']) for g in gs)
     w(f'/series/{x["slug"]}/',page(x['name'],f'<div class="wrap"><p class="meta"><a href="/events/">&larr; Events</a></p><h1 class="h1">{e(x["name"])}</h1><p class="meta">{len(gs)} galleries / {n} photos / {yrs[-1]}{"" if yrs[-1]==yrs[0] else " &ndash; "+yrs[0]}</p><div class="desc"><p>{e(x["desc"])}</p></div><div class="cards">{cards}</div></div>','/events/','Events',x['desc'][:160]))
+# ---- Tag pages, search page and index
+for ts,tv in TAGS.items():
+    gs=sorted(tv['g'],key=newest,reverse=True)
+    cards=''.join(f'<a class="card" href="/gallery/{g["slug"]}/"><img loading="lazy" src="{img(g,"t")}" alt=""><span><b>{e(g["title"])}</b><small>{g["year"]} / {len(g["images"])} photos</small></span></a>' for g in gs)
+    w(f'/tag/{ts}/',page(tv['name'],f'<div class="wrap"><p class="meta"><a href="/search/">&larr; Search</a></p><h1 class="h1">{e(tv["name"])}</h1><p class="meta">{len(gs)} galleries</p><div class="cards">{cards}</div></div>','/search/','Events',f'Galleries tagged {tv["name"]}'))
+idx=[{'t':g['title'],'u':f'/gallery/{g["slug"]}/','i':img(g,'t'),'y':g['year'],'c':cats[g['category']],'s':ser_by[g['series']]['name'] if g.get('series') in ser_by else '','g':g['tags'],'k':ser_by[g['series']]['short'] if g.get('series') in ser_by else '','n':len(g['images'])} for g in sorted(G,key=newest,reverse=True)]
+open('dist/search-index.json','w').write(json.dumps(idx,separators=(',',':')))
+chips=''.join(f'<a href="#" data-q="{e(x["short"])}">{e(x["short"])}</a>' for x in active)+''.join(f'<a href="#" data-q="{e(tv["name"])}">{e(tv["name"])}</a>' for tv in sorted(TAGS.values(),key=lambda v:v['name'].lower()))+''.join(f'<a href="#" data-q="{y}">{y}</a>' for y in sorted({g['year'] for g in G},reverse=True))
+w('/search/',page('Search',f'<div class="wrap"><h1 class="h1">Search</h1><p class="meta">Find a gallery by name, year, event or tag</p><form class="sform" role="search" onsubmit="return false"><input id="q" type="search" placeholder="Try a name, TCLFW, Pride, 2025..." autocomplete="off" aria-label="Search galleries"></form><div class="chips">{chips}</div><p class="meta" id="rc"></p><div class="cards" id="res"></div><noscript><p class="lede2">Search needs JavaScript. Browse <a href="/portraits/">Portraits</a> or <a href="/events/">Events</a> instead.</p></noscript></div><script src="/js/search.js" defer></script>','/search/','Events','Search galleries by name, year, event or tag'))
 # ---- Gallery pages
 for g in G:
     s=g['slug']; sec=cats[g['category']]
@@ -86,8 +100,10 @@ for g in G:
     d=esc_desc(g['description'])
     sr=ser_by.get(g.get('series'))
     sx=f' / <a href="/series/{sr["slug"]}/">More from {e(sr["name"])}</a>' if sr else ''
+    tg=''.join(f'<a href="/tag/{slugify(t)}/">{e(t)}</a>' for t in g['tags'])
+    tg=f'<p class="tags">{tg}</p>' if tg else ''
     back=f'<a href="/{g["category"]}/">&larr; {sec}</a>'
-    w(f'/gallery/{s}/',page(g['title'],f'<div class="wrap"><p class="meta">{back}</p><h1 class="h1">{e(g["title"])}</h1><p class="meta">{g["year"]} / {len(g["images"])} photos{sx}</p><div class="desc">{d}</div><div class="grid">{items}</div><p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div>',f'/{g["category"]}/',sec,re.sub('<[^>]+>','',d)[:160] or f'{g["title"]} by Everett Allen Photography'))
+    w(f'/gallery/{s}/',page(g['title'],f'<div class="wrap"><p class="meta">{back}</p><h1 class="h1">{e(g["title"])}</h1><p class="meta">{g["year"]} / {len(g["images"])} photos{sx}</p><div class="desc">{d}</div>{tg}<div class="grid">{items}</div><p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div>',f'/{g["category"]}/',sec,re.sub('<[^>]+>','',d)[:160] or f'{g["title"]} by Everett Allen Photography'))
 # ---- Contact etc.
 w('/contact/',page('Contact',f'<div class="wrap narrow"><h1 class="h1">Let\'s connect</h1><p class="lede2">{e(site["contact_intro"])}</p><form class="contact" method="post" action="/contact/send.php"><div class="row2"><label>First name<input name="first" required autocomplete="given-name"></label><label>Last name<input name="last" autocomplete="family-name"></label></div><label>Email<input type="email" name="email" required autocomplete="email"></label><label>Message<textarea name="message" rows="6" required></textarea></label><input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn" type="submit">Send</button></form></div>','/contact/','Contact','Contact Everett Allen Photography'))
 
@@ -127,7 +143,7 @@ json.dump([{'title':c['title'],'price':c['price'],'unit':c.get('unit',''),'meta'
 json.dump({'percent':int(SV.get('share_discount_percent',0) or 0),'title':SV.get('release_title',''),'version':SV.get('release_version',''),'terms':SV.get('release_terms',[]),'definitions':SV.get('release_definitions',[]),'gallery_question':SV.get('release_gallery_question',''),'consideration':SV.get('release_consideration','')},open('dist/client/share.json','w'),ensure_ascii=False)
 w('/thanks/',page('Thanks','<div class="wrap narrow"><h1 class="h1">Thanks!</h1><p class="lede2">Your message was sent. I\'ll get back to you soon.</p><p><a href="/">Back home</a></p></div>','/thanks/','Contact'))
 w('/404.html',page('Not found','<div class="wrap narrow"><h1 class="h1">Page not found</h1><p class="lede2"><a href="/">Back home</a> or browse <a href="/portraits/">Portraits</a> and <a href="/events/">Events</a>.</p></div>','/404','Contact'))
-urls=['/','/portraits/','/events/','/services/','/contact/']+[f'/{k}/' for k in TP]+[f'/series/{x["slug"]}/' for x in active]+[f'/gallery/{g["slug"]}/' for g in G]
+urls=['/','/portraits/','/events/','/search/','/services/','/contact/']+[f'/tag/{t}/' for t in TAGS]+[f'/{k}/' for k in TP]+[f'/series/{x["slug"]}/' for x in active]+[f'/gallery/{g["slug"]}/' for g in G]
 open('dist/sitemap.xml','w').write('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+''.join(f'<url><loc>{site["base_url"]}{u}</loc></url>' for u in urls)+'</urlset>')
 open('dist/robots.txt','w').write(f'User-agent: *\nAllow: /\nDisallow: /client/\nSitemap: {site["base_url"]}/sitemap.xml\n')
 ht=['ErrorDocument 404 /404.html','RewriteEngine On','RewriteCond %{HTTPS} off','RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]',

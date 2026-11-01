@@ -89,3 +89,10 @@ footer .fl a{text-decoration:none}footer .fl a:hover{text-decoration:underline}
 .byevent a small{font-size:12px;opacity:.7}
 .byevent a:hover{background:var(--ink);color:var(--bg)}
 @media(max-width:760px){.byevent{padding-left:20px;padding-right:20px}}
+.sform{margin:18px 0 12px;max-width:720px}
+.sform input{width:100%;font:inherit;font-size:22px;padding:14px 16px;border:2px solid var(--ink);background:#f6f3ec;color:var(--ink);border-radius:0}
+.sform input:focus{outline:3px solid var(--blue);outline-offset:2px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px}
+.chips a,.tags a{border:2px solid var(--ink);padding:4px 10px;font-family:"Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:14px}
+.chips a:hover,.tags a:hover{background:var(--ink);color:var(--bg)}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 16px}

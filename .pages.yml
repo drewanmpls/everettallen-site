@@ -13,6 +13,7 @@ content:
       - { name: year, label: Event year (groups the Events page), type: string }
       - { name: series, label: Recurring event series (shows on the Events page and gets its own page), type: select, options: { values: [tclfw, leather-at-twin-cities-pride, mnlp, atons, iml-imbb, twin-cities-pride, floggapalooza, deconstructed-pride, mr-minnesota-leather] } }
       - { name: date, label: Date (YYYY-MM-DD, newest first within a year), type: string }
+      - { name: tags, label: Tags (one per line or press Enter after each; they become search chips and tag pages), type: string, list: true }
       - { name: cover, label: Cover photo ID (e.g. 001), type: string }
       - { name: description, label: Description, type: text }
       - name: images
