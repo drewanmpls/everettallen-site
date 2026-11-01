@@ -54,7 +54,7 @@ function db(): PDO {
     CREATE TABLE IF NOT EXISTS claims (image_id INTEGER PRIMARY KEY REFERENCES images(id) ON DELETE CASCADE, created INTEGER NOT NULL);
     ");
     foreach ([['galleries', 'included_count', 'INTEGER NOT NULL DEFAULT 0'], ['galleries', 'default_web_cents', 'INTEGER NOT NULL DEFAULT 0'],
-              ['images', 'price_web_cents', 'INTEGER'], ['galleries', 'client_id', 'INTEGER'], ['clients', 'release_text', "TEXT DEFAULT ''"], ['clients', 'release_stage', "TEXT DEFAULT ''"], ['clients', 'release_dob', "TEXT DEFAULT ''"], ['clients', 'release_gallery', "TEXT DEFAULT ''"], ['clients', 'release_version', "TEXT DEFAULT ''"], ['clients', 'release_pdf', "TEXT DEFAULT ''"], ['clients', 'release_sig', "TEXT DEFAULT ''"], ['clients', 'drive_status', "TEXT DEFAULT ''"], ['clients', 'drive_url', "TEXT DEFAULT ''"], ['clients', 'shoot_date', "TEXT DEFAULT ''"], ['clients', 'shoot_location', "TEXT DEFAULT ''"], ['clients', 'id_verified', "TEXT DEFAULT ''"], ['clients', 'release_name', "TEXT DEFAULT ''"], ['clients', 'release_at', 'INTEGER'], ['clients', 'discount_percent', 'INTEGER NOT NULL DEFAULT 0'], ['orders', 'tier', "TEXT NOT NULL DEFAULT 'full'"]] as [$t, $c, $def]) {
+              ['images', 'price_web_cents', 'INTEGER'], ['galleries', 'client_id', 'INTEGER'], ['clients', 'release_text', "TEXT DEFAULT ''"], ['clients', 'release_stage', "TEXT DEFAULT ''"], ['clients', 'release_dob', "TEXT DEFAULT ''"], ['clients', 'release_gallery', "TEXT DEFAULT ''"], ['clients', 'release_version', "TEXT DEFAULT ''"], ['clients', 'release_pdf', "TEXT DEFAULT ''"], ['clients', 'release_sig', "TEXT DEFAULT ''"], ['clients', 'drive_status', "TEXT DEFAULT ''"], ['clients', 'drive_url', "TEXT DEFAULT ''"], ['clients', 'shoot_date', "TEXT DEFAULT ''"], ['clients', 'shoot_location', "TEXT DEFAULT ''"], ['clients', 'id_verified', "TEXT DEFAULT ''"], ['clients', 'release_name', "TEXT DEFAULT ''"], ['clients', 'release_at', 'INTEGER'], ['clients', 'photo_path', "TEXT DEFAULT ''"], ['clients', 'idphoto_path', "TEXT DEFAULT ''"], ['clients', 'discount_percent', 'INTEGER NOT NULL DEFAULT 0'], ['orders', 'tier', "TEXT NOT NULL DEFAULT 'full'"]] as [$t, $c, $def]) {
         $has = false;
         foreach ($pdo->query("PRAGMA table_info($t)") as $col) if ($col['name'] === $c) $has = true;
         if (!$has) $pdo->exec("ALTER TABLE $t ADD COLUMN $c $def");
@@ -257,6 +257,26 @@ function share_offer(): array {
     return ['percent' => $pc, 'title' => (string)($j['title'] ?? 'Model Release Agreement'), 'version' => (string)($j['version'] ?? ''), 'terms' => $terms, 'definitions' => $defs,
             'gallery_question' => (string)($j['gallery_question'] ?? ''), 'consideration' => $pc > 0 ? $cons : '', 'text' => $text];
 }
+// Model photo / ID photo: private files next to the release PDFs (never in the web root). Re-encoded as a plain JPEG (strips location metadata).
+function store_release_photo(int $clientId, string $kind, array $file): ?string {
+    if (($file['error'] ?? 4) !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'] ?? '')) return null;
+    if (($file['size'] ?? 0) > 15 * 1024 * 1024) return null;
+    $raw = (string)file_get_contents($file['tmp_name']);
+    $im = @imagecreatefromstring($raw);
+    if (!$im) return null;
+    if (function_exists('exif_read_data') && ($i = @getimagesizefromstring($raw)) && $i[2] === IMAGETYPE_JPEG) {
+        $ex = @exif_read_data($file['tmp_name']);
+        $o = (int)($ex['Orientation'] ?? 1);
+        if ($o === 3) $im = imagerotate($im, 180, 0); elseif ($o === 6) $im = imagerotate($im, -90, 0); elseif ($o === 8) $im = imagerotate($im, 90, 0);
+    }
+    $w = imagesx($im); $h = imagesy($im); $max = 1400;
+    if (max($w, $h) > $max) { $r = $max / max($w, $h); $n = imagescale($im, (int)round($w * $r), (int)round($h * $r)); if ($n) $im = $n; }
+    $flat = imagecreatetruecolor(imagesx($im), imagesy($im)); imagefill($flat, 0, 0, imagecolorallocate($flat, 255, 255, 255)); imagecopy($flat, $im, 0, 0, 0, 0, imagesx($im), imagesy($im));
+    $path = release_dir() . '/' . $clientId . '-' . ($kind === 'id' ? 'id' : 'model') . '.jpg';
+    ob_start(); imagejpeg($flat, null, 85); $jpg = (string)ob_get_clean();
+    file_put_contents($path, $jpg); @chmod($path, 0600);
+    return $path;
+}
 function release_dir(): string { $d = priv_dir() . '/releases'; if (!is_dir($d)) @mkdir($d, 0700, true); return $d; }
 function release_filename(array $c): string {
     $d = date('Ymd', (int)($c['release_at'] ?: $c['created']));
@@ -295,6 +315,13 @@ function build_release_pdf(array $c): string {
     $p->field('Date of birth:', $dobT ? $dobT->format('m/d/Y') : (string)$c['release_dob']);
     $p->field('Email:', (string)$c['email']);
     $p->space(8);
+    $mp = $c['photo_path'] !== '' && is_file($c['photo_path']) ? file_get_contents($c['photo_path']) : '';
+    $ip = $c['idphoto_path'] !== '' && is_file($c['idphoto_path']) ? file_get_contents($c['idphoto_path']) : '';
+    if ($mp !== '' || $ip !== '') {
+        $p->rule();
+        if ($mp !== '') { $p->ensure(230); $p->line('Model photo', 11, true); $p->space(2); $p->jpeg($mp, 190); $p->space(6); }
+        if ($ip !== '') { $p->ensure(230); $p->line('Photo ID (copy for the record)', 11, true); $p->space(2); $p->jpeg($ip, 270); $p->space(6); }
+    }
     $p->ensure(170);
     $p->line('Model signature', 11, true); $p->space(2);
     $sig = $c['release_sig'] !== '' && is_file($c['release_sig']) ? file_get_contents($c['release_sig']) : '';

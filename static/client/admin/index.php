@@ -70,6 +70,12 @@ if ($a === 'thumb') {
     header('Content-Type: image/jpeg'); header('Cache-Control: private, max-age=3600'); readfile($p); exit;
 }
 
+if ($a === 'releasephoto') {
+    $cs = db()->prepare('SELECT photo_path, idphoto_path FROM clients WHERE id = ?'); $cs->execute([(int)($_GET['id'] ?? 0)]); $c = $cs->fetch();
+    $f = $c ? (($_GET['k'] ?? '') === 'id' ? $c['idphoto_path'] : $c['photo_path']) : '';
+    if (!$f || !is_file($f)) { http_response_code(404); echo 'No photo'; exit; }
+    header('Content-Type: image/jpeg'); header('Cache-Control: private, no-store'); readfile($f); exit;
+}
 if ($a === 'releasepdf') {
     $cs = db()->prepare('SELECT * FROM clients WHERE id = ?'); $cs->execute([(int)($_GET['id'] ?? 0)]); $c = $cs->fetch();
     if (!$c || !$c['release_at']) { http_response_code(404); echo 'No release'; exit; }
@@ -156,6 +162,11 @@ if ($post) {
         if ($c0->fetchColumn()) {
             db()->prepare('UPDATE clients SET shoot_date = ?, shoot_location = ?, id_verified = ? WHERE id = ?')
                 ->execute([trim((string)($_POST['shoot_date'] ?? '')), trim((string)($_POST['shoot_location'] ?? '')), trim((string)($_POST['id_verified'] ?? '')), $id]);
+            foreach (['photo' => ['model', 'photo_path'], 'idphoto' => ['id', 'idphoto_path']] as $in => [$kind, $col]) {
+                $cur = db()->prepare("SELECT $col FROM clients WHERE id = ?"); $cur->execute([$id]); $old = (string)$cur->fetchColumn();
+                if (!empty($_POST['remove_' . $in]) && $old !== '') { @unlink($old); db()->prepare("UPDATE clients SET $col = '' WHERE id = ?")->execute([$id]); }
+                if (!empty($_FILES[$in]['name'])) { $sp = store_release_photo($id, $kind, $_FILES[$in]); if ($sp) db()->prepare("UPDATE clients SET $col = ? WHERE id = ?")->execute([$sp, $id]); }
+            }
             save_release_pdf($id);
             if (!empty($_POST['to_drive'])) drive_upload($id);
         }
@@ -185,7 +196,7 @@ if ($post) {
         go($base . '?a=client&id=' . (int)($_POST['client_id'] ?? 0) . '&saved=1');
     }
     if ($a === 'clientdel') {
-        if (($_POST['confirm'] ?? '') === 'DELETE') { db()->prepare('UPDATE galleries SET client_id = NULL WHERE client_id = ?')->execute([$id]); db()->prepare('DELETE FROM clients WHERE id = ?')->execute([$id]); go($base . '?a=clients'); }
+        if (($_POST['confirm'] ?? '') === 'DELETE') { $pf = db()->prepare('SELECT photo_path, idphoto_path, release_pdf, release_sig FROM clients WHERE id = ?'); $pf->execute([$id]); foreach ((array)$pf->fetch() as $fp) { if (is_string($fp) && $fp !== '' && is_file($fp)) @unlink($fp); } db()->prepare('UPDATE galleries SET client_id = NULL WHERE client_id = ?')->execute([$id]); db()->prepare('DELETE FROM clients WHERE id = ?')->execute([$id]); go($base . '?a=clients'); }
         go($base . '?a=client&id=' . $id);
     }
     if ($a === 'resetclaims') {
@@ -356,10 +367,14 @@ if ($a === 'client') {
 <b>Google Drive:</b> <?= $ds === 'saved' ? '<span class="ok">saved</span>' . ($c['drive_url'] ? ' (<a href="' . h($c['drive_url']) . '" target="_blank" rel="noopener">open</a>)' : '') : ($ds === '' ? 'not sent' : '<span style="color:#b00020">' . h($ds) . '</span>') ?>
 <p style="margin:10px 0 0"><a class="btn sm" href="?a=releasepdf&id=<?= $c['id'] ?>" target="_blank">View / download PDF</a></p>
 <details style="margin-top:10px"><summary>Exact wording they agreed to</summary><p style="white-space:pre-line"><?= h($c['release_text']) ?></p></details></div>
-<form method="post" class="cols" style="margin-top:12px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="releasesave"><input type="hidden" name="id" value="<?= $c['id'] ?>">
+<form method="post" enctype="multipart/form-data" class="cols" style="margin-top:12px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="releasesave"><input type="hidden" name="id" value="<?= $c['id'] ?>">
 <label>Shoot date<input name="shoot_date" value="<?= h($c['shoot_date']) ?>" placeholder="11/15/2026"></label>
 <label>Shoot location<input name="shoot_location" value="<?= h($c['shoot_location']) ?>" placeholder="Studio, Minneapolis MN"></label>
 <label>ID checked in person (date, or leave blank)<input name="id_verified" value="<?= h($c['id_verified']) ?>" placeholder="11/15/2026"></label>
+<div><label>Model photo (adds to the PDF)<input type="file" name="photo" accept="image/*"></label>
+<?php if ($c['photo_path'] !== '' && is_file($c['photo_path'])): ?><div style="margin-top:6px"><img src="?a=releasephoto&k=model&id=<?= $c['id'] ?>" alt="" style="max-width:140px;max-height:140px;display:block"><label style="font-size:13px"><input type="checkbox" name="remove_photo" value="1" style="width:auto"> Remove this photo</label></div><?php endif; ?></div>
+<div><label>ID photo (adds to the PDF, then keep it private)<input type="file" name="idphoto" accept="image/*"></label>
+<?php if ($c['idphoto_path'] !== '' && is_file($c['idphoto_path'])): ?><div style="margin-top:6px"><img src="?a=releasephoto&k=id&id=<?= $c['id'] ?>" alt="" style="max-width:200px;max-height:140px;display:block"><label style="font-size:13px"><input type="checkbox" name="remove_idphoto" value="1" style="width:auto"> Remove this photo</label></div><?php endif; ?></div>
 <label style="align-self:end"><input type="checkbox" name="to_drive" value="1" style="width:auto" checked> Also save the updated PDF to Google Drive</label>
 <div style="grid-column:1/-1"><button class="btn sm">Update release PDF</button></div></form>
 <?php if ($ds !== 'saved'): ?><form method="post" style="margin-top:8px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="driveretry"><input type="hidden" name="id" value="<?= $c['id'] ?>"><button class="btn sm alt">Save to Google Drive now</button></form><?php endif; ?>
