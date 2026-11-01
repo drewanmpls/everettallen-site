@@ -147,6 +147,13 @@ urls=['/','/portraits/','/events/','/search/','/services/','/contact/']+[f'/tag/
 open('dist/sitemap.xml','w').write('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+''.join(f'<url><loc>{site["base_url"]}{u}</loc></url>' for u in urls)+'</urlset>')
 open('dist/robots.txt','w').write(f'User-agent: *\nAllow: /\nDisallow: /client/\nSitemap: {site["base_url"]}/sitemap.xml\n')
 ht=['ErrorDocument 404 /404.html','RewriteEngine On','RewriteCond %{HTTPS} off','RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]',
+'# Hotlink protection: other websites cannot embed /photos/ images. Allowed: this site, empty referrers (direct visits, privacy browsers, messaging apps), search engines and social/link-preview crawlers.',
+'RewriteCond %{REQUEST_URI} ^/photos/ [NC]',
+'RewriteCond %{HTTP_REFERER} !^$',
+'RewriteCond %{HTTP_REFERER} !^https?://([^/]+\\.)?everettallenphotography\\.com(:[0-9]+)?(/|$) [NC]',
+'RewriteCond %{HTTP_REFERER} !^https?://([^/]+\\.)?(google|bing|duckduckgo|yahoo|yandex|ecosia|brave|facebook|instagram|threads|twitter|x|t|linkedin|pinterest|reddit|bsky|mastodon)\\.[a-z.]+(/|$) [NC]',
+'RewriteCond %{HTTP_USER_AGENT} !(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|TelegramBot|Pinterest|Applebot|Googlebot|bingbot|DuckDuckBot|Mastodon|redditbot|Bluesky|Signal|Embedly) [NC]',
+'RewriteRule \\.(jpe?g|png|gif|webp)$ - [F,NC,L]',
 'RewriteRule ^client-galleries/gallery/(portraits|events)/?$ /$1/ [R=301,L]',
 'RewriteRule ^client-galleries/gallery/(?:portraits|events)/([^/]+)/?$ /gallery/$1/ [R=301,L]',
 'RewriteRule ^client-galleries/gallery/([^/]+)/?$ /gallery/$1/ [R=301,L]',
