@@ -22,7 +22,7 @@ function ahead(string $title): void { ?>
 .link{font-family:monospace;background:#f6f3ec;border:1px solid var(--line);padding:8px 10px;word-break:break-all;display:block}
 h2{font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:20px;margin:32px 0 8px}
 .drop{border:2px dashed var(--ink);padding:24px;text-align:center;background:#f6f3ec}.ok{color:#0a6b2d}.pill{display:inline-block;padding:1px 8px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:12px}</style></head><body>
-<header class="top"><a class="brand" href="/client/admin/">Gallery admin</a><span style="display:flex;gap:22px"><a href="/client/admin/">Galleries</a><a href="/client/admin/?a=clients">Clients</a><a href="/client/admin/?a=settings">Settings</a><a href="/client/admin/?a=logout">Log out</a></span></header><div class="adm">
+<header class="top"><a class="brand" href="/client/admin/">Gallery admin</a><span style="display:flex;gap:22px"><a href="/client/admin/">Galleries</a><a href="/client/admin/?a=clients">Clients</a><a href="/client/admin/?a=stats">Stats</a><a href="/client/admin/?a=settings">Settings</a><a href="/client/admin/?a=logout">Log out</a></span></header><script>try{localStorage.setItem("eaSkip","1")}catch(e){}</script><div class="adm">
 <?php }
 function afoot(): void { echo '</div></body></html>'; }
 
@@ -433,6 +433,33 @@ if ($a === 'client') {
 <h2>Delete client</h2>
 <p>Removes this record only. Their galleries stay and become unlinked.</p>
 <form method="post" onsubmit="return confirm('Delete this client record?')" style="display:flex;gap:8px;max-width:420px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="clientdel"><input type="hidden" name="id" value="<?= $c['id'] ?>"><input name="confirm" placeholder="Type DELETE"><button class="btn sm alt">Delete</button></form>
+<?php afoot(); exit;
+}
+
+if ($a === 'stats') {
+    ahead('Stats');
+    $days = in_array((int)($_GET['days'] ?? 30), [7, 30, 90, 365], true) ? (int)($_GET['days'] ?? 30) : 30;
+    $tz = new DateTimeZone('America/Chicago');
+    $from = (new DateTime('now', $tz))->modify('-' . ($days - 1) . ' days')->format('Y-m-d');
+    $q = db()->prepare('SELECT day, hits, visitors FROM stat_days WHERE day >= ?'); $q->execute([$from]);
+    $byday = []; foreach ($q->fetchAll() as $r) $byday[$r['day']] = $r;
+    $series = []; $dt = new DateTime($from, $tz); $maxv = 1; $tv = 0; $th = 0;
+    for ($i = 0; $i < $days; $i++) { $d = $dt->format('Y-m-d'); $r = $byday[$d] ?? ['hits' => 0, 'visitors' => 0]; $series[] = [$d, (int)$r['hits'], (int)$r['visitors']]; $maxv = max($maxv, (int)$r['hits']); $th += (int)$r['hits']; $tv += (int)$r['visitors']; $dt->modify('+1 day'); }
+    $top = function (string $col, string $where = '', int $lim = 15) use ($from) { $s = db()->prepare("SELECT $col AS k, SUM(hits) AS n FROM stat_hits WHERE day >= ? $where GROUP BY $col ORDER BY n DESC LIMIT $lim"); $s->execute([$from]); return $s->fetchAll(); };
+    $pages = $top('path', '', 20); $refs = $top('ref', "AND ref <> ''", 15); $devs = $top('dev', '', 5);
+    $tbl = function (array $rows, string $head) { echo '<table style="width:100%;max-width:640px;border-collapse:collapse"><tr><th style="text-align:left">' . h($head) . '</th><th style="text-align:right">Views</th></tr>'; foreach ($rows as $r) echo '<tr><td style="padding:4px 0;border-top:1px solid #0002">' . h($r['k']) . '</td><td style="text-align:right;border-top:1px solid #0002">' . (int)$r['n'] . '</td></tr>'; if (!$rows) echo '<tr><td colspan="2" style="padding:6px 0">Nothing yet.</td></tr>'; echo '</table>'; };
+    ?>
+<h1 style="font-size:clamp(32px,5vw,64px)">Stats</h1>
+<p>Page views and daily visitors for the public site. No cookies, no IP addresses or browser details are stored, and your own visits are not counted in this browser.
+<?php foreach ([7, 30, 90, 365] as $d): ?> <a href="?a=stats&days=<?= $d ?>"<?= $d === $days ? ' style="font-weight:800"' : '' ?>><?= $d ?> days</a><?php endforeach; ?></p>
+<p style="font-size:20px"><b><?= $th ?></b> page views, <b><?= $tv ?></b> visitor-days (a person who visits on 3 different days counts 3 times)</p>
+<div style="display:flex;align-items:flex-end;gap:2px;height:140px;max-width:900px;border-bottom:2px solid #111">
+<?php foreach ($series as [$d, $hv, $vv]): ?><div title="<?= h($d) ?>: <?= $hv ?> views, <?= $vv ?> visitors" style="flex:1;background:#2b2bff;height:<?= max(1, (int)round(130 * $hv / $maxv)) ?>px;min-width:1px;<?= $hv ? '' : 'opacity:.25' ?>"></div><?php endforeach; ?>
+</div>
+<p style="font-size:13px;max-width:900px;display:flex;justify-content:space-between"><span><?= h($series[0][0]) ?></span><span><?= h(end($series)[0]) ?></span></p>
+<h2>Top pages</h2><?php $tbl($pages, 'Page'); ?>
+<h2>Where visitors came from</h2><p>Sites that sent people here. "direct" means typed the address, used a bookmark, or came from an app that hides it.</p><?php $tbl($refs, 'Source'); ?>
+<h2>Devices</h2><?php $tbl($devs, 'Device'); ?>
 <?php afoot(); exit;
 }
 

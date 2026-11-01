@@ -29,6 +29,9 @@ function db(): PDO {
     $pdo->exec('PRAGMA foreign_keys = ON');
     $pdo->exec("
     CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT);
+    CREATE TABLE IF NOT EXISTS stat_hits (day TEXT, path TEXT, ref TEXT, dev TEXT, hits INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, path, ref, dev));
+    CREATE TABLE IF NOT EXISTS stat_days (day TEXT PRIMARY KEY, hits INTEGER NOT NULL DEFAULT 0, visitors INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS stat_seen (day TEXT, h TEXT, PRIMARY KEY (day, h));
     CREATE TABLE IF NOT EXISTS galleries (
         id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT UNIQUE NOT NULL, title TEXT NOT NULL,
         client_name TEXT DEFAULT '', client_email TEXT DEFAULT '', password_hash TEXT DEFAULT '',

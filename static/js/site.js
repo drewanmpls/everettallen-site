@@ -1,4 +1,5 @@
 (function(){
+try{if(!localStorage.getItem('eaSkip')&&navigator.doNotTrack!=='1'&&window.doNotTrack!=='1'&&navigator.sendBeacon)navigator.sendBeacon('/client/hit.php',new Blob([JSON.stringify({p:location.pathname,r:document.referrer,w:window.innerWidth})],{type:'text/plain'}))}catch(e){}
 var b=document.querySelector('.menu-btn'),n=document.getElementById('nav');
 if(b)b.addEventListener('click',function(){var o=n.classList.toggle('open');b.setAttribute('aria-expanded',o)});
 var s=document.querySelectorAll('.slide');

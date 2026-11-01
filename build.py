@@ -22,7 +22,7 @@ def esc_desc(t):
     t=e(t); t=re.sub(r'&lt;(/?)(strong|em)&gt;',r'<\1\2>',t)
     return ''.join(f'<p>{p}</p>' for p in t.split('\n\n') if p.strip())
 SOC=f'<a href="{site["facebook"]}" target="_blank" rel="noopener">Facebook</a> / <a href="{site["instagram"]}" target="_blank" rel="noopener">Instagram</a>'
-FL='<a href="/services/">Services</a> / <a href="/about/">About</a> / <a href="/licensing/">Press and licensing</a> / <a href="/removal/">Photo removal</a>'
+FL='<a href="/services/">Services</a> / <a href="/about/">About</a> / <a href="/licensing/">Press and licensing</a> / <a href="/removal/">Photo removal</a> / <a href="/privacy/">Privacy</a>'
 def page(title,body,path,section,desc='',image=''):
     t=site['title'] if not title else f"{title} | {site['title']}"
     d=e(desc or site['tagline'])
