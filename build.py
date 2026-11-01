@@ -103,9 +103,14 @@ def svc_card(c):
     pop=f' <em class="pop">{e(c["badge"])}</em>' if c.get('badge') else ''
     unit=f'<small>{e(c["unit"])}</small>' if c.get('unit') else ''
     return f'<div class="rate"><div class="rl"><h3>{e(c["title"])}{pop}</h3><p class="smeta">{e(c["meta"])}</p></div><ul class="rm">{items}</ul><div class="rp">{e(c["price"])}{unit}</div></div>'
+_pc=int(SV.get('share_discount_percent',0) or 0)
+share_p=f'<p class="deliv"><strong>Share-my-photos discount.</strong> {e(SV["share_note"].replace("{percent}",str(_pc)))}</p>' if _pc>0 and SV.get('share_note') else ''
 callout=md_inline(SV['callout']).replace('Umbra Arts Minneapolis','<strong>Umbra Arts Minneapolis</strong>')
 callout=re.sub(r'([\w.]+@[\w.]+\.com)',r'<a href="mailto:\1">\1</a>',callout)
-w('/services/',page(SV['title'],f'<div class="wrap"><h1 class="h1">{e(SV["title"])}</h1><p class="lede2">{e(SV["lede"])}</p><p class="deliv"><strong>All-digital delivery.</strong> {e(SV["delivery"])}</p><p class="callout">{callout}</p><div class="rates">{"".join(svc_card(c) for c in SV["cards"])}</div><section class="cta"><span>{e(SV["cta"])}</span><a class="btn" href="/contact/">Contact me</a></section></div>','/services/','Services','Portrait and event photography rates from Everett Allen Photography, delivered as digital files.'))
+w('/services/',page(SV['title'],f'<div class="wrap"><h1 class="h1">{e(SV["title"])}</h1><p class="lede2">{e(SV["lede"])}</p><p class="deliv"><strong>All-digital delivery.</strong> {e(SV["delivery"])}</p>{share_p}<p class="callout">{callout}</p><div class="rates">{"".join(svc_card(c) for c in SV["cards"])}</div><section class="cta"><span>{e(SV["cta"])}</span><a class="btn" href="/client/new/">New client form</a><a class="btn alt" href="/contact/">Just ask a question</a></section></div>','/services/','Services','Portrait and event photography rates from Everett Allen Photography, delivered as digital files.'))
+os.makedirs('dist/client',exist_ok=True)
+json.dump([{'title':c['title'],'price':c['price'],'unit':c.get('unit',''),'meta':c['meta'],'included':int(c.get('included',0) or 0)} for c in SV['cards']],open('dist/client/services.json','w'),ensure_ascii=False)
+json.dump({'percent':int(SV.get('share_discount_percent',0) or 0),'release_text':SV.get('release_text','')},open('dist/client/share.json','w'),ensure_ascii=False)
 w('/thanks/',page('Thanks','<div class="wrap narrow"><h1 class="h1">Thanks!</h1><p class="lede2">Your message was sent. I\'ll get back to you soon.</p><p><a href="/">Back home</a></p></div>','/thanks/','Contact'))
 w('/404.html',page('Not found','<div class="wrap narrow"><h1 class="h1">Page not found</h1><p class="lede2"><a href="/">Back home</a> or browse <a href="/portraits/">Portraits</a> and <a href="/events/">Events</a>.</p></div>','/404','Contact'))
 urls=['/','/portraits/','/events/','/services/','/contact/']+[f'/{k}/' for k in TP]+[f'/gallery/{g["slug"]}/' for g in G]

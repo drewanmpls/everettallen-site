@@ -2,6 +2,8 @@ Options -Indexes
 RewriteEngine On
 # Friendly private link: /client/g/<token>/
 RewriteRule ^g/([a-f0-9]{24})/?$ index.php?t=$1 [L,QSA]
+# New-client intake form: /client/new/
+RewriteRule ^new/?$ new.php [L,QSA]
 Header set X-Robots-Tag "noindex, nofollow, noarchive"
 <FilesMatch "\.(sqlite|db|log)$">
   Require all denied

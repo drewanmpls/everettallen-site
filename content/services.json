@@ -16,7 +16,8 @@
         "5 fully retouched, high-res digital files",
         "Online gallery with personal print rights",
         "Ideal for bios, headshots, and titleholder profiles"
-      ]
+      ],
+      "included": 5
     },
     {
       "title": "Standard Portrait and Fine Art",
@@ -30,7 +31,8 @@
         "Dynamic studio lighting or on-location",
         "Ideal for fine art, creative, and gear portraiture",
         "Online proofing and high-res delivery gallery"
-      ]
+      ],
+      "included": 12
     },
     {
       "title": "Couples and Engagement",
@@ -44,7 +46,8 @@
         "On location or in studio",
         "Full print release for save-the-dates and announcements",
         "Private digital download gallery"
-      ]
+      ],
+      "included": 15
     },
     {
       "title": "Creative Extended",
@@ -57,7 +60,8 @@
         "25 fully retouched, high-res digital files",
         "Multiple studio lighting set changes",
         "Complete portfolio and concept exploration"
-      ]
+      ],
+      "included": 25
     },
     {
       "title": "Community and Special Events",
@@ -70,7 +74,11 @@
         "Comprehensive candid and step-and-repeat event coverage",
         "Complete color-corrected digital archive with fast social-ready exports",
         "**15% community discount** for registered non-profits, clubs, and benefit runs"
-      ]
+      ],
+      "included": 0
     }
-  ]
+  ],
+  "share_discount_percent": 10,
+  "share_note": "Save {percent}% when you allow me to share photos from your session. You can choose this on the new client form, and it works as your photo release.",
+  "release_text": "I give Everett Allen Photography permission to publish photos from my session, including on the website, on social media, and in promotional materials, credited by name only if I ask. I can request that any photo be taken down at any time using the photo removal page, and Everett will remove it going forward. In exchange I receive {percent}% off my session fee."
 }

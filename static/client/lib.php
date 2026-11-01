@@ -46,10 +46,15 @@ function db(): PDO {
         id INTEGER PRIMARY KEY AUTOINCREMENT, gallery_id INTEGER NOT NULL, image_id INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,
         email TEXT DEFAULT '', status TEXT NOT NULL DEFAULT 'requested', provider_ref TEXT DEFAULT '', created INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS downloads (id INTEGER PRIMARY KEY AUTOINCREMENT, image_id INTEGER NOT NULL, created INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS clients (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT DEFAULT '', phone TEXT DEFAULT '', pronouns TEXT DEFAULT '',
+        service TEXT DEFAULT '', timeframe TEXT DEFAULT '', location TEXT DEFAULT '', handle TEXT DEFAULT '', referral TEXT DEFAULT '',
+        share_pref TEXT DEFAULT '', message TEXT DEFAULT '', status TEXT NOT NULL DEFAULT 'new', notes TEXT DEFAULT '',
+        source TEXT NOT NULL DEFAULT 'form', ip_hash TEXT DEFAULT '', created INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS claims (image_id INTEGER PRIMARY KEY REFERENCES images(id) ON DELETE CASCADE, created INTEGER NOT NULL);
     ");
     foreach ([['galleries', 'included_count', 'INTEGER NOT NULL DEFAULT 0'], ['galleries', 'default_web_cents', 'INTEGER NOT NULL DEFAULT 0'],
-              ['images', 'price_web_cents', 'INTEGER'], ['orders', 'tier', "TEXT NOT NULL DEFAULT 'full'"]] as [$t, $c, $def]) {
+              ['images', 'price_web_cents', 'INTEGER'], ['galleries', 'client_id', 'INTEGER'], ['clients', 'release_text', "TEXT DEFAULT ''"], ['clients', 'release_name', "TEXT DEFAULT ''"], ['clients', 'release_at', 'INTEGER'], ['clients', 'discount_percent', 'INTEGER NOT NULL DEFAULT 0'], ['orders', 'tier', "TEXT NOT NULL DEFAULT 'full'"]] as [$t, $c, $def]) {
         $has = false;
         foreach ($pdo->query("PRAGMA table_info($t)") as $col) if ($col['name'] === $c) $has = true;
         if (!$has) $pdo->exec("ALTER TABLE $t ADD COLUMN $c $def");
@@ -234,6 +239,20 @@ function ensure_web(int $gid, string $file): string {
     imagejpeg($web, $p, 88);
     return $p;
 }
+
+function services_list(): array {
+    $f = __DIR__ . '/services.json';
+    $j = is_file($f) ? json_decode((string)file_get_contents($f), true) : null;
+    return is_array($j) ? $j : [];
+}
+function share_offer(): array {
+    $f = __DIR__ . '/share.json';
+    $j = is_file($f) ? json_decode((string)file_get_contents($f), true) : null;
+    $pc = is_array($j) ? (int)($j['percent'] ?? 0) : 0;
+    $tx = is_array($j) ? (string)($j['release_text'] ?? '') : '';
+    return ['percent' => $pc, 'text' => str_replace('{percent}', (string)$pc, $tx)];
+}
+const CLIENT_STATUSES = ['new' => 'New', 'contacted' => 'Contacted', 'booked' => 'Booked', 'shot' => 'Shot', 'delivered' => 'Delivered', 'archived' => 'Archived'];
 
 function json_out(array $d, int $code = 200): void {
     http_response_code($code); header('Content-Type: application/json'); header('Cache-Control: no-store');

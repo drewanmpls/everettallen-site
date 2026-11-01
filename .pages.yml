@@ -42,6 +42,9 @@ content:
       - { name: delivery, label: Delivery notice, type: text }
       - { name: callout, label: Prints callout (email addresses become links), type: text }
       - { name: cta, label: Line above the Contact button, type: string }
+      - { name: share_discount_percent, label: Discount (percent) for allowing photo sharing (0 = no offer), type: number }
+      - { name: share_note, label: Services page sentence about the discount ({percent} becomes the number), type: text }
+      - { name: release_text, label: Photo release wording shown on the new client form ({percent} becomes the number), type: text }
       - name: cards
         label: Rate cards
         type: object
@@ -52,6 +55,7 @@ content:
           - { name: unit, label: Unit (like / hour), type: string }
           - { name: meta, label: Length and looks, type: string }
           - { name: badge, label: Badge (like Most popular, makes the card dark), type: string }
+          - { name: included, label: Photos included in the client gallery package (0 = none), type: number }
           - { name: wide, label: Full-width card, type: boolean }
           - { name: items, label: What's included, type: string, list: true }
   - name: site

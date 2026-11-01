@@ -22,7 +22,7 @@ function ahead(string $title): void { ?>
 .link{font-family:monospace;background:#f6f3ec;border:1px solid var(--line);padding:8px 10px;word-break:break-all;display:block}
 h2{font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:20px;margin:32px 0 8px}
 .drop{border:2px dashed var(--ink);padding:24px;text-align:center;background:#f6f3ec}.ok{color:#0a6b2d}.pill{display:inline-block;padding:1px 8px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:12px}</style></head><body>
-<header class="top"><a class="brand" href="/client/admin/">Gallery admin</a><span><a href="/client/admin/?a=logout" onclick="return true">Log out</a></span></header><div class="adm">
+<header class="top"><a class="brand" href="/client/admin/">Gallery admin</a><span style="display:flex;gap:22px"><a href="/client/admin/">Galleries</a><a href="/client/admin/?a=clients">Clients</a><a href="/client/admin/?a=logout">Log out</a></span></header><div class="adm">
 <?php }
 function afoot(): void { echo '</div></body></html>'; }
 
@@ -86,8 +86,8 @@ if ($post) {
         $g = gal($id);
         $pwHash = $g['password_hash'];
         if (!empty($_POST['clear_pw'])) $pwHash = ''; elseif ((string)($_POST['password'] ?? '') !== '') $pwHash = password_hash((string)$_POST['password'], PASSWORD_DEFAULT);
-        db()->prepare('UPDATE galleries SET title=?, client_name=?, client_email=?, password_hash=?, default_price_cents=?, default_web_cents=?, included_count=?, note=?, active=? WHERE id=?')
-            ->execute([trim((string)$_POST['title']) ?: $g['title'], trim((string)$_POST['client_name']), trim((string)$_POST['client_email']), $pwHash, dollars_to_cents((string)($_POST['price'] ?? '0')), dollars_to_cents((string)($_POST['price_web'] ?? '0')), max(0, (int)($_POST['included'] ?? 0)), trim((string)$_POST['note']), empty($_POST['active']) ? 0 : 1, $id]);
+        db()->prepare('UPDATE galleries SET title=?, client_name=?, client_email=?, password_hash=?, default_price_cents=?, default_web_cents=?, included_count=?, note=?, active=?, client_id=? WHERE id=?')
+            ->execute([trim((string)$_POST['title']) ?: $g['title'], trim((string)$_POST['client_name']), trim((string)$_POST['client_email']), $pwHash, dollars_to_cents((string)($_POST['price'] ?? '0')), dollars_to_cents((string)($_POST['price_web'] ?? '0')), max(0, (int)($_POST['included'] ?? 0)), trim((string)$_POST['note']), empty($_POST['active']) ? 0 : 1, (int)($_POST['client_id'] ?? 0) ?: null, $id]);
         go($base . '?a=gallery&id=' . $id . '&saved=1');
     }
     if ($a === 'upload') {
@@ -129,6 +129,36 @@ if ($post) {
         db()->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$st, (int)($_POST['order'] ?? 0)]);
         go($base . '?a=gallery&id=' . $id . '#orders');
     }
+    if ($a === 'clientsave') {
+        $f = []; foreach (['name', 'email', 'phone', 'pronouns', 'service', 'timeframe', 'location', 'handle', 'referral', 'share_pref', 'message', 'notes'] as $k) $f[$k] = trim((string)($_POST[$k] ?? ''));
+        $st = array_key_exists($_POST['status'] ?? '', CLIENT_STATUSES) ? $_POST['status'] : 'new';
+        if ($f['name'] === '') go($base . '?a=clients');
+        if ($id > 0) {
+            db()->prepare('UPDATE clients SET name=?, email=?, phone=?, pronouns=?, service=?, timeframe=?, location=?, handle=?, referral=?, share_pref=?, message=?, notes=?, status=?, discount_percent=? WHERE id=?')
+                ->execute([$f['name'], $f['email'], $f['phone'], $f['pronouns'], $f['service'], $f['timeframe'], $f['location'], $f['handle'], $f['referral'], $f['share_pref'], $f['message'], $f['notes'], $st, max(0, min(100, (int)($_POST['discount_percent'] ?? 0))), $id]);
+            go($base . '?a=client&id=' . $id . '&saved=1');
+        }
+        db()->prepare("INSERT INTO clients (name, email, phone, pronouns, service, timeframe, location, handle, referral, share_pref, message, notes, status, source, created) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'admin', ?)")
+            ->execute([$f['name'], $f['email'], $f['phone'], $f['pronouns'], $f['service'], $f['timeframe'], $f['location'], $f['handle'], $f['referral'], $f['share_pref'], $f['message'], $f['notes'], $st, time()]);
+        go($base . '?a=client&id=' . db()->lastInsertId());
+    }
+    if ($a === 'makegallery') {
+        $c = db()->prepare('SELECT * FROM clients WHERE id = ?'); $c->execute([$id]); $c = $c->fetch();
+        if (!$c) go($base . '?a=clients');
+        $inc = 0; foreach (services_list() as $sv) if ($sv['title'] === $c['service']) $inc = (int)$sv['included'];
+        db()->prepare('INSERT INTO galleries (token, title, client_name, client_email, default_price_cents, default_web_cents, included_count, client_id, note, created) VALUES (?,?,?,?,0,0,?,?,?,?)')
+            ->execute([bin2hex(random_bytes(12)), $c['name'] . ($c['service'] && $c['service'] !== 'Not sure yet' ? ': ' . $c['service'] : ''), $c['name'], $c['email'], $inc, $id, '', time()]);
+        if ($c['status'] === 'new' || $c['status'] === 'contacted') db()->prepare("UPDATE clients SET status = 'booked' WHERE id = ?")->execute([$id]);
+        go($base . '?a=gallery&id=' . db()->lastInsertId());
+    }
+    if ($a === 'linkgallery') {
+        db()->prepare('UPDATE galleries SET client_id = ? WHERE id = ?')->execute([(int)($_POST['client_id'] ?? 0) ?: null, (int)($_POST['gallery'] ?? 0)]);
+        go($base . '?a=client&id=' . (int)($_POST['client_id'] ?? 0) . '&saved=1');
+    }
+    if ($a === 'clientdel') {
+        if (($_POST['confirm'] ?? '') === 'DELETE') { db()->prepare('UPDATE galleries SET client_id = NULL WHERE client_id = ?')->execute([$id]); db()->prepare('DELETE FROM clients WHERE id = ?')->execute([$id]); go($base . '?a=clients'); }
+        go($base . '?a=client&id=' . $id);
+    }
     if ($a === 'resetclaims') {
         db()->prepare('DELETE FROM claims WHERE image_id IN (SELECT id FROM images WHERE gallery_id = ?)')->execute([$id]);
         go($base . '?a=gallery&id=' . $id . '&saved=1');
@@ -155,6 +185,7 @@ if ($a === 'gallery') {
     ahead($g['title']); $tok = csrf(); ?>
 <h1 style="font-size:clamp(32px,5vw,64px)"><?= h($g['title']) ?></h1>
 <?php if (!empty($_GET['saved'])): ?><p class="ok">Saved.</p><?php endif; ?>
+<?php if ($g['client_id']): ?><p><a href="?a=client&id=<?= (int)$g['client_id'] ?>">&larr; Back to this client's record</a></p><?php endif; ?>
 <p class="kicker">Client link (send this to <?= h($g['client_name'] ?: 'your client') ?>)<?= $g['password_hash'] ? ', password protected' : '' ?><?= $g['active'] ? '' : ' / currently turned OFF' ?></p>
 <code class="link" id="lnk"><?= h(link_for($g)) ?></code>
 <p><button class="btn sm alt" onclick="navigator.clipboard.writeText(document.getElementById('lnk').textContent).then(()=>this.textContent='Copied')">Copy link</button> <a class="btn sm alt" target="_blank" href="/client/g/<?= h($g['token']) ?>/">Preview as client</a></p>
@@ -167,6 +198,7 @@ if ($a === 'gallery') {
 <label>Title<input name="title" value="<?= h($g['title']) ?>" required></label>
 <label>Client name<input name="client_name" value="<?= h($g['client_name']) ?>"></label>
 <label>Client email<input name="client_email" type="email" value="<?= h($g['client_email']) ?>"></label>
+<label>Client record<select name="client_id" style="width:100%;padding:10px;margin-top:4px"><option value="">None</option><?php foreach (db()->query('SELECT id, name, service FROM clients ORDER BY name') as $cr): ?><option value="<?= $cr['id'] ?>" <?= (int)$g['client_id'] === (int)$cr['id'] ? 'selected' : '' ?>><?= h($cr['name'] . ($cr['service'] ? ' (' . $cr['service'] . ')' : '')) ?></option><?php endforeach; ?></select></label>
 <label>Included photos (free picks, 0 = none)<input name="included" type="number" min="0" value="<?= (int)$g['included_count'] ?>"></label>
 <label>Extra photo, web size ($, 0 = Free)<input name="price_web" value="<?= h(number_format($g['default_web_cents'] / 100, 2)) ?>"></label>
 <label>Extra photo, full resolution ($, 0 = Free)<input name="price" value="<?= h(number_format($g['default_price_cents'] / 100, 2)) ?>"></label>
@@ -237,6 +269,78 @@ document.getElementById('files').addEventListener('change',async function(e){
   if(!bad.length)location.reload();
 });
 </script>
+<?php afoot(); exit;
+}
+
+if ($a === 'clients') {
+    $stf = (string)($_GET['status'] ?? ''); $q = trim((string)($_GET['q'] ?? ''));
+    $sql = 'SELECT c.*, (SELECT COUNT(*) FROM galleries g WHERE g.client_id = c.id) AS ng FROM clients c WHERE 1=1'; $args = [];
+    if ($stf !== '' && isset(CLIENT_STATUSES[$stf])) { $sql .= ' AND c.status = ?'; $args[] = $stf; } elseif ($stf === '') { $sql .= " AND c.status != 'archived'"; }
+    if ($q !== '') { $sql .= ' AND (c.name LIKE ? OR c.email LIKE ? OR c.service LIKE ?)'; array_push($args, "%$q%", "%$q%", "%$q%"); }
+    $stmt = db()->prepare($sql . ' ORDER BY c.created DESC'); $stmt->execute($args); $rows = $stmt->fetchAll();
+    $counts = db()->query('SELECT status, COUNT(*) n FROM clients GROUP BY status')->fetchAll(PDO::FETCH_KEY_PAIR);
+    ahead('Clients'); $tok = csrf(); $intake = 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/client/new/'; ?>
+<h1 style="font-size:clamp(32px,5vw,64px)">Clients</h1>
+<p class="kicker">New-client form to send people</p>
+<code class="link" id="ilnk"><?= h($intake) ?></code>
+<p><button class="btn sm alt" onclick="navigator.clipboard.writeText(document.getElementById('ilnk').textContent).then(()=>this.textContent='Copied')">Copy link</button> <a class="btn sm alt" target="_blank" href="/client/new/">Open the form</a></p>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin:20px 0"><a class="tab <?= $stf === '' ? 'on' : '' ?>" style="text-decoration:none" href="?a=clients">Active</a>
+<?php foreach (CLIENT_STATUSES as $k => $lab): ?><a class="tab <?= $stf === $k ? 'on' : '' ?>" style="text-decoration:none" href="?a=clients&status=<?= $k ?>"><?= h($lab) ?> <?= (int)($counts[$k] ?? 0) ?></a><?php endforeach; ?></div>
+<form method="get" style="display:flex;gap:8px;max-width:420px"><input type="hidden" name="a" value="clients"><input name="q" value="<?= h($q) ?>" placeholder="Search name, email or service"><button class="btn sm">Search</button></form>
+<?php if (!$rows): ?><p style="margin-top:16px">No clients here yet.</p><?php else: ?>
+<table><tr><th>Name</th><th>Service</th><th>Status</th><th>Timeframe</th><th>Galleries</th><th>Received</th></tr>
+<?php foreach ($rows as $r): ?><tr><td><a href="?a=client&id=<?= $r['id'] ?>"><b><?= h($r['name']) ?></b></a><br><small><?= h($r['email']) ?></small></td><td><?= h($r['service']) ?></td><td><span class="pill"><?= h(CLIENT_STATUSES[$r['status']] ?? $r['status']) ?></span><?= $r['release_at'] ? ' <span class="pill" style="background:#0a6b2d">release</span>' : '' ?></td><td><?= h($r['timeframe']) ?></td><td><?= (int)$r['ng'] ?></td><td><?= date('M j, Y', (int)$r['created']) ?><?= $r['source'] === 'admin' ? ' (added by you)' : '' ?></td></tr><?php endforeach; ?></table><?php endif; ?>
+<h2>Add a client yourself</h2>
+<form method="post" action="?a=clientsave" class="cols"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="clientsave"><input type="hidden" name="id" value="0">
+<label>Name<input name="name" required></label><label>Email<input name="email" type="email"></label><label>Phone<input name="phone"></label>
+<label>Service<select name="service" style="width:100%;padding:10px;margin-top:4px"><option value="">Choose</option><?php foreach (services_list() as $sv): ?><option><?= h($sv['title']) ?></option><?php endforeach; ?><option>Not sure yet</option><option>Something else</option></select></label>
+<label>Timeframe<input name="timeframe"></label><label>Notes (private)<input name="notes"></label>
+<div style="grid-column:1/-1"><button class="btn">Add client</button></div></form>
+<?php afoot(); exit;
+}
+
+if ($a === 'client') {
+    $cs = db()->prepare('SELECT * FROM clients WHERE id = ?'); $cs->execute([(int)($_GET['id'] ?? 0)]); $c = $cs->fetch();
+    if (!$c) { http_response_code(404); ahead('Not found'); echo '<p>Client not found. <a href="?a=clients">Back to clients</a></p>'; afoot(); exit; }
+    $gs = db()->prepare('SELECT g.*, (SELECT COUNT(*) FROM images i WHERE i.gallery_id = g.id) AS n FROM galleries g WHERE g.client_id = ? ORDER BY g.id DESC'); $gs->execute([$c['id']]); $gals = $gs->fetchAll();
+    $free = db()->query('SELECT id, title FROM galleries WHERE client_id IS NULL ORDER BY id DESC')->fetchAll();
+    $inc = 0; foreach (services_list() as $sv) if ($sv['title'] === $c['service']) $inc = (int)$sv['included'];
+    ahead($c['name']); $tok = csrf(); ?>
+<p><a href="?a=clients">&larr; All clients</a></p>
+<h1 style="font-size:clamp(32px,5vw,64px)"><?= h($c['name']) ?></h1>
+<?php if (!empty($_GET['saved'])): ?><p class="ok">Saved.</p><?php endif; ?>
+<p class="kicker"><?= h(CLIENT_STATUSES[$c['status']] ?? '') ?> / <?= $c['source'] === 'admin' ? 'added by you' : 'sent the form' ?> on <?= date('M j, Y', (int)$c['created']) ?></p>
+<?php if ($c['email']): ?><p><a class="btn sm alt" href="mailto:<?= h($c['email']) ?>">Email <?= h($c['name']) ?></a></p><?php endif; ?>
+
+<h2>Galleries</h2>
+<?php if (!$gals): ?><p>No galleries yet.</p><?php else: ?><table><tr><th>Gallery</th><th>Photos</th><th>Package</th><th>Link</th></tr>
+<?php foreach ($gals as $g): $url = link_for($g); ?><tr><td><a href="?a=gallery&id=<?= $g['id'] ?>"><b><?= h($g['title']) ?></b></a><?= $g['active'] ? '' : ' <span class="pill">off</span>' ?></td><td><?= (int)$g['n'] ?></td><td><?= (int)$g['included_count'] ?> included</td>
+<td><a href="mailto:<?= h($c['email']) ?>?subject=<?= rawurlencode('Your photos from Everett Allen Photography') ?>&body=<?= rawurlencode("Hi " . $c['name'] . ",\n\nYour private gallery is ready:\n" . $url . ($g['password_hash'] ? "\n\n(I'll send the password separately.)" : '') . "\n\nTap the heart on your favorites, and leave a comment on any photo.\n\nEverett") ?>">Email link to client</a></td></tr><?php endforeach; ?></table><?php endif; ?>
+<form method="post" style="display:inline-block;margin-right:12px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="makegallery"><input type="hidden" name="id" value="<?= $c['id'] ?>"><button class="btn sm">Create gallery for <?= h($c['name']) ?><?= $inc ? " ($inc photos included)" : '' ?></button></form>
+<?php if ($free): ?><form method="post" style="display:inline-flex;gap:8px;align-items:center"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="linkgallery"><input type="hidden" name="client_id" value="<?= $c['id'] ?>">
+<select name="gallery" style="padding:8px"><?php foreach ($free as $f): ?><option value="<?= $f['id'] ?>"><?= h($f['title']) ?></option><?php endforeach; ?></select><button class="btn sm alt">Link existing gallery</button></form><?php endif; ?>
+
+<?php if ($c['release_at']): ?><h2>Photo release on file</h2>
+<div style="background:#f6f3ec;border-left:4px solid #0a6b2d;padding:12px 16px;max-width:70ch"><b>Signed by <?= h($c['release_name']) ?></b> on <?= date('M j, Y g:ia', (int)$c['release_at']) ?><?= $c['discount_percent'] ? ', ' . (int)$c['discount_percent'] . '% session discount' : '' ?>.
+<details><summary>Exact wording they agreed to</summary><p><?= h($c['release_text']) ?></p></details></div>
+<?php elseif ($c['share_pref']): ?><p class="kicker">Sharing preference: <?= h($c['share_pref']) ?> (no signed release on file)</p><?php endif; ?>
+<h2>Details</h2>
+<form method="post" class="cols"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="clientsave"><input type="hidden" name="id" value="<?= $c['id'] ?>">
+<label>Name<input name="name" value="<?= h($c['name']) ?>" required></label><label>Pronouns<input name="pronouns" value="<?= h($c['pronouns']) ?>"></label>
+<label>Email<input name="email" type="email" value="<?= h($c['email']) ?>"></label><label>Phone<input name="phone" value="<?= h($c['phone']) ?>"></label>
+<label>Service<input name="service" value="<?= h($c['service']) ?>" list="svl"><datalist id="svl"><?php foreach (services_list() as $sv): ?><option value="<?= h($sv['title']) ?>"><?php endforeach; ?></datalist></label>
+<label>Status<select name="status" style="width:100%;padding:10px;margin-top:4px"><?php foreach (CLIENT_STATUSES as $k => $lab): ?><option value="<?= $k ?>" <?= $c['status'] === $k ? 'selected' : '' ?>><?= h($lab) ?></option><?php endforeach; ?></select></label>
+<label>Timeframe<input name="timeframe" value="<?= h($c['timeframe']) ?>"></label><label>Location ideas<input name="location" value="<?= h($c['location']) ?>"></label>
+<label>Instagram or website<input name="handle" value="<?= h($c['handle']) ?>"></label><label>Heard about me from<input name="referral" value="<?= h($c['referral']) ?>"></label>
+<label>May share photos publicly?<input name="share_pref" value="<?= h($c['share_pref']) ?>" list="spl"><datalist id="spl"><option value="Yes"><option value="Ask first"><option value="Private"></datalist></label>
+<label>Session discount (%)<input name="discount_percent" type="number" min="0" max="100" value="<?= (int)$c['discount_percent'] ?>"></label>
+<label style="grid-column:1/-1">What they wrote<textarea name="message" rows="4"><?= h($c['message']) ?></textarea></label>
+<label style="grid-column:1/-1">Your private notes (clients never see these)<textarea name="notes" rows="4"><?= h($c['notes']) ?></textarea></label>
+<div style="grid-column:1/-1"><button class="btn">Save</button></div></form>
+
+<h2>Delete client</h2>
+<p>Removes this record only. Their galleries stay and become unlinked.</p>
+<form method="post" onsubmit="return confirm('Delete this client record?')" style="display:flex;gap:8px;max-width:420px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="clientdel"><input type="hidden" name="id" value="<?= $c['id'] ?>"><input name="confirm" placeholder="Type DELETE"><button class="btn sm alt">Delete</button></form>
 <?php afoot(); exit;
 }
 
