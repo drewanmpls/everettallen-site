@@ -79,7 +79,7 @@ w('/thanks/',page('Thanks','<div class="wrap narrow"><h1 class="h1">Thanks!</h1>
 w('/404.html',page('Not found','<div class="wrap narrow"><h1 class="h1">Page not found</h1><p class="lede2"><a href="/">Back home</a> or browse <a href="/portraits/">Portraits</a> and <a href="/events/">Events</a>.</p></div>','/404','Contact'))
 urls=['/','/portraits/','/events/','/contact/']+[f'/gallery/{g["slug"]}/' for g in G]
 open('dist/sitemap.xml','w').write('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+''.join(f'<url><loc>{site["base_url"]}{u}</loc></url>' for u in urls)+'</urlset>')
-open('dist/robots.txt','w').write(f'User-agent: *\nAllow: /\nSitemap: {site["base_url"]}/sitemap.xml\n')
+open('dist/robots.txt','w').write(f'User-agent: *\nAllow: /\nDisallow: /client/\nSitemap: {site["base_url"]}/sitemap.xml\n')
 ht=['ErrorDocument 404 /404.html','RewriteEngine On','RewriteCond %{HTTPS} off','RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]',
 'RewriteRule ^client-galleries/gallery/(portraits|events)/?$ /$1/ [R=301,L]',
 'RewriteRule ^client-galleries/gallery/(?:portraits|events)/([^/]+)/?$ /gallery/$1/ [R=301,L]',

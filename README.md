@@ -23,3 +23,13 @@ Every push to `main` runs `.github/workflows/deploy.yml`: it builds the site and
 - Repository variable `DEPLOY_DIR` (optional): folder to upload to. Default is `new.everettallenphotography.com` (staging). Set it to `everettallenphotography.com` to deploy to the live site.
 
 Last deploy test: 2026-10-29
+
+## Private client galleries
+
+Lives in `static/client/` (PHP + SQLite, no WordPress). Private data is stored **outside** the public web folder at `~/everettallen-private/<hostname>/` (database, untouched originals, watermarked copies).
+
+- Admin: `/client/admin/`. First visit asks for a setup code (the file `setup-code.txt` in the private folder) and lets you choose a password.
+- Client link: `/client/g/<token>/`, optionally password protected. Clients see watermarked previews, can favorite, comment, and download Free photos.
+- Prices are per photo (blank uses the gallery default, 0 = Free). Paid photos unlock for download when an order is marked paid in the admin.
+- Payments are not wired to a processor yet. `static/client/payments.php` is the single place to add one; until then "Request this photo" emails Everett.
+- The white logo at `/assets/logo-white.png` is used for the watermark; without it a text watermark is used.
