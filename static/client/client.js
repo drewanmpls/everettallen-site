@@ -68,7 +68,7 @@ function renderBuy(im){
   }
   sizeRow('Web size','For social sharing (2048 px)',im.dlWeb,im.pwText,'web','web');
   sizeRow('Full resolution','For printing (original size)',im.dlFull,im.pfText,'full','full');
-  if(!(im.dlWeb&&im.dlFull)){em=document.createElement('input');em.type='email';em.placeholder='Your email (so Everett can reply)';em.value=mailVal();b.appendChild(em)}
+  if(!(im.dlWeb&&im.dlFull)){em=document.createElement('input');em.type='email';em.placeholder='Your email (so Andrew can reply)';em.value=mailVal();b.appendChild(em)}
 }
 function afterChange(im){
   var tag=document.querySelector('.ph[data-id="'+im.id+'"] .tag');if(tag)tag.textContent=im.claimed?'Included':im.pfText;
@@ -82,7 +82,7 @@ function loadComments(id){
     if(!j.comments.length){var e=document.createElement('div');e.style.color='#888';e.textContent='No comments yet.';box.appendChild(e)}
     j.comments.forEach(function(c){
       var d=document.createElement('div');d.className='cmt'+(+c.from_owner?' me':'');
-      var b=document.createElement('b');b.textContent=(+c.from_owner?'Everett':c.author)+' / '+fmt(c.created);
+      var b=document.createElement('b');b.textContent=(+c.from_owner?'Andrew':c.author)+' / '+fmt(c.created);
       var t=document.createElement('span');t.textContent=c.body;d.appendChild(b);d.appendChild(t);box.appendChild(d);
     });
   }).catch(function(){});
@@ -111,7 +111,7 @@ $('lbf').addEventListener('submit',function(e){
 });
 $('done').onclick=function(){
   var n=favCount();if(!n){toast('Tap the heart on a few photos first.');return}
-  if(!confirm('Send your '+n+' favorite'+(n===1?'':'s')+' to Everett?'))return;
+  if(!confirm('Send your '+n+' favorite'+(n===1?'':'s')+' to Andrew?'))return;
   api('done',{author:who()}).then(function(){toast('Sent. Thank you!')}).catch(function(e){toast(e.message)});
 };
 imgs.forEach(function(){});

@@ -1,6 +1,6 @@
 <?php
 // Payment provider hook. Nothing is wired up yet: the galleries work without it.
-// Until a provider is configured, "Buy" becomes "Request this photo": the request is emailed to Everett and
+// Until a provider is configured, "Buy" becomes "Request this photo": the request is emailed to Andrew and
 // saved as an order with status 'requested'. In the admin page, marking it 'paid' unlocks the clean download.
 //
 // To add a processor later, set a provider in the private config (setting 'payment_provider') and implement

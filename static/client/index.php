@@ -18,7 +18,7 @@ function page_head(string $title): void { ?>
 <?php }
 
 if (!$g) { http_response_code(404); page_head('Gallery not found'); ?>
-<main class="narrow"><h1>Gallery not found</h1><p>This link isn't working. It may have expired or been mistyped. Please contact Everett for a new link.</p><p><a class="btn" href="/contact/">Contact</a></p></main></body></html>
+<main class="narrow"><h1>Gallery not found</h1><p>This link isn't working. It may have expired or been mistyped. Please contact Andrew for a new link.</p><p><a class="btn" href="/contact/">Contact</a></p></main></body></html>
 <?php exit; }
 
 // password gate
@@ -61,7 +61,7 @@ page_head($g['title']); ?>
 <div class="bar">
   <div class="tabs"><button class="tab on" data-f="all">All <span id="cAll"><?= count($data) ?></span></button><button class="tab" data-f="fav">Favorites <span id="cFav">0</span></button></div>
   <?php if ($g['included_count'] > 0): ?><span class="pkg" id="pkg"></span><?php endif; ?>
-  <button class="btn" id="done">Send my picks to Everett</button>
+  <button class="btn" id="done">Send my picks to Andrew</button>
 </div>
 <div class="grid" id="grid">
 <?php foreach ($data as $n => $d): ?>

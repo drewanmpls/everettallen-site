@@ -1,5 +1,5 @@
 <?php
-// Admin for private client galleries. Only Everett uses this.
+// Admin for private client galleries. Only Andrew uses this.
 declare(strict_types=1);
 require dirname(__DIR__) . '/lib.php';
 noindex();
@@ -130,7 +130,7 @@ if ($post) {
     }
     if ($a === 'reply') {
         $body = trim((string)($_POST['body'] ?? ''));
-        if ($body !== '') db()->prepare('INSERT INTO comments (image_id, author, body, from_owner, created) VALUES (?,?,?,1,?)')->execute([(int)$_POST['image'], 'Everett', $body, time()]);
+        if ($body !== '') db()->prepare('INSERT INTO comments (image_id, author, body, from_owner, created) VALUES (?,?,?,1,?)')->execute([(int)$_POST['image'], 'Andrew', $body, time()]);
         go($base . '?a=gallery&id=' . $id . '#comments');
     }
     if ($a === 'order') {
@@ -344,7 +344,7 @@ if ($a === 'client') {
 <h2>Galleries</h2>
 <?php if (!$gals): ?><p>No galleries yet.</p><?php else: ?><table><tr><th>Gallery</th><th>Photos</th><th>Package</th><th>Link</th></tr>
 <?php foreach ($gals as $g): $url = link_for($g); ?><tr><td><a href="?a=gallery&id=<?= $g['id'] ?>"><b><?= h($g['title']) ?></b></a><?= $g['active'] ? '' : ' <span class="pill">off</span>' ?></td><td><?= (int)$g['n'] ?></td><td><?= (int)$g['included_count'] ?> included</td>
-<td><a href="mailto:<?= h($c['email']) ?>?subject=<?= rawurlencode('Your photos from Everett Allen Photography') ?>&body=<?= rawurlencode("Hi " . $c['name'] . ",\n\nYour private gallery is ready:\n" . $url . ($g['password_hash'] ? "\n\n(I'll send the password separately.)" : '') . "\n\nTap the heart on your favorites, and leave a comment on any photo.\n\nEverett") ?>">Email link to client</a></td></tr><?php endforeach; ?></table><?php endif; ?>
+<td><a href="mailto:<?= h($c['email']) ?>?subject=<?= rawurlencode('Your photos from Everett Allen Photography') ?>&body=<?= rawurlencode("Hi " . $c['name'] . ",\n\nYour private gallery is ready:\n" . $url . ($g['password_hash'] ? "\n\n(I'll send the password separately.)" : '') . "\n\nTap the heart on your favorites, and leave a comment on any photo.\n\nAndrew") ?>">Email link to client</a></td></tr><?php endforeach; ?></table><?php endif; ?>
 <form method="post" style="display:inline-block;margin-right:12px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="makegallery"><input type="hidden" name="id" value="<?= $c['id'] ?>"><button class="btn sm">Create gallery for <?= h($c['name']) ?><?= $inc ? " ($inc photos included)" : '' ?></button></form>
 <?php if ($free): ?><form method="post" style="display:inline-flex;gap:8px;align-items:center"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="linkgallery"><input type="hidden" name="client_id" value="<?= $c['id'] ?>">
 <select name="gallery" style="padding:8px"><?php foreach ($free as $f): ?><option value="<?= $f['id'] ?>"><?= h($f['title']) ?></option><?php endforeach; ?></select><button class="btn sm alt">Link existing gallery</button></form><?php endif; ?>

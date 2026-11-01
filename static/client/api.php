@@ -68,7 +68,7 @@ if ($a === 'request') {
     $img = load_image($g);
     $tier = ($_POST['tier'] ?? 'full') === 'web' ? 'web' : 'full';
     $email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
-    if (!$email) json_out(['error' => 'Please enter a valid email so Everett can reply.'], 400);
+    if (!$email) json_out(['error' => 'Please enter a valid email so Andrew can reply.'], 400);
     if (can_download($img, $g, $tier)) json_out(['error' => 'This size is already available: just download it.'], 400);
     $price = $tier === 'web' ? image_price_web($img, $g) : image_price($img, $g);
     $label = $tier === 'web' ? 'web size (social)' : 'full resolution (print)';
@@ -79,7 +79,7 @@ if ($a === 'request') {
         if ($url) json_out(['ok' => true, 'checkout' => $url]);
     }
     send_owner_mail('Photo request: "' . $g['title'] . '"', "$email asked for " . ($img['label'] ?: 'photo ' . $img['id']) . " as $label (" . money($price) . ").\n\nMark it paid in the admin once payment is arranged:\nhttps://" . ($_SERVER['HTTP_HOST'] ?? '') . "/client/admin/?a=gallery&id=" . $g['id'] . "\n", $email);
-    json_out(['ok' => true, 'message' => 'Sent. Everett will email you about getting this photo.']);
+    json_out(['ok' => true, 'message' => 'Sent. Andrew will email you about getting this photo.']);
 }
 
 if ($a === 'done') {
