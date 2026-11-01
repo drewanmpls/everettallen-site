@@ -46,7 +46,14 @@ function db(): PDO {
         id INTEGER PRIMARY KEY AUTOINCREMENT, gallery_id INTEGER NOT NULL, image_id INTEGER NOT NULL REFERENCES images(id) ON DELETE CASCADE,
         email TEXT DEFAULT '', status TEXT NOT NULL DEFAULT 'requested', provider_ref TEXT DEFAULT '', created INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS downloads (id INTEGER PRIMARY KEY AUTOINCREMENT, image_id INTEGER NOT NULL, created INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS claims (image_id INTEGER PRIMARY KEY REFERENCES images(id) ON DELETE CASCADE, created INTEGER NOT NULL);
     ");
+    foreach ([['galleries', 'included_count', 'INTEGER NOT NULL DEFAULT 0'], ['galleries', 'default_web_cents', 'INTEGER NOT NULL DEFAULT 0'],
+              ['images', 'price_web_cents', 'INTEGER'], ['orders', 'tier', "TEXT NOT NULL DEFAULT 'full'"]] as [$t, $c, $def]) {
+        $has = false;
+        foreach ($pdo->query("PRAGMA table_info($t)") as $col) if ($col['name'] === $c) $has = true;
+        if (!$has) $pdo->exec("ALTER TABLE $t ADD COLUMN $c $def");
+    }
     return $pdo;
 }
 
@@ -96,20 +103,43 @@ function gallery_by_token(string $t): ?array {
     $s = db()->prepare('SELECT * FROM galleries WHERE token = ? AND active = 1'); $s->execute([$t]);
     return $s->fetch() ?: null;
 }
+// Full-resolution price (for printing). Per-photo override, else the gallery default.
 function image_price(array $img, array $g): int {
     return $img['price_cents'] === null ? (int)$g['default_price_cents'] : (int)$img['price_cents'];
+}
+// Web-size price (for social sharing).
+function image_price_web(array $img, array $g): int {
+    return ($img['price_web_cents'] ?? null) === null ? (int)$g['default_web_cents'] : (int)$img['price_web_cents'];
 }
 function gallery_authorized(array $g): bool {
     if ($g['password_hash'] === '') return true;
     start_session();
     return !empty($_SESSION['g' . $g['id']]);
 }
-function image_is_paid(int $imageId): bool {
-    $s = db()->prepare("SELECT 1 FROM orders WHERE image_id = ? AND status = 'paid' LIMIT 1"); $s->execute([$imageId]);
+function image_is_claimed(int $imageId): bool {
+    $s = db()->prepare('SELECT 1 FROM claims WHERE image_id = ?'); $s->execute([$imageId]);
     return (bool)$s->fetchColumn();
 }
-function can_download(array $img, array $g): bool {
-    return image_price($img, $g) <= 0 || image_is_paid((int)$img['id']);
+function claims_used(int $gid): int {
+    $s = db()->prepare('SELECT COUNT(*) FROM claims c JOIN images i ON i.id = c.image_id WHERE i.gallery_id = ?'); $s->execute([$gid]);
+    return (int)$s->fetchColumn();
+}
+function image_paid_tier(int $imageId): string {   // '', 'web' or 'full'
+    $s = db()->prepare("SELECT tier FROM orders WHERE image_id = ? AND status = 'paid'"); $s->execute([$imageId]);
+    $best = '';
+    foreach ($s->fetchAll(PDO::FETCH_COLUMN) as $t) { if ($t === 'full') return 'full'; $best = 'web'; }
+    return $best;
+}
+// Can the client download this size ('web' or 'full') of this photo?
+function can_download(array $img, array $g, string $tier = 'full'): bool {
+    $id = (int)$img['id'];
+    $full = image_price($img, $g) <= 0 || image_is_claimed($id) || image_paid_tier($id) === 'full';
+    if ($tier === 'full') return $full;
+    return $full || image_price_web($img, $g) <= 0 || image_paid_tier($id) !== '';
+}
+function was_downloaded(int $imageId): bool {
+    $s = db()->prepare('SELECT 1 FROM downloads WHERE image_id = ? LIMIT 1'); $s->execute([$imageId]);
+    return (bool)$s->fetchColumn();
 }
 
 function send_owner_mail(string $subject, string $body, string $replyTo = ''): void {
@@ -188,8 +218,21 @@ function ingest_image(int $gid, string $tmp, string $origName): array {
     imagejpeg($disp, gdir($gid, 'display') . '/' . $name, 84);
     $thumb = resize_to($src, 520); wm_apply($thumb, 0.6, 0.45);
     imagejpeg($thumb, gdir($gid, 'thumb') . '/' . $name, 80);
+    $web = resize_to($src, 2048); imagejpeg($web, gdir($gid, 'web') . '/' . $name, 88);
     $w = imagesx($disp); $h = imagesy($disp);
     return ['file' => $name, 'w' => $w, 'h' => $h, 'label' => preg_replace('/\.jpe?g$/i', '', basename($origName))];
+}
+
+// Web-size copy (2048px, no watermark) for social sharing. Built on upload; rebuilt on demand if missing.
+function ensure_web(int $gid, string $file): string {
+    $p = gdir($gid, 'web') . '/' . basename($file);
+    if (is_file($p)) return $p;
+    @ini_set('memory_limit', '512M');
+    $src = @imagecreatefromjpeg(gdir($gid, 'orig') . '/' . basename($file));
+    if (!$src) return '';
+    $web = resize_to($src, 2048);
+    imagejpeg($web, $p, 88);
+    return $p;
 }
 
 function json_out(array $d, int $code = 200): void {

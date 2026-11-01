@@ -30,6 +30,6 @@ Lives in `static/client/` (PHP + SQLite, no WordPress). Private data is stored *
 
 - Admin: `/client/admin/`. First visit asks for a setup code (the file `setup-code.txt` in the private folder) and lets you choose a password.
 - Client link: `/client/g/<token>/`, optionally password protected. Clients see watermarked previews, can favorite, comment, and download Free photos.
-- Prices are per photo (blank uses the gallery default, 0 = Free). Paid photos unlock for download when an order is marked paid in the admin.
+- Each gallery has an **included photos** count (free picks), and two prices for extra photos: **web size** (2048 px, for social) and **full resolution** (original, for printing). Per-photo overrides are in the admin (blank = gallery default, 0 = Free). Included picks get both sizes. A client can undo a pick until it has been downloaded. Paid photos unlock when an order is marked paid in the admin (a paid web order unlocks web only; a paid full order unlocks both).
 - Payments are not wired to a processor yet. `static/client/payments.php` is the single place to add one; until then "Request this photo" emails Everett.
 - The white logo at `/assets/logo-white.png` is used for the watermark; without it a text watermark is used.

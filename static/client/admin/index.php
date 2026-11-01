@@ -78,16 +78,16 @@ if ($post) {
     if ($a === 'create') {
         $title = trim((string)($_POST['title'] ?? '')); if ($title === '') go($base);
         $pw = (string)($_POST['password'] ?? '');
-        db()->prepare('INSERT INTO galleries (token, title, client_name, client_email, password_hash, default_price_cents, note, created) VALUES (?,?,?,?,?,?,?,?)')
-            ->execute([bin2hex(random_bytes(12)), $title, trim((string)$_POST['client_name']), trim((string)$_POST['client_email']), $pw !== '' ? password_hash($pw, PASSWORD_DEFAULT) : '', dollars_to_cents((string)($_POST['price'] ?? '0')), trim((string)$_POST['note']), time()]);
+        db()->prepare('INSERT INTO galleries (token, title, client_name, client_email, password_hash, default_price_cents, default_web_cents, included_count, note, created) VALUES (?,?,?,?,?,?,?,?,?,?)')
+            ->execute([bin2hex(random_bytes(12)), $title, trim((string)$_POST['client_name']), trim((string)$_POST['client_email']), $pw !== '' ? password_hash($pw, PASSWORD_DEFAULT) : '', dollars_to_cents((string)($_POST['price'] ?? '0')), dollars_to_cents((string)($_POST['price_web'] ?? '0')), max(0, (int)($_POST['included'] ?? 0)), trim((string)$_POST['note']), time()]);
         go($base . '?a=gallery&id=' . db()->lastInsertId());
     }
     if ($a === 'update') {
         $g = gal($id);
         $pwHash = $g['password_hash'];
         if (!empty($_POST['clear_pw'])) $pwHash = ''; elseif ((string)($_POST['password'] ?? '') !== '') $pwHash = password_hash((string)$_POST['password'], PASSWORD_DEFAULT);
-        db()->prepare('UPDATE galleries SET title=?, client_name=?, client_email=?, password_hash=?, default_price_cents=?, note=?, active=? WHERE id=?')
-            ->execute([trim((string)$_POST['title']) ?: $g['title'], trim((string)$_POST['client_name']), trim((string)$_POST['client_email']), $pwHash, dollars_to_cents((string)($_POST['price'] ?? '0')), trim((string)$_POST['note']), empty($_POST['active']) ? 0 : 1, $id]);
+        db()->prepare('UPDATE galleries SET title=?, client_name=?, client_email=?, password_hash=?, default_price_cents=?, default_web_cents=?, included_count=?, note=?, active=? WHERE id=?')
+            ->execute([trim((string)$_POST['title']) ?: $g['title'], trim((string)$_POST['client_name']), trim((string)$_POST['client_email']), $pwHash, dollars_to_cents((string)($_POST['price'] ?? '0')), dollars_to_cents((string)($_POST['price_web'] ?? '0')), max(0, (int)($_POST['included'] ?? 0)), trim((string)$_POST['note']), empty($_POST['active']) ? 0 : 1, $id]);
         go($base . '?a=gallery&id=' . $id . '&saved=1');
     }
     if ($a === 'upload') {
@@ -103,13 +103,15 @@ if ($post) {
     }
     if ($a === 'price') {
         $v = trim((string)($_POST['price'] ?? ''));
-        db()->prepare('UPDATE images SET price_cents = ? WHERE id = ?')->execute([$v === '' ? null : dollars_to_cents($v), (int)($_POST['image'] ?? 0)]);
+        $col = ($_POST['tier'] ?? 'full') === 'web' ? 'price_web_cents' : 'price_cents';
+        db()->prepare("UPDATE images SET $col = ? WHERE id = ?")->execute([$v === '' ? null : dollars_to_cents($v), (int)($_POST['image'] ?? 0)]);
         json_out(['ok' => true]);
     }
     if ($a === 'priceall') {
         $v = trim((string)($_POST['price'] ?? ''));
-        if (!empty($_POST['only_fav'])) db()->prepare('UPDATE images SET price_cents = ? WHERE gallery_id = ? AND id IN (SELECT image_id FROM favorites)')->execute([$v === '' ? null : dollars_to_cents($v), $id]);
-        else db()->prepare('UPDATE images SET price_cents = ? WHERE gallery_id = ?')->execute([$v === '' ? null : dollars_to_cents($v), $id]);
+        $col = ($_POST['tier'] ?? 'full') === 'web' ? 'price_web_cents' : 'price_cents';
+        if (!empty($_POST['only_fav'])) db()->prepare("UPDATE images SET $col = ? WHERE gallery_id = ? AND id IN (SELECT image_id FROM favorites)")->execute([$v === '' ? null : dollars_to_cents($v), $id]);
+        else db()->prepare("UPDATE images SET $col = ? WHERE gallery_id = ?")->execute([$v === '' ? null : dollars_to_cents($v), $id]);
         go($base . '?a=gallery&id=' . $id . '&saved=1');
     }
     if ($a === 'delimg') {
@@ -127,6 +129,10 @@ if ($post) {
         db()->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$st, (int)($_POST['order'] ?? 0)]);
         go($base . '?a=gallery&id=' . $id . '#orders');
     }
+    if ($a === 'resetclaims') {
+        db()->prepare('DELETE FROM claims WHERE image_id IN (SELECT id FROM images WHERE gallery_id = ?)')->execute([$id]);
+        go($base . '?a=gallery&id=' . $id . '&saved=1');
+    }
     if ($a === 'delgallery') {
         $g = gal($id);
         if (($_POST['confirm'] ?? '') === 'DELETE') {
@@ -143,7 +149,7 @@ if ($post) {
 // ----- views -----
 if ($a === 'gallery') {
     $g = gal((int)($_GET['id'] ?? 0)); $gid = (int)$g['id'];
-    $q = db()->prepare('SELECT i.*, (SELECT COUNT(*) FROM favorites f WHERE f.image_id = i.id) AS fav, (SELECT COUNT(*) FROM comments c WHERE c.image_id = i.id) AS ncom, (SELECT COUNT(*) FROM downloads d WHERE d.image_id = i.id) AS dls FROM images i WHERE i.gallery_id = ? ORDER BY i.sort, i.id'); $q->execute([$gid]);
+    $q = db()->prepare('SELECT i.*, (SELECT COUNT(*) FROM favorites f WHERE f.image_id = i.id) AS fav, (SELECT COUNT(*) FROM comments c WHERE c.image_id = i.id) AS ncom, (SELECT COUNT(*) FROM downloads d WHERE d.image_id = i.id) AS dls, (SELECT COUNT(*) FROM claims cl WHERE cl.image_id = i.id) AS claimed FROM images i WHERE i.gallery_id = ? ORDER BY i.sort, i.id'); $q->execute([$gid]);
     $imgs = $q->fetchAll();
     $nfav = count(array_filter($imgs, fn($i) => $i['fav'] > 0));
     ahead($g['title']); $tok = csrf(); ?>
@@ -161,7 +167,9 @@ if ($a === 'gallery') {
 <label>Title<input name="title" value="<?= h($g['title']) ?>" required></label>
 <label>Client name<input name="client_name" value="<?= h($g['client_name']) ?>"></label>
 <label>Client email<input name="client_email" type="email" value="<?= h($g['client_email']) ?>"></label>
-<label>Default price per photo ($, 0 = Free)<input name="price" value="<?= h(number_format($g['default_price_cents'] / 100, 2)) ?>"></label>
+<label>Included photos (free picks, 0 = none)<input name="included" type="number" min="0" value="<?= (int)$g['included_count'] ?>"></label>
+<label>Extra photo, web size ($, 0 = Free)<input name="price_web" value="<?= h(number_format($g['default_web_cents'] / 100, 2)) ?>"></label>
+<label>Extra photo, full resolution ($, 0 = Free)<input name="price" value="<?= h(number_format($g['default_price_cents'] / 100, 2)) ?>"></label>
 <label>New password (leave blank to keep)<input name="password" type="text" autocomplete="off"></label>
 <label>Remove password<br><input type="checkbox" name="clear_pw" value="1" style="width:auto"> Anyone with the link can open it</label>
 <label style="grid-column:1/-1">Note shown to client<textarea name="note" rows="3"><?= h($g['note']) ?></textarea></label>
@@ -169,18 +177,23 @@ if ($a === 'gallery') {
 <div style="grid-column:1/-1"><button class="btn">Save settings</button></div></form>
 
 <h2>Prices</h2>
-<p>Each photo uses the default price unless you type its own. Type <b>0</b> for Free. Leave blank to use the default.</p>
+<p><b>Web size</b> is a 2048 px copy for social sharing. <b>Full resolution</b> is the original file for printing. Photos in the client's included package get both for free. Each photo uses the gallery default unless you type its own price (0 = Free, blank = default).</p>
 <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="priceall"><input type="hidden" name="id" value="<?= $gid ?>">
-<label style="margin:0">Set all photos to ($)<input name="price" placeholder="blank = default" style="width:150px"></label>
+<label style="margin:0">Set all photos<br><select name="tier" style="padding:10px"><option value="web">web size</option><option value="full">full resolution</option></select></label>
+<label style="margin:0">to ($)<input name="price" placeholder="blank = default" style="width:150px"></label>
 <label style="margin:0"><input type="checkbox" name="only_fav" value="1" style="width:auto"> only favorites (<?= $nfav ?>)</label><button class="btn sm">Apply</button></form>
+<?php $used = claims_used($gid); if ($g['included_count'] > 0): ?>
+<p style="margin-top:16px"><b>Package:</b> <?= $used ?> of <?= (int)$g['included_count'] ?> included photos used.
+<form method="post" onsubmit="return confirm('Clear all of this client\'s package picks?')" style="display:inline"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="resetclaims"><input type="hidden" name="id" value="<?= $gid ?>"><button class="btn sm alt">Reset picks</button></form></p>
+<?php endif; ?>
 
 <h2><?= count($imgs) ?> photos</h2>
 <div class="cards">
 <?php foreach ($imgs as $i): ?>
 <div class="cd"><img loading="lazy" src="<?= $base ?>?a=thumb&id=<?= $i['id'] ?>" alt="">
 <small><?= h($i['label']) ?></small>
-<div style="display:flex;gap:6px;align-items:center;margin:4px 0"><span>$</span><input value="<?= $i['price_cents'] === null ? '' : h(number_format($i['price_cents'] / 100, 2)) ?>" placeholder="<?= h(number_format($g['default_price_cents'] / 100, 2)) ?>" data-img="<?= $i['id'] ?>" class="pr"></div>
-<small><?= $i['fav'] ? '&#9829; favorite ' : '' ?><?= $i['ncom'] ? $i['ncom'] . ' comments ' : '' ?><?= $i['dls'] ? $i['dls'] . ' downloads' : '' ?></small>
+<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 6px;align-items:center;margin:4px 0;font-size:12px"><span>Web $</span><input value="<?= ($i['price_web_cents'] ?? null) === null ? '' : h(number_format($i['price_web_cents'] / 100, 2)) ?>" placeholder="<?= h(number_format($g['default_web_cents'] / 100, 2)) ?>" data-img="<?= $i['id'] ?>" data-tier="web" class="pr"><span>Full $</span><input value="<?= $i['price_cents'] === null ? '' : h(number_format($i['price_cents'] / 100, 2)) ?>" placeholder="<?= h(number_format($g['default_price_cents'] / 100, 2)) ?>" data-img="<?= $i['id'] ?>" data-tier="full" class="pr"></div>
+<small><?= $i['fav'] ? '&#9829; favorite ' : '' ?><?= $i['claimed'] ? '[in package] ' : '' ?><?= $i['ncom'] ? $i['ncom'] . ' comments ' : '' ?><?= $i['dls'] ? $i['dls'] . ' downloads' : '' ?></small>
 <form method="post" onsubmit="return confirm('Delete this photo and its original?')"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="delimg"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="image" value="<?= $i['id'] ?>"><button class="btn sm alt" style="padding:3px 8px;font-size:12px">Delete</button></form></div>
 <?php endforeach; ?></div>
 
@@ -190,8 +203,8 @@ $c = db()->prepare('SELECT c.*, i.label, i.id AS iid FROM comments c JOIN images
 $fv = db()->prepare('SELECT i.label FROM favorites f JOIN images i ON i.id = f.image_id WHERE i.gallery_id = ? ORDER BY i.sort'); $fv->execute([$gid]); $favs = $fv->fetchAll(PDO::FETCH_COLUMN);
 ?>
 <h2 id="orders">Photo requests</h2>
-<?php if (!$orders): ?><p>None yet.</p><?php else: ?><table><tr><th>Photo</th><th>Email</th><th>Status</th><th></th></tr>
-<?php foreach ($orders as $r): ?><tr><td><?= h($r['label']) ?></td><td><?= h($r['email']) ?></td><td><span class="pill"><?= h($r['status']) ?></span></td><td>
+<?php if (!$orders): ?><p>None yet.</p><?php else: ?><table><tr><th>Photo</th><th>Size</th><th>Email</th><th>Status</th><th></th></tr>
+<?php foreach ($orders as $r): ?><tr><td><?= h($r['label']) ?></td><td><?= $r['tier'] === 'web' ? 'Web' : 'Full' ?></td><td><?= h($r['email']) ?></td><td><span class="pill"><?= h($r['status']) ?></span></td><td>
 <form method="post" style="display:flex;gap:6px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="order"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="order" value="<?= $r['id'] ?>">
 <button name="status" value="paid" class="btn sm">Mark paid (unlocks download)</button><button name="status" value="declined" class="btn sm alt">Decline</button></form></td></tr><?php endforeach; ?></table><?php endif; ?>
 
@@ -209,7 +222,7 @@ $fv = db()->prepare('SELECT i.label FROM favorites f JOIN images i ON i.id = f.i
 <script>
 var CSRF=<?= json_encode($tok) ?>,GID=<?= $gid ?>,BASE=<?= json_encode($base) ?>;
 document.querySelectorAll('.pr').forEach(function(el){el.addEventListener('change',function(){
-  var f=new URLSearchParams({a:'price',image:el.dataset.img,price:el.value,csrf:CSRF});
+  var f=new URLSearchParams({a:'price',image:el.dataset.img,tier:el.dataset.tier,price:el.value,csrf:CSRF});
   fetch(BASE,{method:'POST',body:f}).then(function(r){el.style.outline=r.ok?'2px solid #0a6b2d':'2px solid #b00020'});
 })});
 document.getElementById('files').addEventListener('change',async function(e){
@@ -239,7 +252,9 @@ ahead('Galleries'); $tok = csrf(); ?>
 <label>Title<input name="title" required placeholder="Jordan and Sam, spring session"></label>
 <label>Client name<input name="client_name"></label>
 <label>Client email<input name="client_email" type="email"></label>
-<label>Default price per photo ($, 0 = Free)<input name="price" value="0"></label>
+<label>Included photos (free picks)<input name="included" type="number" min="0" value="0"></label>
+<label>Extra photo, web size ($, 0 = Free)<input name="price_web" value="0"></label>
+<label>Extra photo, full resolution ($, 0 = Free)<input name="price" value="0"></label>
 <label>Password (optional)<input name="password" autocomplete="off"></label>
 <label style="grid-column:1/-1">Note shown to client<textarea name="note" rows="2"></textarea></label>
 <div style="grid-column:1/-1"><button class="btn">Create gallery</button></div></form>

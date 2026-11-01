@@ -43,11 +43,12 @@ $s->execute([$g['id']]);
 $imgs = $s->fetchAll();
 $data = [];
 foreach ($imgs as $i) {
-    $p = image_price($i, $g);
+    $pf = image_price($i, $g); $pw = image_price_web($i, $g); $cl = image_is_claimed((int)$i['id']);
     $data[] = ['id' => (int)$i['id'], 'label' => $i['label'], 'w' => (int)$i['w'], 'h' => (int)$i['h'], 'fav' => (int)$i['fav'] > 0, 'n' => (int)$i['ncom'],
-        'price' => $p, 'priceText' => money($p), 'dl' => can_download($i, $g)];
+        'pf' => $pf, 'pw' => $pw, 'pfText' => money($pf), 'pwText' => money($pw), 'claimed' => $cl, 'canUnclaim' => $cl && !was_downloaded((int)$i['id']),
+        'dlFull' => can_download($i, $g, 'full'), 'dlWeb' => can_download($i, $g, 'web')];
 }
-$cfg = ['token' => $t, 'csrf' => csrf(), 'payments' => payments_enabled(), 'client' => (string)$g['client_name'], 'images' => $data];
+$cfg = ['token' => $t, 'csrf' => csrf(), 'payments' => payments_enabled(), 'included' => (int)$g['included_count'], 'used' => claims_used((int)$g['id']), 'client' => (string)$g['client_name'], 'images' => $data];
 page_head($g['title']); ?>
 <header class="top"><a href="/" class="brand">Everett Allen Photography</a><span class="kicker">Private gallery</span></header>
 <main class="wrap">
@@ -55,10 +56,11 @@ page_head($g['title']); ?>
   <h1><?= h($g['title']) ?></h1>
   <?php if ($g['client_name']): ?><p class="who">For <?= h($g['client_name']) ?></p><?php endif; ?>
   <?php if (trim((string)$g['note'])): ?><p class="note"><?= nl2br(h($g['note'])) ?></p><?php endif; ?>
-  <p class="help">Tap the heart to mark favorites. Tap a photo to see it larger, leave a comment, or get the full-quality file. Previews are watermarked; downloads are not.</p>
+  <p class="help">Tap the heart to mark favorites. Tap a photo to see it larger, leave a comment, or get your files.<?php if ($g['included_count'] > 0): ?> Your package includes <b><?= (int)$g['included_count'] ?></b> photos: choose them with <b>Add to my package</b>.<?php endif; ?> Previews are watermarked; downloads are not.</p>
 </div>
 <div class="bar">
   <div class="tabs"><button class="tab on" data-f="all">All <span id="cAll"><?= count($data) ?></span></button><button class="tab" data-f="fav">Favorites <span id="cFav">0</span></button></div>
+  <?php if ($g['included_count'] > 0): ?><span class="pkg" id="pkg"></span><?php endif; ?>
   <button class="btn" id="done">Send my picks to Everett</button>
 </div>
 <div class="grid" id="grid">
@@ -66,7 +68,7 @@ page_head($g['title']); ?>
   <figure class="ph" data-id="<?= $d['id'] ?>" style="--r:<?= $d['w'] && $d['h'] ? round($d['w'] / $d['h'], 4) : 1.5 ?>">
     <a href="#<?= $d['id'] ?>" data-i="<?= $n ?>"><img loading="lazy" src="/client/img.php?t=<?= h($t) ?>&i=<?= $d['id'] ?>&s=thumb" alt="<?= h($d['label']) ?>" draggable="false"></a>
     <button class="heart" data-id="<?= $d['id'] ?>" aria-label="Favorite" aria-pressed="false">&#9825;</button>
-    <span class="tag"><?= h($d['priceText']) ?></span>
+    <span class="tag"><?= $d['claimed'] ? 'Included' : h($d['pfText']) ?></span>
     <?php if ($d['n']): ?><span class="cm"><?= $d['n'] ?></span><?php endif; ?>
   </figure>
 <?php endforeach; ?>

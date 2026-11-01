@@ -50,19 +50,35 @@ if ($a === 'comment') {
     json_out(['ok' => true, 'comment' => ['author' => $author, 'body' => $body, 'from_owner' => 0, 'created' => time()]]);
 }
 
+if ($a === 'claim' || $a === 'unclaim') {
+    $img = load_image($g);
+    if ($a === 'claim') {
+        $included = (int)$g['included_count'];
+        if (image_is_claimed((int)$img['id'])) json_out(['ok' => true]);
+        if (claims_used((int)$g['id']) >= $included) json_out(['error' => 'You have used all ' . $included . ' included photos.'], 400);
+        db()->prepare('INSERT OR IGNORE INTO claims (image_id, created) VALUES (?, ?)')->execute([$img['id'], time()]);
+    } else {
+        if (was_downloaded((int)$img['id'])) json_out(['error' => 'This photo was already downloaded, so it can\'t be swapped.'], 400);
+        db()->prepare('DELETE FROM claims WHERE image_id = ?')->execute([$img['id']]);
+    }
+    json_out(['ok' => true, 'used' => claims_used((int)$g['id']), 'included' => (int)$g['included_count']]);
+}
+
 if ($a === 'request') {
     $img = load_image($g);
+    $tier = ($_POST['tier'] ?? 'full') === 'web' ? 'web' : 'full';
     $email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
     if (!$email) json_out(['error' => 'Please enter a valid email so Everett can reply.'], 400);
-    $price = image_price($img, $g);
-    if ($price <= 0) json_out(['error' => 'This photo is free: just download it.'], 400);
-    db()->prepare("INSERT INTO orders (gallery_id, image_id, email, status, created) VALUES (?, ?, ?, 'requested', ?)")->execute([$g['id'], $img['id'], $email, time()]);
+    if (can_download($img, $g, $tier)) json_out(['error' => 'This size is already available: just download it.'], 400);
+    $price = $tier === 'web' ? image_price_web($img, $g) : image_price($img, $g);
+    $label = $tier === 'web' ? 'web size (social)' : 'full resolution (print)';
+    db()->prepare("INSERT INTO orders (gallery_id, image_id, email, status, tier, created) VALUES (?, ?, ?, 'requested', ?, ?)")->execute([$g['id'], $img['id'], $email, $tier, time()]);
     $orderId = (int)db()->lastInsertId();
     if (payments_enabled()) {
-        $url = create_checkout(['id' => $orderId, 'email' => $email], $img, $g);
+        $url = create_checkout(['id' => $orderId, 'email' => $email, 'tier' => $tier, 'price_cents' => $price], $img, $g);
         if ($url) json_out(['ok' => true, 'checkout' => $url]);
     }
-    send_owner_mail('Photo request: "' . $g['title'] . '"', "$email asked for " . ($img['label'] ?: 'photo ' . $img['id']) . ' (' . money($price) . ").\n\nMark it paid in the admin once payment is arranged:\nhttps://" . ($_SERVER['HTTP_HOST'] ?? '') . "/client/admin/?a=gallery&id=" . $g['id'] . "\n", $email);
+    send_owner_mail('Photo request: "' . $g['title'] . '"', "$email asked for " . ($img['label'] ?: 'photo ' . $img['id']) . " as $label (" . money($price) . ").\n\nMark it paid in the admin once payment is arranged:\nhttps://" . ($_SERVER['HTTP_HOST'] ?? '') . "/client/admin/?a=gallery&id=" . $g['id'] . "\n", $email);
     json_out(['ok' => true, 'message' => 'Sent. Everett will email you about getting this photo.']);
 }
 
@@ -72,7 +88,10 @@ if ($a === 'done') {
     $lines = []; $total = 0;
     foreach ($rows as $r) { $p = $r['price_cents'] === null ? (int)$g['default_price_cents'] : (int)$r['price_cents']; $total += $p; $lines[] = '  - ' . ($r['label'] ?: 'photo ' . $r['id']) . ' (' . money($p) . ')'; }
     $who = trim(strip_tags((string)($_POST['author'] ?? ''))) ?: ($g['client_name'] ?: 'Your client');
-    send_owner_mail('Picks submitted: "' . $g['title'] . '"', "$who marked " . count($rows) . " favorites (" . money($total) . " total):\n\n" . implode("\n", $lines) . "\n", (string)$g['client_email']);
+    $cl = db()->prepare('SELECT i.label, i.id FROM claims c JOIN images i ON i.id = c.image_id WHERE i.gallery_id = ? ORDER BY i.sort, i.id'); $cl->execute([$g['id']]);
+    $claimed = array_map(fn($r) => '  - ' . ($r['label'] ?: 'photo ' . $r['id']), $cl->fetchAll());
+    $extra = $claimed ? "\n\nIncluded-package picks (" . count($claimed) . " of " . (int)$g['included_count'] . "):\n" . implode("\n", $claimed) : '';
+    send_owner_mail('Picks submitted: "' . $g['title'] . '"', "$who marked " . count($rows) . " favorites (" . money($total) . " total):\n\n" . implode("\n", $lines) . $extra . "\n", (string)$g['client_email']);
     json_out(['ok' => true, 'count' => count($rows)]);
 }
 

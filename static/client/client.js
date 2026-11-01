@@ -32,21 +32,47 @@ document.querySelectorAll('.tab').forEach(function(b){b.addEventListener('click'
   filter=b.dataset.f;document.querySelectorAll('.tab').forEach(function(x){x.classList.toggle('on',x===b)});paint();
 })});
 function who(){try{return localStorage.getItem('ea_name')||E.client||''}catch(_){return E.client||''}}
+function pkgText(){return E.included>0?('Package: '+E.used+' of '+E.included+' included photos used'):''}
+function paintPkg(){var p=$('pkg');if(p)p.textContent=pkgText()}
+function mailVal(){try{return localStorage.getItem('ea_email')||''}catch(_){return ''}}
+function row(b,label,sub){var r=document.createElement('div');r.className='tier';var t=document.createElement('div');t.innerHTML='<b></b><small></small>';t.firstChild.textContent=label;t.lastChild.textContent=sub;r.appendChild(t);b.appendChild(r);return r}
 function renderBuy(im){
   var b=$('lbbuy');b.innerHTML='';
-  var p=document.createElement('div');p.className='price';p.textContent=im.priceText;b.appendChild(p);
-  if(im.dl){
-    var a=document.createElement('a');a.className='btn';a.href='/client/dl.php?t='+E.token+'&i='+im.id;a.textContent='Download full-quality photo';b.appendChild(a);
-  }else{
-    var em=document.createElement('input');em.type='email';em.placeholder='Your email';em.value=(function(){try{return localStorage.getItem('ea_email')||''}catch(_){return ''}})();
-    var bt=document.createElement('button');bt.className='btn';bt.textContent=E.payments?'Buy this photo':'Request this photo';
-    bt.onclick=function(){
-      try{localStorage.setItem('ea_email',em.value)}catch(_){}
-      bt.disabled=true;
-      api('request',{i:im.id,email:em.value}).then(function(j){if(j.checkout){location.href=j.checkout}else{toast(j.message);bt.textContent='Request sent'}}).catch(function(e){toast(e.message);bt.disabled=false});
-    };
-    b.appendChild(em);b.appendChild(bt);
+  // package control
+  if(E.included>0){
+    if(im.claimed){
+      var c=document.createElement('div');c.className='inc';c.textContent='Included in your package';b.appendChild(c);
+      if(im.canUnclaim){var u=document.createElement('button');u.className='link';u.textContent='Remove from my package';u.onclick=function(){api('unclaim',{i:im.id}).then(function(j){im.claimed=false;E.used=j.used;im.dlFull=im.pf<=0;im.dlWeb=im.dlFull||im.pw<=0;afterChange(im)}).catch(function(e){toast(e.message)})};b.appendChild(u)}
+    }else if(!im.dlFull){
+      var left=E.included-E.used;
+      var cb=document.createElement('button');cb.className='btn';cb.textContent=left>0?('Add to my package ('+left+' left)'):'Package is full';cb.disabled=left<=0;
+      cb.onclick=function(){cb.disabled=true;api('claim',{i:im.id}).then(function(j){im.claimed=true;im.canUnclaim=true;im.dlFull=true;im.dlWeb=true;E.used=j.used;afterChange(im)}).catch(function(e){toast(e.message);cb.disabled=false})};
+      b.appendChild(cb);
+    }
   }
+  var em=null;
+  function sizeRow(label,sub,allowed,priceText,tier,dlSize){
+    var r=row(b,label,sub);
+    if(allowed){var a=document.createElement('a');a.className='btn sm';a.href='/client/dl.php?t='+E.token+'&i='+im.id+'&size='+dlSize;a.textContent='Download';r.appendChild(a)}
+    else{
+      var p=document.createElement('span');p.className='price';p.textContent=priceText;r.appendChild(p);
+      var bt=document.createElement('button');bt.className='btn sm';bt.textContent=E.payments?'Buy':'Request';
+      bt.onclick=function(){
+        if(!em||!em.value){toast('Enter your email below first.');if(em)em.focus();return}
+        try{localStorage.setItem('ea_email',em.value)}catch(_){}
+        bt.disabled=true;
+        api('request',{i:im.id,email:em.value,tier:tier}).then(function(j){if(j.checkout){location.href=j.checkout}else{toast(j.message);bt.textContent='Sent'}}).catch(function(e){toast(e.message);bt.disabled=false});
+      };
+      r.appendChild(bt);
+    }
+  }
+  sizeRow('Web size','For social sharing (2048 px)',im.dlWeb,im.pwText,'web','web');
+  sizeRow('Full resolution','For printing (original size)',im.dlFull,im.pfText,'full','full');
+  if(!(im.dlWeb&&im.dlFull)){em=document.createElement('input');em.type='email';em.placeholder='Your email (so Everett can reply)';em.value=mailVal();b.appendChild(em)}
+}
+function afterChange(im){
+  var tag=document.querySelector('.ph[data-id="'+im.id+'"] .tag');if(tag)tag.textContent=im.claimed?'Included':im.pfText;
+  paintPkg();renderBuy(im);
 }
 function fmt(ts){return new Date(ts*1000).toLocaleDateString(undefined,{month:'short',day:'numeric'})}
 function loadComments(id){
@@ -89,6 +115,6 @@ $('done').onclick=function(){
   api('done',{author:who()}).then(function(){toast('Sent. Thank you!')}).catch(function(e){toast(e.message)});
 };
 imgs.forEach(function(){});
-paint();
+paint();paintPkg();
 var m=location.hash.match(/^#(\d+)$/);if(m){var ix=imgs.findIndex(function(x){return x.id===+m[1]});if(ix>=0)open(ix)}
 })();
