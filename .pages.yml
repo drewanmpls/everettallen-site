@@ -59,7 +59,7 @@ content:
       - { name: callout, label: Prints callout (email addresses become links), type: text }
       - { name: cta, label: Line above the Contact button, type: string }
       - { name: share_discount_percent, label: Discount (percent) for allowing photo sharing (0 = no offer), type: number }
-      - { name: share_note, label: Services page sentence about the discount ({percent} becomes the number), type: text }
+      - { name: share_note, label: "Services page sentence about the discount ({percent} becomes the number)", type: text }
       - { name: release_title, label: Release title, type: string }
       - { name: release_version, label: Release version label (change it when you edit the wording), type: string }
       - { name: release_terms, label: Release paragraphs (shown on the form and saved into each signed PDF), type: text, list: true }
@@ -71,7 +71,7 @@ content:
           - { name: term, label: Term, type: string }
           - { name: text, label: Meaning, type: text }
       - { name: release_gallery_question, label: Gallery display question, type: string }
-      - { name: release_consideration, label: Discount sentence ({percent} becomes the number), type: text }
+      - { name: release_consideration, label: "Discount sentence ({percent} becomes the number)", type: text }
       - name: cards
         label: Rate cards
         type: object
