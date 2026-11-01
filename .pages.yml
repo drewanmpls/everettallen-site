@@ -31,6 +31,29 @@ content:
       - { name: lede, label: Short intro line, type: string }
       - { name: desc, label: Search and share description, type: string }
       - { name: body, label: "Text (blank line between paragraphs; **bold**, *italic*, [link text](/page/))", type: text }
+  - name: services
+    label: Services and rates
+    type: file
+    path: content/services.json
+    format: json
+    fields:
+      - { name: title, label: Page title, type: string }
+      - { name: lede, label: Short intro line, type: string }
+      - { name: delivery, label: Delivery notice, type: text }
+      - { name: callout, label: Prints callout (email addresses become links), type: text }
+      - { name: cta, label: Line above the Contact button, type: string }
+      - name: cards
+        label: Rate cards
+        type: object
+        list: true
+        fields:
+          - { name: title, label: Name, type: string }
+          - { name: price, label: Price (like $175), type: string }
+          - { name: unit, label: Unit (like / hour), type: string }
+          - { name: meta, label: Length and looks, type: string }
+          - { name: badge, label: Badge (like Most popular, makes the card dark), type: string }
+          - { name: wide, label: Full-width card, type: boolean }
+          - { name: items, label: What's included, type: string, list: true }
   - name: site
     label: Site settings
     type: file

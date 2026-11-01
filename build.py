@@ -15,13 +15,13 @@ def esc_desc(t):
     t=e(t); t=re.sub(r'&lt;(/?)(strong|em)&gt;',r'<\1\2>',t)
     return ''.join(f'<p>{p}</p>' for p in t.split('\n\n') if p.strip())
 SOC=f'<a href="{site["facebook"]}" target="_blank" rel="noopener">Facebook</a> / <a href="{site["instagram"]}" target="_blank" rel="noopener">Instagram</a>'
-FL='<a href="/about/">About</a> / <a href="/licensing/">Press and licensing</a> / <a href="/removal/">Photo removal</a>'
+FL='<a href="/services/">Services</a> / <a href="/about/">About</a> / <a href="/licensing/">Press and licensing</a> / <a href="/removal/">Photo removal</a>'
 def page(title,body,path,section,desc=''):
     t=site['title'] if not title else f"{title} | {site['title']}"
     d=e(desc or site['tagline'])
-    if section=='Portraits': nav='<a href="/events/">Events &rarr;</a><a href="/contact/">Contact</a>'
-    elif section=='Events': nav='<a href="/">&larr; Portraits</a><a href="/contact/">Contact</a>'
-    else: nav='<a href="/">Portraits</a><a href="/events/">Events</a><a href="/contact/">Contact</a>'
+    if section=='Portraits': nav='<a href="/events/">Events &rarr;</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
+    elif section=='Events': nav='<a href="/">&larr; Portraits</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
+    else: nav='<a href="/">Portraits</a><a href="/events/">Events</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(t)}</title><meta name="description" content="{d}"><link rel="canonical" href="{site['base_url']}{path}">
 <meta property="og:title" content="{e(t)}"><meta property="og:description" content="{d}"><meta property="og:type" content="website">
@@ -96,9 +96,20 @@ TP={}
 for pf in sorted(glob.glob('content/pages/*.json')):
     pj=json.load(open(pf)); sl=os.path.basename(pf)[:-5]; TP[sl]=pj
     w(f'/{sl}/',page(pj['title'],f'<div class="wrap narrow prose"><h1 class="h1">{e(pj["title"])}</h1><p class="lede2">{e(pj["lede"])}</p>{md_body(pj["body"])}</div>',f'/{sl}/','Contact' if False else pj['title'],pj.get('desc','')))
+
+SV=json.load(open('content/services.json'))
+def svc_card(c):
+    items=''.join(f'<li>{md_inline(i)}</li>' for i in c['items'])
+    badge=f'<span class="sbadge">{e(c["badge"])}</span>' if c.get('badge') else ''
+    unit=f' <small>{e(c["unit"])}</small>' if c.get('unit') else ''
+    cls='scard'+(' feat' if c.get('badge') else '')+(' wide' if c.get('wide') else '')
+    return f'<div class="{cls}">{badge}<h3>{e(c["title"])}</h3><div class="sprice">{e(c["price"])}{unit}</div><p class="smeta">{e(c["meta"])}</p><ul>{items}</ul></div>'
+callout=md_inline(SV['callout']).replace('Umbra Arts Minneapolis','<strong>Umbra Arts Minneapolis</strong>')
+callout=re.sub(r'([\w.]+@[\w.]+\.com)',r'<a href="mailto:\1">\1</a>',callout)
+w('/services/',page(SV['title'],f'<div class="wrap"><h1 class="h1">{e(SV["title"])}</h1><p class="lede2">{e(SV["lede"])}</p><p class="deliv"><strong>All-digital delivery.</strong> {e(SV["delivery"])}</p><p class="callout">{callout}</p><div class="sgrid">{"".join(svc_card(c) for c in SV["cards"])}</div><section class="cta"><span>{e(SV["cta"])}</span><a class="btn" href="/contact/">Contact me</a></section></div>','/services/','Services','Portrait and event photography rates from Everett Allen Photography, delivered as digital files.'))
 w('/thanks/',page('Thanks','<div class="wrap narrow"><h1 class="h1">Thanks!</h1><p class="lede2">Your message was sent. I\'ll get back to you soon.</p><p><a href="/">Back home</a></p></div>','/thanks/','Contact'))
 w('/404.html',page('Not found','<div class="wrap narrow"><h1 class="h1">Page not found</h1><p class="lede2"><a href="/">Back home</a> or browse <a href="/portraits/">Portraits</a> and <a href="/events/">Events</a>.</p></div>','/404','Contact'))
-urls=['/','/portraits/','/events/','/contact/']+[f'/{k}/' for k in TP]+[f'/gallery/{g["slug"]}/' for g in G]
+urls=['/','/portraits/','/events/','/services/','/contact/']+[f'/{k}/' for k in TP]+[f'/gallery/{g["slug"]}/' for g in G]
 open('dist/sitemap.xml','w').write('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+''.join(f'<url><loc>{site["base_url"]}{u}</loc></url>' for u in urls)+'</urlset>')
 open('dist/robots.txt','w').write(f'User-agent: *\nAllow: /\nDisallow: /client/\nSitemap: {site["base_url"]}/sitemap.xml\n')
 ht=['ErrorDocument 404 /404.html','RewriteEngine On','RewriteCond %{HTTPS} off','RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]',

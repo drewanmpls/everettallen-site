@@ -1,0 +1,76 @@
+{
+  "title": "Services and rates",
+  "lede": "Portraits and event coverage, delivered as digital files.",
+  "delivery": "All sessions include professionally color-graded, high-resolution digital files delivered via a private online gallery with full personal printing and digital usage rights.",
+  "callout": "Looking for fine art prints? Select works are exhibited and sold through Umbra Arts Minneapolis. For print inquiries and gallery editions, please email andrew@everettallenphotography.com.",
+  "cta": "Ready to book, or have a question about what fits?",
+  "cards": [
+    {
+      "title": "Express and Headshots",
+      "price": "$175",
+      "unit": "",
+      "meta": "30 to 45 mins / 1 look",
+      "badge": "",
+      "wide": false,
+      "items": [
+        "5 fully retouched, high-res digital files",
+        "Online gallery with personal print rights",
+        "Ideal for bios, headshots, and titleholder profiles"
+      ]
+    },
+    {
+      "title": "Standard Portrait and Fine Art",
+      "price": "$350",
+      "unit": "",
+      "meta": "75 to 90 mins / Up to 2 looks",
+      "badge": "Most popular",
+      "wide": false,
+      "items": [
+        "12 to 15 fully retouched, high-res digital files",
+        "Dynamic studio lighting or on-location",
+        "Ideal for fine art, creative, and gear portraiture",
+        "Online proofing and high-res delivery gallery"
+      ]
+    },
+    {
+      "title": "Couples and Engagement",
+      "price": "$375",
+      "unit": "",
+      "meta": "90 mins / Up to 2 looks",
+      "badge": "",
+      "wide": false,
+      "items": [
+        "15 to 20 fully retouched, high-res digital files",
+        "On location or in studio",
+        "Full print release for save-the-dates and announcements",
+        "Private digital download gallery"
+      ]
+    },
+    {
+      "title": "Creative Extended",
+      "price": "$475",
+      "unit": "",
+      "meta": "Up to 2 hours / 3 to 4 looks",
+      "badge": "",
+      "wide": false,
+      "items": [
+        "25 fully retouched, high-res digital files",
+        "Multiple studio lighting set changes",
+        "Complete portfolio and concept exploration"
+      ]
+    },
+    {
+      "title": "Community and Special Events",
+      "price": "$150",
+      "unit": "/ hour",
+      "meta": "2-hour minimum",
+      "badge": "",
+      "wide": true,
+      "items": [
+        "Comprehensive candid and step-and-repeat event coverage",
+        "Complete color-corrected digital archive with fast social-ready exports",
+        "**15% community discount** for registered non-profits, clubs, and benefit runs"
+      ]
+    }
+  ]
+}

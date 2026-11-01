@@ -71,3 +71,12 @@ footer{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;paddin
 .news{grid-template-columns:1fr}.top nav{gap:18px}.ynum{flex-basis:100%}.row2{grid-template-columns:1fr}}
 .prose p,.prose li{font-size:19px;line-height:1.6;max-width:62ch}.prose ol{padding-left:1.3em}.prose li{margin-bottom:8px}.prose a{border-bottom:1px solid currentColor;text-decoration:none}.prose .lede2{font-size:24px;line-height:1.3;max-width:34ch;margin-bottom:28px}
 footer .fl a{text-decoration:none}footer .fl a:hover{text-decoration:underline}
+
+.deliv{max-width:70ch;font-size:19px;line-height:1.55;margin:0 0 16px}.callout{max-width:70ch;background:#f6f3ec;border-left:4px solid #2b2bff;padding:14px 18px;font-size:17px;line-height:1.5;margin:0 0 36px}.callout a{border-bottom:1px solid currentColor;text-decoration:none}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:40px}
+.scard{position:relative;background:#f6f3ec;border:2px solid #111;padding:24px 22px}.scard.feat{background:#111;color:#e9e5dc}.scard.wide{grid-column:1/-1}
+.scard h3{margin:0 0 6px;font-weight:800;text-transform:uppercase;letter-spacing:-.02em;font-size:24px;line-height:1}
+.sprice{font-weight:800;font-size:56px;line-height:1;letter-spacing:-.04em;color:#2b2bff;margin:10px 0 2px}.scard.feat .sprice{color:#fff}.sprice small{font-size:18px;font-weight:500;letter-spacing:0;color:inherit}
+.smeta{font-family:"Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:14px;margin:0 0 14px;opacity:.8}
+.scard ul{margin:0;padding-left:1.1em}.scard li{margin-bottom:6px;line-height:1.45}
+.sbadge{position:absolute;right:14px;top:-12px;background:#2b2bff;color:#fff;font-family:"Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:13px;padding:3px 10px}
