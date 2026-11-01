@@ -54,7 +54,7 @@ function db(): PDO {
     CREATE TABLE IF NOT EXISTS claims (image_id INTEGER PRIMARY KEY REFERENCES images(id) ON DELETE CASCADE, created INTEGER NOT NULL);
     ");
     foreach ([['galleries', 'included_count', 'INTEGER NOT NULL DEFAULT 0'], ['galleries', 'default_web_cents', 'INTEGER NOT NULL DEFAULT 0'],
-              ['images', 'price_web_cents', 'INTEGER'], ['galleries', 'client_id', 'INTEGER'], ['clients', 'release_text', "TEXT DEFAULT ''"], ['clients', 'release_name', "TEXT DEFAULT ''"], ['clients', 'release_at', 'INTEGER'], ['clients', 'discount_percent', 'INTEGER NOT NULL DEFAULT 0'], ['orders', 'tier', "TEXT NOT NULL DEFAULT 'full'"]] as [$t, $c, $def]) {
+              ['images', 'price_web_cents', 'INTEGER'], ['galleries', 'client_id', 'INTEGER'], ['clients', 'release_text', "TEXT DEFAULT ''"], ['clients', 'release_stage', "TEXT DEFAULT ''"], ['clients', 'release_dob', "TEXT DEFAULT ''"], ['clients', 'release_gallery', "TEXT DEFAULT ''"], ['clients', 'release_version', "TEXT DEFAULT ''"], ['clients', 'release_pdf', "TEXT DEFAULT ''"], ['clients', 'release_sig', "TEXT DEFAULT ''"], ['clients', 'drive_status', "TEXT DEFAULT ''"], ['clients', 'drive_url', "TEXT DEFAULT ''"], ['clients', 'shoot_date', "TEXT DEFAULT ''"], ['clients', 'shoot_location', "TEXT DEFAULT ''"], ['clients', 'id_verified', "TEXT DEFAULT ''"], ['clients', 'release_name', "TEXT DEFAULT ''"], ['clients', 'release_at', 'INTEGER'], ['clients', 'discount_percent', 'INTEGER NOT NULL DEFAULT 0'], ['orders', 'tier', "TEXT NOT NULL DEFAULT 'full'"]] as [$t, $c, $def]) {
         $has = false;
         foreach ($pdo->query("PRAGMA table_info($t)") as $col) if ($col['name'] === $c) $has = true;
         if (!$has) $pdo->exec("ALTER TABLE $t ADD COLUMN $c $def");
@@ -248,9 +248,91 @@ function services_list(): array {
 function share_offer(): array {
     $f = __DIR__ . '/share.json';
     $j = is_file($f) ? json_decode((string)file_get_contents($f), true) : null;
-    $pc = is_array($j) ? (int)($j['percent'] ?? 0) : 0;
-    $tx = is_array($j) ? (string)($j['release_text'] ?? '') : '';
-    return ['percent' => $pc, 'text' => str_replace('{percent}', (string)$pc, $tx)];
+    $j = is_array($j) ? $j : [];
+    $pc = (int)($j['percent'] ?? 0);
+    $terms = array_map('strval', (array)($j['terms'] ?? []));
+    $cons = str_replace('{percent}', (string)$pc, (string)($j['consideration'] ?? ''));
+    $defs = (array)($j['definitions'] ?? []);
+    $text = $terms ? implode("\n\n", $terms) . ($cons !== '' && $pc > 0 ? "\n\n" . $cons : '') : '';
+    return ['percent' => $pc, 'title' => (string)($j['title'] ?? 'Model Release Agreement'), 'version' => (string)($j['version'] ?? ''), 'terms' => $terms, 'definitions' => $defs,
+            'gallery_question' => (string)($j['gallery_question'] ?? ''), 'consideration' => $pc > 0 ? $cons : '', 'text' => $text];
+}
+function release_dir(): string { $d = priv_dir() . '/releases'; if (!is_dir($d)) @mkdir($d, 0700, true); return $d; }
+function release_filename(array $c): string {
+    $d = date('Ymd', (int)($c['release_at'] ?: $c['created']));
+    return 'ER' . $d . '-' . preg_replace('/[^A-Za-z0-9]+/', '_', trim($c['name'])) . '-' . str_pad((string)$c['id'], 5, '0', STR_PAD_LEFT) . '.pdf';
+}
+// Build the signed release PDF from the stored client record. Returns the PDF bytes.
+function build_release_pdf(array $c): string {
+    require_once __DIR__ . '/pdf.php';
+    $o = share_offer();
+    $terms = $c['release_text'] !== '' ? preg_split('/\n\n/', (string)$c['release_text']) : $o['terms'];   // the exact wording they signed
+    $defs = $o['definitions'];
+    $id = str_pad((string)$c['id'], 5, '0', STR_PAD_LEFT);
+    $tz = new DateTimeZone('America/Chicago');
+    $fmt = fn($ts) => $ts ? (new DateTime('@' . (int)$ts))->setTimezone($tz)->format('m/d/Y g:i A T') : '';
+    $p = new MiniPdf();
+    $p->line('Everett Allen Photography', 18, true);
+    $p->line('andrew@everettallenphotography.com', 10);
+    $p->space(6); $p->rule();
+    $p->line(strtoupper($o['title']), 14, true); $p->space(6);
+    foreach ($terms as $t) $p->para($t, 9.5);
+    $p->line('Definitions', 11, true); $p->space(2);
+    foreach ($defs as $df) $p->para($df['term'] . ': ' . $df['text'], 9, false, 12, 3);
+    $p->space(4);
+    if ($o['gallery_question'] !== '') { $p->para($o['gallery_question'], 9.5, true, 0, 1); $p->para($c['release_gallery'] ?: 'No answer recorded', 9.5); }
+    $p->rule();
+    $p->line('Photographer and shoot information', 11, true); $p->space(2);
+    $p->field('Photographer:', 'Andrew Bertke (Everett Allen Photography)');
+    $p->field('Shoot reference:', trim(($c['service'] ?? '') . ($c['timeframe'] ? ' / ' . $c['timeframe'] : '')));
+    $p->field('Shoot date:', $c['shoot_date'] ?: 'To be set at the session');
+    $p->field('Shoot location:', $c['shoot_location'] ?: 'To be set at the session');
+    $p->space(8);
+    $p->line('Model information', 11, true); $p->space(2);
+    $p->field('Legal name:', (string)$c['release_name']);
+    if ($c['release_stage']) $p->field('Stage name:', (string)$c['release_stage']);
+    $dobT = DateTime::createFromFormat('Y-m-d', (string)$c['release_dob']);
+    $p->field('Date of birth:', $dobT ? $dobT->format('m/d/Y') : (string)$c['release_dob']);
+    $p->field('Email:', (string)$c['email']);
+    $p->space(8);
+    $p->ensure(170);
+    $p->line('Model signature', 11, true); $p->space(2);
+    $sig = $c['release_sig'] !== '' && is_file($c['release_sig']) ? file_get_contents($c['release_sig']) : '';
+    if ($sig !== '') $p->jpeg($sig, 230);
+    $p->field('Signed by (typed):', (string)$c['release_name']);
+    $p->field('Date signed:', $fmt($c['release_at']));
+    $p->space(8);
+    $p->field('ID checked in person:', $c['id_verified'] !== '' ? $c['id_verified'] : 'Pending (to be checked at the session)');
+    $p->rule();
+    $p->para('The signature on this release was captured digitally through everettallenphotography.com. Release ID: ' . $id . '. Terms version: ' . ($c['release_version'] ?: $o['version']) . '. Fingerprint of signed terms: ' . substr(hash('sha256', implode("\n\n", $terms)), 0, 16) . '.', 8);
+    return $p->output();
+}
+function save_release_pdf(int $clientId): ?string {
+    $s = db()->prepare('SELECT * FROM clients WHERE id = ?'); $s->execute([$clientId]); $c = $s->fetch();
+    if (!$c || !$c['release_at']) return null;
+    $path = release_dir() . '/' . $clientId . '.pdf';
+    file_put_contents($path, build_release_pdf($c));
+    db()->prepare('UPDATE clients SET release_pdf = ? WHERE id = ?')->execute([$path, $clientId]);
+    return $path;
+}
+// Send the PDF to the Google Apps Script web app that files it in the EAP folder on Drive.
+function drive_upload(int $clientId): array {
+    $s = db()->prepare('SELECT * FROM clients WHERE id = ?'); $s->execute([$clientId]); $c = $s->fetch();
+    if (!$c || !$c['release_pdf'] || !is_file($c['release_pdf'])) return ['ok' => false, 'error' => 'No PDF yet'];
+    $url = (string)setting('drive_webhook_url', ''); $secret = (string)setting('drive_webhook_secret', '');
+    if ($url === '' || $secret === '') { $r = ['ok' => false, 'error' => 'Google Drive is not set up yet']; }
+    else {
+        $payload = json_encode(['secret' => $secret, 'filename' => release_filename($c), 'pdf_base64' => base64_encode((string)file_get_contents($c['release_pdf'])),
+            'client' => $c['name'], 'service' => $c['service'], 'release_id' => str_pad((string)$c['id'], 5, '0', STR_PAD_LEFT)]);
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: text/plain;charset=utf-8'],
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_TIMEOUT => 25, CURLOPT_CONNECTTIMEOUT => 8]);
+        $res = curl_exec($ch); $err = curl_error($ch); curl_close($ch);
+        $j = is_string($res) ? json_decode($res, true) : null;
+        $r = is_array($j) && !empty($j['ok']) ? ['ok' => true, 'url' => (string)($j['url'] ?? '')] : ['ok' => false, 'error' => $err ?: (is_array($j) ? (string)($j['error'] ?? 'Drive refused it') : 'No usable answer from Google')];
+    }
+    db()->prepare('UPDATE clients SET drive_status = ?, drive_url = ? WHERE id = ?')->execute([$r['ok'] ? 'saved' : 'failed: ' . $r['error'], $r['url'] ?? '', $clientId]);
+    return $r;
 }
 const CLIENT_STATUSES = ['new' => 'New', 'contacted' => 'Contacted', 'booked' => 'Booked', 'shot' => 'Shot', 'delivered' => 'Delivered', 'archived' => 'Archived'];
 

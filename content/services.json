@@ -79,6 +79,38 @@
     }
   ],
   "share_discount_percent": 10,
-  "share_note": "Save {percent}% when you allow me to share photos from your session. You can choose this on the new client form, and it works as your photo release.",
-  "release_text": "I give Everett Allen Photography permission to publish photos from my session, including on the website, on social media, and in promotional materials, credited by name only if I ask. I can request that any photo be taken down at any time using the photo removal page, and Everett will remove it going forward. In exchange I receive {percent}% off my session fee."
+  "share_note": "Save {percent}% when you sign a model release that lets me use photos from your session. You can choose this on the new client form. Your ID is checked in person at the session.",
+  "release_title": "Model Release Agreement",
+  "release_version": "2026-11",
+  "release_terms": [
+    "By signing this release, I give Everett Allen Photography (the Photographer) and the Photographer's Assigns permission to use the Content in any Media for any purpose, including advertising, promotion, marketing and packaging. This may include sexually explicit or erotic media. The Content may be combined with other images, text, graphics, film, audio or audiovisual works, and may be cropped, altered or modified as the Photographer or Assigns see fit.",
+    "I understand that I have no ownership rights in the Content and that all rights in it belong exclusively to the Photographer and Assigns. I am not entitled to any further payment, royalties or accounting, and I will make no future claims against the Photographer or Assigns about the use of the Content. This release binds my heirs and assigns.",
+    "This release is irrevocable, worldwide and perpetual. It is governed by the laws (excluding conflict-of-law principles) of whichever of these places is nearest my address: New York, Alberta, England, Australia or New Zealand.",
+    "My personal information will not be made publicly available, but may be used as needed in relation to licensing the Content (for example to defend claims, protect rights, or notify trade unions). It may be kept for this purpose and shared with sub-licensees or assignees of the Photographer, including in countries with different data protection and privacy laws, where it may be stored, accessed and used.",
+    "I state that I am at least 18 years old, that I will show a government-issued ID to verify my age in person at the session, and that I have the full legal capacity to sign this release."
+  ],
+  "release_definitions": [
+    {
+      "term": "ASSIGNS",
+      "text": "Any person or company to whom the Photographer has assigned or licensed rights under this release, including their licensees."
+    },
+    {
+      "term": "CONTENT",
+      "text": "All photographs, film, audio or other recordings, still or moving, taken of me during the Shoot."
+    },
+    {
+      "term": "MEDIA",
+      "text": "All forms of media, including digital, electronic, print, television, film, radio and future technologies."
+    },
+    {
+      "term": "MODEL",
+      "text": "Me, including my appearance, likeness and voice."
+    },
+    {
+      "term": "SHOOT",
+      "text": "The photographic or recording session described in this form."
+    }
+  ],
+  "release_gallery_question": "Do you consent to your photo being included in online and/or in-person gallery displays?",
+  "release_consideration": "In exchange for signing this release, I receive {percent}% off my session fee."
 }

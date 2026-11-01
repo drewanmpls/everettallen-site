@@ -37,3 +37,9 @@ Lives in `static/client/` (PHP + SQLite, no WordPress). Private data is stored *
 ### Clients and intake
 - New-client form (public, share the link): `/client/new/`. It saves into the private database, emails Everett, and has a photo-release option that gives a discount. The release wording, discount percent and services come from the Pages CMS (Services and rates).
 - Admin: `/client/admin/?a=clients` lists clients with status, private notes, the signed release (exact wording, signer, date), and their galleries. "Create gallery" pre-fills the package size from the service they chose.
+
+### Model releases and Google Drive
+- Signing the release on `/client/new/` stores the signature, the exact wording, the date and the signer privately, builds a PDF, and sends it to Google Drive through a small Apps Script (`scripts/drive-release-receiver.gs`). Deploy that script as a web app, then paste its address and secret into Admin > Settings.
+- Files land in `EAP / Model Releases` named like `ER20261101-Name-00002.pdf`.
+- In the admin, a client's page shows the PDF, the Drive status, and fields for shoot date, location and "ID checked in person". Updating them rebuilds the PDF (and re-saves it to Drive, replacing the earlier copy).
+- Release wording, discount, and the gallery question are edited in the Pages CMS under "Services and rates".

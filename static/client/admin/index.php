@@ -22,7 +22,7 @@ function ahead(string $title): void { ?>
 .link{font-family:monospace;background:#f6f3ec;border:1px solid var(--line);padding:8px 10px;word-break:break-all;display:block}
 h2{font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:20px;margin:32px 0 8px}
 .drop{border:2px dashed var(--ink);padding:24px;text-align:center;background:#f6f3ec}.ok{color:#0a6b2d}.pill{display:inline-block;padding:1px 8px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:12px}</style></head><body>
-<header class="top"><a class="brand" href="/client/admin/">Gallery admin</a><span style="display:flex;gap:22px"><a href="/client/admin/">Galleries</a><a href="/client/admin/?a=clients">Clients</a><a href="/client/admin/?a=logout">Log out</a></span></header><div class="adm">
+<header class="top"><a class="brand" href="/client/admin/">Gallery admin</a><span style="display:flex;gap:22px"><a href="/client/admin/">Galleries</a><a href="/client/admin/?a=clients">Clients</a><a href="/client/admin/?a=settings">Settings</a><a href="/client/admin/?a=logout">Log out</a></span></header><div class="adm">
 <?php }
 function afoot(): void { echo '</div></body></html>'; }
 
@@ -68,6 +68,15 @@ if ($a === 'thumb') {
     $p = gdir((int)$i['gallery_id'], 'thumb') . '/' . basename($i['file']);
     if (!is_file($p)) { http_response_code(404); exit; }
     header('Content-Type: image/jpeg'); header('Cache-Control: private, max-age=3600'); readfile($p); exit;
+}
+
+if ($a === 'releasepdf') {
+    $cs = db()->prepare('SELECT * FROM clients WHERE id = ?'); $cs->execute([(int)($_GET['id'] ?? 0)]); $c = $cs->fetch();
+    if (!$c || !$c['release_at']) { http_response_code(404); echo 'No release'; exit; }
+    if (!$c['release_pdf'] || !is_file($c['release_pdf'])) save_release_pdf((int)$c['id']);
+    $cs->execute([$c['id']]); $c = $cs->fetch();
+    header('Content-Type: application/pdf'); header('Content-Disposition: inline; filename="' . release_filename($c) . '"'); header('Cache-Control: private, no-store');
+    readfile($c['release_pdf']); exit;
 }
 
 // ----- POST actions -----
@@ -141,6 +150,26 @@ if ($post) {
         db()->prepare("INSERT INTO clients (name, email, phone, pronouns, service, timeframe, location, handle, referral, share_pref, message, notes, status, source, created) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'admin', ?)")
             ->execute([$f['name'], $f['email'], $f['phone'], $f['pronouns'], $f['service'], $f['timeframe'], $f['location'], $f['handle'], $f['referral'], $f['share_pref'], $f['message'], $f['notes'], $st, time()]);
         go($base . '?a=client&id=' . db()->lastInsertId());
+    }
+    if ($a === 'releasesave') {
+        $c0 = db()->prepare('SELECT release_at FROM clients WHERE id = ?'); $c0->execute([$id]);
+        if ($c0->fetchColumn()) {
+            db()->prepare('UPDATE clients SET shoot_date = ?, shoot_location = ?, id_verified = ? WHERE id = ?')
+                ->execute([trim((string)($_POST['shoot_date'] ?? '')), trim((string)($_POST['shoot_location'] ?? '')), trim((string)($_POST['id_verified'] ?? '')), $id]);
+            save_release_pdf($id);
+            if (!empty($_POST['to_drive'])) drive_upload($id);
+        }
+        go($base . '?a=client&id=' . $id . '&saved=1');
+    }
+    if ($a === 'driveretry') {
+        $c0 = db()->prepare('SELECT release_at FROM clients WHERE id = ?'); $c0->execute([$id]);
+        if ($c0->fetchColumn()) { save_release_pdf($id); drive_upload($id); }
+        go($base . '?a=client&id=' . $id . '&saved=1');
+    }
+    if ($a === 'settingssave') {
+        set_setting('drive_webhook_url', trim((string)($_POST['drive_webhook_url'] ?? '')));
+        if (trim((string)($_POST['drive_webhook_secret'] ?? '')) !== '') set_setting('drive_webhook_secret', trim((string)$_POST['drive_webhook_secret']));
+        go($base . '?a=settings&saved=1');
     }
     if ($a === 'makegallery') {
         $c = db()->prepare('SELECT * FROM clients WHERE id = ?'); $c->execute([$id]); $c = $c->fetch();
@@ -320,9 +349,20 @@ if ($a === 'client') {
 <?php if ($free): ?><form method="post" style="display:inline-flex;gap:8px;align-items:center"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="linkgallery"><input type="hidden" name="client_id" value="<?= $c['id'] ?>">
 <select name="gallery" style="padding:8px"><?php foreach ($free as $f): ?><option value="<?= $f['id'] ?>"><?= h($f['title']) ?></option><?php endforeach; ?></select><button class="btn sm alt">Link existing gallery</button></form><?php endif; ?>
 
-<?php if ($c['release_at']): ?><h2>Photo release on file</h2>
-<div style="background:#f6f3ec;border-left:4px solid #0a6b2d;padding:12px 16px;max-width:70ch"><b>Signed by <?= h($c['release_name']) ?></b> on <?= date('M j, Y g:ia', (int)$c['release_at']) ?><?= $c['discount_percent'] ? ', ' . (int)$c['discount_percent'] . '% session discount' : '' ?>.
-<details><summary>Exact wording they agreed to</summary><p><?= h($c['release_text']) ?></p></details></div>
+<?php if ($c['release_at']): $ds = (string)$c['drive_status']; ?><h2>Photo release on file</h2>
+<div style="background:#f6f3ec;border-left:4px solid <?= $c['id_verified'] !== '' ? '#0a6b2d' : '#b36b00' ?>;padding:12px 16px;max-width:75ch">
+<b>Signed by <?= h($c['release_name']) ?></b><?= $c['release_stage'] ? ' (' . h($c['release_stage']) . ')' : '' ?> on <?= date('M j, Y g:ia', (int)$c['release_at']) ?><?= $c['discount_percent'] ? ', ' . (int)$c['discount_percent'] . '% session discount' : '' ?>. Gallery displays: <b><?= h($c['release_gallery'] ?: 'n/a') ?></b>. Born <?= h($c['release_dob']) ?>.<br>
+<b>ID checked in person:</b> <?= $c['id_verified'] !== '' ? h($c['id_verified']) : '<span style="color:#b36b00">not yet. Check ID at the session, then record it below.</span>' ?><br>
+<b>Google Drive:</b> <?= $ds === 'saved' ? '<span class="ok">saved</span>' . ($c['drive_url'] ? ' (<a href="' . h($c['drive_url']) . '" target="_blank" rel="noopener">open</a>)' : '') : ($ds === '' ? 'not sent' : '<span style="color:#b00020">' . h($ds) . '</span>') ?>
+<p style="margin:10px 0 0"><a class="btn sm" href="?a=releasepdf&id=<?= $c['id'] ?>" target="_blank">View / download PDF</a></p>
+<details style="margin-top:10px"><summary>Exact wording they agreed to</summary><p style="white-space:pre-line"><?= h($c['release_text']) ?></p></details></div>
+<form method="post" class="cols" style="margin-top:12px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="releasesave"><input type="hidden" name="id" value="<?= $c['id'] ?>">
+<label>Shoot date<input name="shoot_date" value="<?= h($c['shoot_date']) ?>" placeholder="11/15/2026"></label>
+<label>Shoot location<input name="shoot_location" value="<?= h($c['shoot_location']) ?>" placeholder="Studio, Minneapolis MN"></label>
+<label>ID checked in person (date, or leave blank)<input name="id_verified" value="<?= h($c['id_verified']) ?>" placeholder="11/15/2026"></label>
+<label style="align-self:end"><input type="checkbox" name="to_drive" value="1" style="width:auto" checked> Also save the updated PDF to Google Drive</label>
+<div style="grid-column:1/-1"><button class="btn sm">Update release PDF</button></div></form>
+<?php if ($ds !== 'saved'): ?><form method="post" style="margin-top:8px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="driveretry"><input type="hidden" name="id" value="<?= $c['id'] ?>"><button class="btn sm alt">Save to Google Drive now</button></form><?php endif; ?>
 <?php elseif ($c['share_pref']): ?><p class="kicker">Sharing preference: <?= h($c['share_pref']) ?> (no signed release on file)</p><?php endif; ?>
 <h2>Details</h2>
 <form method="post" class="cols"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="clientsave"><input type="hidden" name="id" value="<?= $c['id'] ?>">
@@ -341,6 +381,19 @@ if ($a === 'client') {
 <h2>Delete client</h2>
 <p>Removes this record only. Their galleries stay and become unlinked.</p>
 <form method="post" onsubmit="return confirm('Delete this client record?')" style="display:flex;gap:8px;max-width:420px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="clientdel"><input type="hidden" name="id" value="<?= $c['id'] ?>"><input name="confirm" placeholder="Type DELETE"><button class="btn sm alt">Delete</button></form>
+<?php afoot(); exit;
+}
+
+if ($a === 'settings') {
+    ahead('Settings'); $tok = csrf(); ?>
+<h1 style="font-size:clamp(32px,5vw,64px)">Settings</h1>
+<?php if (!empty($_GET['saved'])): ?><p class="ok">Saved.</p><?php endif; ?>
+<h2>Save signed releases to Google Drive</h2>
+<p>Paste the web app address from your Google Apps Script, and the secret word you put in that script. Releases are then filed into your Drive folder automatically when a client signs.</p>
+<form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="settingssave">
+<label>Web app address<input name="drive_webhook_url" value="<?= h((string)setting('drive_webhook_url', '')) ?>" placeholder="https://script.google.com/macros/s/.../exec"></label>
+<label>Secret word <?= setting('drive_webhook_secret', '') ? '(already saved, type a new one to replace it)' : '' ?><input name="drive_webhook_secret" type="text" autocomplete="off"></label>
+<button class="btn">Save</button></form>
 <?php afoot(); exit;
 }
 
