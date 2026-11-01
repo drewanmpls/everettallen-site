@@ -372,11 +372,48 @@ if ($a === 'client') {
 <label>Shoot location<input name="shoot_location" value="<?= h($c['shoot_location']) ?>" placeholder="Studio, Minneapolis MN"></label>
 <label>ID checked in person (date, or leave blank)<input name="id_verified" value="<?= h($c['id_verified']) ?>" placeholder="11/15/2026"></label>
 <div><label>Model photo (adds to the PDF)<input type="file" name="photo" accept="image/*"></label>
+<button type="button" class="btn sm alt" data-cam="photo" style="margin-top:6px">Use camera</button> <span class="camnote" data-note="photo" style="font-size:13px"></span>
 <?php if ($c['photo_path'] !== '' && is_file($c['photo_path'])): ?><div style="margin-top:6px"><img src="?a=releasephoto&k=model&id=<?= $c['id'] ?>" alt="" style="max-width:140px;max-height:140px;display:block"><label style="font-size:13px"><input type="checkbox" name="remove_photo" value="1" style="width:auto"> Remove this photo</label></div><?php endif; ?></div>
 <div><label>ID photo (adds to the PDF, then keep it private)<input type="file" name="idphoto" accept="image/*"></label>
+<button type="button" class="btn sm alt" data-cam="idphoto" style="margin-top:6px">Use camera</button> <span class="camnote" data-note="idphoto" style="font-size:13px"></span>
 <?php if ($c['idphoto_path'] !== '' && is_file($c['idphoto_path'])): ?><div style="margin-top:6px"><img src="?a=releasephoto&k=id&id=<?= $c['id'] ?>" alt="" style="max-width:200px;max-height:140px;display:block"><label style="font-size:13px"><input type="checkbox" name="remove_idphoto" value="1" style="width:auto"> Remove this photo</label></div><?php endif; ?></div>
 <label style="align-self:end"><input type="checkbox" name="to_drive" value="1" style="width:auto" checked> Also save the updated PDF to Google Drive</label>
 <div style="grid-column:1/-1"><button class="btn sm">Update release PDF</button></div></form>
+<dialog id="camdlg" style="max-height:94vh;overflow:auto;border:2px solid #111;background:#f6f3ec;padding:14px;max-width:640px;width:92vw">
+<p id="camtitle" style="margin:0 0 8px;font-weight:700"></p>
+<video id="camvid" autoplay playsinline muted style="width:100%;background:#000;max-height:50vh;object-fit:contain"></video>
+<p id="camerr" style="color:#b00020;margin:8px 0 0"></p>
+<p style="margin:10px 0 0;display:flex;gap:8px"><button type="button" class="btn sm" id="camsnap">Take photo</button><button type="button" class="btn sm alt" id="camcancel">Cancel</button></p>
+</dialog>
+<script>
+(function(){
+  var dlg=document.getElementById('camdlg'),vid=document.getElementById('camvid'),err=document.getElementById('camerr'),title=document.getElementById('camtitle'),stream=null,field=null;
+  function stop(){ if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null} vid.srcObject=null }
+  function close(){ stop(); if(dlg.open) dlg.close() }
+  document.querySelectorAll('[data-cam]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      field=btn.getAttribute('data-cam'); err.textContent='';
+      title.textContent=field==='idphoto'?'Photo of the ID (fill the frame, check it is readable)':'Photo of the model';
+      if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ alert('This browser cannot use the camera here. Use the file box instead.'); return }
+      dlg.showModal();
+      navigator.mediaDevices.getUserMedia({video:{facingMode:field==='idphoto'?'environment':'user',width:{ideal:1920},height:{ideal:1080}},audio:false}).then(function(st){ stream=st; vid.srcObject=st }).catch(function(e){ err.textContent='Could not open the camera ('+(e&&e.name||'error')+'). Allow camera access for this site in the browser, then try again.' });
+    });
+  });
+  document.getElementById('camcancel').addEventListener('click',close);
+  dlg.addEventListener('cancel',function(){ stop() });
+  document.getElementById('camsnap').addEventListener('click',function(){
+    if(!stream||!vid.videoWidth) return;
+    var cv=document.createElement('canvas'); cv.width=vid.videoWidth; cv.height=vid.videoHeight; cv.getContext('2d').drawImage(vid,0,0);
+    cv.toBlob(function(b){
+      if(!b){ err.textContent='Could not capture. Try again.'; return }
+      var f=new File([b],field+'-camera.jpg',{type:'image/jpeg'}),dt=new DataTransfer(); dt.items.add(f);
+      document.querySelector('input[name="'+field+'"]').files=dt.files;
+      var n=document.querySelector('[data-note="'+field+'"]'); if(n) n.textContent='Photo ready. Click Update release PDF to save it.';
+      close();
+    },'image/jpeg',0.9);
+  });
+})();
+</script>
 <?php if ($ds !== 'saved'): ?><form method="post" style="margin-top:8px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="driveretry"><input type="hidden" name="id" value="<?= $c['id'] ?>"><button class="btn sm alt">Save to Google Drive now</button></form><?php endif; ?>
 <?php elseif ($c['share_pref']): ?><p class="kicker">Sharing preference: <?= h($c['share_pref']) ?> (no signed release on file)</p><?php endif; ?>
 <h2>Details</h2>
