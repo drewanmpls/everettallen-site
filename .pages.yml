@@ -21,6 +21,16 @@ content:
         fields:
           - { name: id, label: Photo ID (files are photos/GALLERY/ID-t.jpg and ID-l.jpg), type: string }
           - { name: ratio, label: Width divided by height, type: number }
+  - name: pages
+    label: Pages (About, Press and licensing, Photo removal)
+    type: collection
+    path: content/pages
+    format: json
+    fields:
+      - { name: title, label: Page title, type: string }
+      - { name: lede, label: Short intro line, type: string }
+      - { name: desc, label: Search and share description, type: string }
+      - { name: body, label: "Text (blank line between paragraphs; **bold**, *italic*, [link text](/page/))", type: text }
   - name: site
     label: Site settings
     type: file

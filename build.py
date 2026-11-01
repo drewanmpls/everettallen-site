@@ -15,6 +15,7 @@ def esc_desc(t):
     t=e(t); t=re.sub(r'&lt;(/?)(strong|em)&gt;',r'<\1\2>',t)
     return ''.join(f'<p>{p}</p>' for p in t.split('\n\n') if p.strip())
 SOC=f'<a href="{site["facebook"]}" target="_blank" rel="noopener">Facebook</a> / <a href="{site["instagram"]}" target="_blank" rel="noopener">Instagram</a>'
+FL='<a href="/about/">About</a> / <a href="/licensing/">Press and licensing</a> / <a href="/removal/">Photo removal</a>'
 def page(title,body,path,section,desc=''):
     t=site['title'] if not title else f"{title} | {site['title']}"
     d=e(desc or site['tagline'])
@@ -29,7 +30,7 @@ def page(title,body,path,section,desc=''):
 <body><a class="skip" href="#content">Skip to content</a>
 <header class="top"><span class="brand">{'<a href="/">EA</a>' if path=='/' else '<a href="/">Everett Allen Photography</a>'} / {section}</span><nav>{nav}</nav></header>
 <main id="content">{body}</main>
-<footer><span>Copyright 2026 Everett Allen Photography</span><span>{SOC}</span></footer>
+<footer><span>Copyright 2026 Everett Allen Photography</span><span class="fl">{FL}</span><span>{SOC}</span></footer>
 <script src="/js/site.js" defer></script></body></html>'''
 def w(path,content):
     p=os.path.join('dist',path.strip('/'),'index.html') if not path.endswith('.html') else os.path.join('dist',path.lstrip('/'))
@@ -75,9 +76,29 @@ for g in G:
     w(f'/gallery/{s}/',page(g['title'],f'<div class="wrap"><p class="meta">{back}</p><h1 class="h1">{e(g["title"])}</h1><p class="meta">{g["year"]} / {len(g["images"])} photos</p><div class="desc">{d}</div><div class="grid">{items}</div><p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div>',f'/{g["category"]}/',sec,re.sub('<[^>]+>','',d)[:160] or f'{g["title"]} by Everett Allen Photography'))
 # ---- Contact etc.
 w('/contact/',page('Contact',f'<div class="wrap narrow"><h1 class="h1">Let\'s connect</h1><p class="lede2">{e(site["contact_intro"])}</p><form class="contact" method="post" action="/contact/send.php"><div class="row2"><label>First name<input name="first" required autocomplete="given-name"></label><label>Last name<input name="last" autocomplete="family-name"></label></div><label>Email<input type="email" name="email" required autocomplete="email"></label><label>Message<textarea name="message" rows="6" required></textarea></label><input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn" type="submit">Send</button></form></div>','/contact/','Contact','Contact Everett Allen Photography'))
+
+def md_inline(t):
+    t=e(t)
+    t=re.sub(r'\*\*(.+?)\*\*',r'<strong>\1</strong>',t)
+    t=re.sub(r'\*(.+?)\*',r'<em>\1</em>',t)
+    t=re.sub(r'\[(.+?)\]\((/[^)\s]*)\)',r'<a href="\2">\1</a>',t)
+    return t
+def md_body(t):
+    out=[]
+    for blk in t.split('\n\n'):
+        blk=blk.strip()
+        if not blk: continue
+        lines=blk.split('\n')
+        if all(re.match(r'\d+\. ',l) for l in lines): out.append('<ol>'+''.join(f'<li>{md_inline(re.sub(r"^\d+\. ","",l))}</li>' for l in lines)+'</ol>')
+        else: out.append(f'<p>{md_inline(blk)}</p>')
+    return ''.join(out)
+TP={}
+for pf in sorted(glob.glob('content/pages/*.json')):
+    pj=json.load(open(pf)); sl=os.path.basename(pf)[:-5]; TP[sl]=pj
+    w(f'/{sl}/',page(pj['title'],f'<div class="wrap narrow prose"><h1 class="h1">{e(pj["title"])}</h1><p class="lede2">{e(pj["lede"])}</p>{md_body(pj["body"])}</div>',f'/{sl}/','Contact' if False else pj['title'],pj.get('desc','')))
 w('/thanks/',page('Thanks','<div class="wrap narrow"><h1 class="h1">Thanks!</h1><p class="lede2">Your message was sent. I\'ll get back to you soon.</p><p><a href="/">Back home</a></p></div>','/thanks/','Contact'))
 w('/404.html',page('Not found','<div class="wrap narrow"><h1 class="h1">Page not found</h1><p class="lede2"><a href="/">Back home</a> or browse <a href="/portraits/">Portraits</a> and <a href="/events/">Events</a>.</p></div>','/404','Contact'))
-urls=['/','/portraits/','/events/','/contact/']+[f'/gallery/{g["slug"]}/' for g in G]
+urls=['/','/portraits/','/events/','/contact/']+[f'/{k}/' for k in TP]+[f'/gallery/{g["slug"]}/' for g in G]
 open('dist/sitemap.xml','w').write('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+''.join(f'<url><loc>{site["base_url"]}{u}</loc></url>' for u in urls)+'</urlset>')
 open('dist/robots.txt','w').write(f'User-agent: *\nAllow: /\nDisallow: /client/\nSitemap: {site["base_url"]}/sitemap.xml\n')
 ht=['ErrorDocument 404 /404.html','RewriteEngine On','RewriteCond %{HTTPS} off','RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]',
