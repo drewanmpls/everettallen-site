@@ -21,6 +21,9 @@ if (!$g) { http_response_code(404); page_head('Gallery not found'); ?>
 <main class="narrow"><h1>Gallery not found</h1><p>This link isn't working. It may have expired or been mistyped. Please contact Andrew for a new link.</p><p><a class="btn" href="/contact/">Contact</a></p></main></body></html>
 <?php exit; }
 
+// Back from Stripe Checkout: confirm the payment directly with Stripe, unlock the photo, then show a clean URL.
+if (!empty($_GET['sid'])) { $paid = stripe_confirm_session((string)$_GET['sid']); header('Location: /client/g/' . $g['token'] . '/' . ($paid ? '?paid=1' : '')); exit; }
+
 // password gate
 if (!gallery_authorized($g)) {
     $err = '';

@@ -141,7 +141,8 @@ if ($post) {
     }
     if ($a === 'order') {
         $st = in_array($_POST['status'] ?? '', ['paid', 'requested', 'declined'], true) ? $_POST['status'] : 'requested';
-        db()->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$st, (int)($_POST['order'] ?? 0)]);
+        if ($st === 'paid') { require_once __DIR__ . '/../payments.php'; mark_order_paid((int)($_POST['order'] ?? 0), ''); }
+        else db()->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$st, (int)($_POST['order'] ?? 0)]);
         go($base . '?a=gallery&id=' . $id . '#orders');
     }
     if ($a === 'clientsave') {
@@ -180,6 +181,12 @@ if ($post) {
     if ($a === 'settingssave') {
         set_setting('drive_webhook_url', trim((string)($_POST['drive_webhook_url'] ?? '')));
         if (trim((string)($_POST['drive_webhook_secret'] ?? '')) !== '') set_setting('drive_webhook_secret', trim((string)$_POST['drive_webhook_secret']));
+        go($base . '?a=settings&saved=1');
+    }
+    if ($a === 'paysave') {
+        set_setting('stripe_enabled', !empty($_POST['stripe_enabled']) ? '1' : '0');
+        foreach (['stripe_secret_key', 'stripe_webhook_secret'] as $k) if (trim((string)($_POST[$k] ?? '')) !== '') set_setting($k, trim((string)$_POST[$k]));
+        set_setting('manual_pay_text', trim((string)($_POST['manual_pay_text'] ?? '')));
         go($base . '?a=settings&saved=1');
     }
     if ($a === 'makegallery') {
@@ -473,6 +480,16 @@ if ($a === 'settings') {
 <label>Web app address<input name="drive_webhook_url" value="<?= h((string)setting('drive_webhook_url', '')) ?>" placeholder="https://script.google.com/macros/s/.../exec"></label>
 <label>Secret word <?= setting('drive_webhook_secret', '') ? '(already saved, type a new one to replace it)' : '' ?><input name="drive_webhook_secret" type="text" autocomplete="off"></label>
 <button class="btn">Save</button></form>
+<h2>Payments</h2>
+<p>Clients pay with Stripe on a secure Stripe page. If Stripe is switched off, not set up, or has a problem, the site automatically uses the manual flow instead: you get an email, the client gets your payment instructions, and you click "Mark paid" in the gallery.</p>
+<?php $sk = (string)setting('stripe_secret_key', ''); ?>
+<form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="paysave">
+<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="stripe_enabled" value="1" style="width:auto" <?= setting('stripe_enabled', '') === '1' ? 'checked' : '' ?>> Use Stripe checkout (uncheck to pause it and use the manual flow)</label>
+<label>Stripe secret key <?= $sk !== '' ? '(saved: ' . h(substr($sk, 0, 8)) . '..., ' . (strpos($sk, '_test_') !== false ? 'TEST mode' : 'live mode') . '; type a new one to replace it)' : '(starts with sk_live_ or sk_test_, or rk_ for a restricted key)' ?><input name="stripe_secret_key" type="text" autocomplete="off"></label>
+<label>Stripe webhook signing secret <?= setting('stripe_webhook_secret', '') ? '(saved; type a new one to replace it)' : '(starts with whsec_)' ?><input name="stripe_webhook_secret" type="text" autocomplete="off"></label>
+<p style="font-size:14px">In Stripe, add a webhook endpoint with this address, listening for <b>checkout.session.completed</b>:<br><code>https://<?= h($_SERVER['HTTP_HOST'] ?? '') ?>/client/stripe-webhook.php</code></p>
+<label>How to pay manually (emailed to clients when they send a request without Stripe)<textarea name="manual_pay_text" rows="4" placeholder="Venmo @yourname, or Zelle to you@example.com. Please put your gallery name in the note."><?= h((string)setting('manual_pay_text', '')) ?></textarea></label>
+<button class="btn">Save payment settings</button></form>
 <?php afoot(); exit;
 }
 

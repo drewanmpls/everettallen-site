@@ -43,3 +43,6 @@ Lives in `static/client/` (PHP + SQLite, no WordPress). Private data is stored *
 - Files land in `EAP / Model Releases` named like `ER20261101-Name-00002.pdf`.
 - In the admin, a client's page shows the PDF, the Drive status, and fields for shoot date, location and "ID checked in person". Updating them rebuilds the PDF (and re-saves it to Drive, replacing the earlier copy).
 - Release wording, discount, and the gallery question are edited in the Pages CMS under "Services and rates".
+
+## Payments (Stripe, with manual backup)
+Admin > Settings > Payments holds the Stripe secret key, the webhook signing secret and the "use Stripe" switch. The webhook address is `/client/stripe-webhook.php` (event `checkout.session.completed`). If Stripe is off, missing, under $0.50 or errors, requests fall back to the manual flow: Andrew gets an email, the client gets the "how to pay manually" text from Settings, and "Mark paid" in the gallery unlocks the download and emails the client.

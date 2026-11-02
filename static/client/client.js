@@ -1,6 +1,7 @@
 (function(){
 var E=window.EA, imgs=E.images, cur=-1, filter='all';
 var $=function(id){return document.getElementById(id)};
+if(/[?&]paid=1/.test(location.search)){try{history.replaceState(null,'',location.pathname)}catch(e){}setTimeout(function(){toast('Payment received. Your download is unlocked.')},400)}
 function toast(m){var t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(function(){t.hidden=true},3500)}
 function api(a,data,method){
   var o={method:method||'POST',headers:{'X-CSRF':E.csrf}};

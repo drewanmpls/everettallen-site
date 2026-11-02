@@ -79,7 +79,9 @@ if ($a === 'request') {
         if ($url) json_out(['ok' => true, 'checkout' => $url]);
     }
     send_owner_mail('Photo request: "' . $g['title'] . '"', "$email asked for " . ($img['label'] ?: 'photo ' . $img['id']) . " as $label (" . money($price) . ").\n\nMark it paid in the admin once payment is arranged:\nhttps://" . ($_SERVER['HTTP_HOST'] ?? '') . "/client/admin/?a=gallery&id=" . $g['id'] . "\n", $email);
-    json_out(['ok' => true, 'message' => 'Sent. Andrew will email you about getting this photo.']);
+    $how = trim((string)setting('manual_pay_text', ''));
+    if ($how !== '') send_client_mail($email, 'Your photo request: next steps', "Thanks! I got your request for " . ($img['label'] ?: 'photo ' . $img['id']) . " as $label (" . money($price) . ").\n\n$how\n\nOnce I see the payment, I will unlock your download and email you.\n\nAndrew\nEverett Allen Photography\n");
+    json_out(['ok' => true, 'message' => $how !== '' ? 'Request sent. Check your email for how to pay.' : 'Sent. Andrew will email you about getting this photo.']);
 }
 
 if ($a === 'done') {
