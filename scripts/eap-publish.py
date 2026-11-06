@@ -145,7 +145,9 @@ def main():
             if c.get("ssh_key"):
                 sshc += ["-i", os.path.expanduser(c["ssh_key"]), "-o", "IdentitiesOnly=yes"]
             subprocess.run(sshc + [c["host"], f"mkdir -p {c['remote_dir']}/{slug}"], check=True)
-            subprocess.run(["rsync", "-a", "--chmod=D755,F644", "-e", " ".join(sshc), out + "/", dest], check=True)
+            subprocess.run(["rsync", "-a", "-e", " ".join(sshc), out + "/", dest], check=True)
+            # make sure the web server can read what was uploaded
+            subprocess.run(sshc + [c["host"], f"chmod -R u=rwX,go=rX {c['remote_dir']}/{slug}"], check=True)
             print("Uploaded to the server.")
         shutil.rmtree(tmp, ignore_errors=True)
 
