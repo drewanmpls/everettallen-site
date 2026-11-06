@@ -96,3 +96,14 @@ footer .fl a{text-decoration:none}footer .fl a:hover{text-decoration:underline}
 .chips a,.tags a{border:2px solid var(--ink);padding:4px 10px;font-family:"Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:14px}
 .chips a:hover,.tags a:hover{background:var(--ink);color:var(--bg)}
 .tags{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 16px}
+.share{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0}
+.share .sl{font-family:"Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:14px;margin-right:6px}
+.share a,.share button{border:2px solid var(--ink);background:transparent;color:var(--ink);padding:5px 12px;font:inherit;font-family:"Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:14px;cursor:pointer;text-decoration:none}
+.share a:hover,.share button:hover{background:var(--ink);color:var(--bg)}
+.pp{max-width:1100px}.pimg{display:block;max-width:100%;max-height:82vh;width:auto;height:auto;margin:10px 0;background:#0001}
+.pnav{display:flex;gap:16px;align-items:center}
+.lb .sh{bottom:6px;right:8px;top:auto;left:auto;font-size:15px;font-family:"Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em;border:2px solid #fff8;padding:6px 14px;opacity:.9}
+.lb .lbshare{position:absolute;bottom:52px;right:8px;background:#111;border:2px solid #fff8;padding:10px;max-width:92vw;margin:0;justify-content:flex-end}
+.lb .lbshare[hidden]{display:none}
+.lb .lbshare a,.lb .lbshare button{position:static;border-color:#fff8;color:#fff;font-size:14px;padding:5px 12px;opacity:1}
+.lb .lbshare a:hover,.lb .lbshare button:hover{background:#fff;color:#111}
