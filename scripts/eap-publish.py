@@ -12,7 +12,7 @@ What it does (safe to re-run; it only adds and updates):
 
 The folder name is the gallery name (2026-tcl-friday becomes the slug).
 Zero dependencies on a Mac: it uses the built-in `sips` and `rsync`.
-Settings can be overridden in ~/.eap-publish.json (keys: host, remote_dir, repo).
+Settings can be overridden in ~/.eap-publish.json (keys: host, remote_dir, repo, ssh_key).
 """
 import argparse, json, os, re, shutil, subprocess, sys, tempfile, datetime
 
@@ -20,6 +20,7 @@ DEFAULTS = {
     "host": "dh_dbvmkc@iad1-shared-b7-19.dreamhost.com",
     "remote_dir": "~/new.everettallenphotography.com/photos",
     "repo": "~/everettallen-site",
+    "ssh_key": "",  # e.g. ~/.ssh/everettallen_deploy (skips the password prompt)
 }
 THUMB, LARGE = 400, 1000
 STATE = ".eap-publish.json"  # remembers which photo got which number, inside the folder
@@ -140,8 +141,11 @@ def main():
             print("Copied to", a.local_dest)
         elif not a.no_upload:
             dest = f"{c['host']}:{c['remote_dir']}/{slug}/"
-            subprocess.run(["ssh", c["host"], f"mkdir -p {c['remote_dir']}/{slug}"], check=True)
-            subprocess.run(["rsync", "-a", "--chmod=D755,F644", "-e", "ssh", out + "/", dest], check=True)
+            sshc = ["ssh"]
+            if c.get("ssh_key"):
+                sshc += ["-i", os.path.expanduser(c["ssh_key"]), "-o", "IdentitiesOnly=yes"]
+            subprocess.run(sshc + [c["host"], f"mkdir -p {c['remote_dir']}/{slug}"], check=True)
+            subprocess.run(["rsync", "-a", "--chmod=D755,F644", "-e", " ".join(sshc), out + "/", dest], check=True)
             print("Uploaded to the server.")
         shutil.rmtree(tmp, ignore_errors=True)
 
