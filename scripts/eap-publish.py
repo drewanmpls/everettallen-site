@@ -6,6 +6,8 @@
 What it does (safe to re-run; it only adds and updates):
   1. Makes a 400px thumbnail (-t.jpg) and a 1000px lightbox photo (-l.jpg) of each JPEG.
   2. Uploads them to the server at photos/<gallery>/ over SSH (rsync).
+     Also uploads your full-size originals to a PRIVATE folder (outside the web root)
+     so paid downloads can deliver the real files.
   3. Creates or updates content/galleries/<gallery>.json (photo list, ratios, cover).
   4. Commits and pushes, so the site rebuilds. Title, date, series and description
      are filled in afterwards in Pages CMS (new galleries get placeholders).
@@ -21,6 +23,7 @@ DEFAULTS = {
     "remote_dir": "~/new.everettallenphotography.com/photos",
     "repo": "~/everettallen-site",
     "ssh_key": "",  # e.g. ~/.ssh/everettallen_deploy (skips the password prompt)
+    "masters_dir": "~/everettallen-private/masters",  # private, NOT inside the web folder
 }
 THUMB, LARGE = 400, 1000
 STATE = ".eap-publish.json"  # remembers which photo got which number, inside the folder
@@ -74,6 +77,7 @@ def main():
     ap.add_argument("--category", choices=["events", "portraits"], default="events", help="for a NEW gallery")
     ap.add_argument("--date", help="YYYY-MM-DD for a NEW gallery (default: today)")
     ap.add_argument("--no-upload", action="store_true", help="skip the server upload")
+    ap.add_argument("--no-masters", action="store_true", help="skip uploading the full-size originals")
     ap.add_argument("--no-push", action="store_true", help="write the gallery file but do not commit or push")
     ap.add_argument("--local-dest", help="copy to this folder instead of the server (testing)")
     ap.add_argument("--dry-run", action="store_true", help="show what would happen, change nothing")
@@ -150,6 +154,31 @@ def main():
             subprocess.run(sshc + [c["host"], f"chmod -R u=rwX,go=rX {c['remote_dir']}/{slug}"], check=True)
             print("Uploaded to the server.")
         shutil.rmtree(tmp, ignore_errors=True)
+
+    if not a.no_masters and not a.no_upload:
+        gtitle = existing["title"] if existing else (a.title or " ".join(w.capitalize() if not w.isdigit() else w for w in slug.split("-")))
+        mt = tempfile.mkdtemp(prefix="eap-m-")
+        try:
+            for f, e in images:
+                os.symlink(os.path.join(folder, f), os.path.join(mt, e["id"] + ".jpg"))
+            with open(os.path.join(mt, "labels.json"), "w") as fh:
+                json.dump({"title": gtitle, "files": {e["id"]: os.path.splitext(f)[0] for f, e in images}}, fh)
+            mb = sum(os.path.getsize(os.path.join(folder, f)) for f, e in images) / 1e6
+            if a.local_dest:
+                shutil.copytree(mt, os.path.join(a.local_dest, "_masters", slug), dirs_exist_ok=True, symlinks=False)
+                print("Copied originals to", os.path.join(a.local_dest, "_masters", slug))
+            else:
+                sshc = ["ssh"]
+                if c.get("ssh_key"):
+                    sshc += ["-i", os.path.expanduser(c["ssh_key"]), "-o", "IdentitiesOnly=yes"]
+                md = f"{c['masters_dir']}/{slug}"
+                print(f"Checking full-size originals on the server ({len(images)} photos, {mb:.0f} MB; only new or changed ones are sent)...")
+                subprocess.run(sshc + [c["host"], f"mkdir -p {md} && chmod 700 {c['masters_dir']} {md}"], check=True)
+                subprocess.run(["rsync", "-aL", "-e", " ".join(sshc), mt + "/", f"{c['host']}:{md}/"], check=True)
+                subprocess.run(sshc + [c["host"], f"chmod -R u=rwX,go= {md}"], check=True)
+                print("Originals are on the server (private).")
+        finally:
+            shutil.rmtree(mt, ignore_errors=True)
 
     imgs = [{"id": e["id"], "ratio": e["ratio"]} for f, e in images if "ratio" in e]
     if len(imgs) != len(images):  # state from an older run without ratios: read them now

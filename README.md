@@ -51,3 +51,7 @@ Admin > Settings > Payments holds the Stripe secret key, the webhook signing sec
 `scripts/eap-publish.py` turns a folder of exported JPEGs into a gallery: it makes the 400px and 1000px copies, uploads them to the server over SSH, writes `content/galleries/<name>.json`, then commits and pushes. Run it with `python3 scripts/eap-publish.py ~/EAP-Publish/<gallery-name>` (use `--dry-run` to preview). Re-running updates the gallery: new or edited photos are redone, photos removed from the folder drop out of the gallery. Title, date, series and description are filled in afterwards in Pages CMS. Settings (server, repo location) can be overridden in `~/.eap-publish.json`.
 
 In Lightroom Classic, create a Publish Service of type Hard Drive pointing at `~/EAP-Publish/`, one collection per gallery, JPEG, sRGB, long edge 2000 px, metadata "Copyright & Contact Info Only" (keeps GPS and camera data off the web).
+
+### Full-size originals (for paid downloads)
+
+`eap-publish.py` also uploads your full-size exports to a private folder on the server (`~/everettallen-private/masters/<gallery>/`, outside the web root, never public). Re-running the script on a folder only sends new or changed files. Buyers of a photo get an emailed link to a small private "order gallery" with their files; set prices and switch selling on in Admin > Settings > Payments.

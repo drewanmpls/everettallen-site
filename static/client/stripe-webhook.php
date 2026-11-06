@@ -16,6 +16,6 @@ if (!$ok || abs(time() - $t) > 600) { http_response_code(400); exit('bad signatu
 $ev = json_decode($raw, true);
 if (is_array($ev) && in_array($ev['type'] ?? '', ['checkout.session.completed', 'checkout.session.async_payment_succeeded'], true)) {
     $s = $ev['data']['object'] ?? [];
-    if (($s['payment_status'] ?? '') === 'paid' && !empty($s['client_reference_id'])) mark_order_paid((int)$s['client_reference_id'], (string)($s['id'] ?? ''));
+    if (($s['payment_status'] ?? '') === 'paid' && ($ids = session_order_ids($s))) mark_orders_paid($ids, (string)($s['id'] ?? ''));
 }
 http_response_code(200); echo 'ok';

@@ -10,7 +10,8 @@ $img = $s->fetch();
 if (!$img) { http_response_code(404); exit; }
 $kind = ($_GET['s'] ?? 'display') === 'thumb' ? 'thumb' : 'display';
 $p = gdir((int)$g['id'], $kind) . '/' . basename($img['file']);
-if (!is_file($p)) { http_response_code(404); exit; }
+if (!is_file($p)) $p = ensure_derivative((int)$g['id'], $img['file'], $kind);
+if ($p === '' || !is_file($p)) { http_response_code(404); exit; }
 header('Content-Type: image/jpeg');
 header('Content-Length: ' . filesize($p));
 header('Cache-Control: private, max-age=86400');

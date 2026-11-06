@@ -20,6 +20,11 @@ function priv_dir(): string {
     return $d;
 }
 
+// Full-size masters uploaded by scripts/eap-publish.py for the public galleries. Private, shared by every host name.
+function masters_dir(): string {
+    return getenv('EA_MASTERS') ?: dirname(priv_dir()) . '/masters';
+}
+
 function db(): PDO {
     static $pdo = null;
     if ($pdo) return $pdo;
@@ -57,7 +62,7 @@ function db(): PDO {
     CREATE TABLE IF NOT EXISTS claims (image_id INTEGER PRIMARY KEY REFERENCES images(id) ON DELETE CASCADE, created INTEGER NOT NULL);
     ");
     foreach ([['galleries', 'included_count', 'INTEGER NOT NULL DEFAULT 0'], ['galleries', 'default_web_cents', 'INTEGER NOT NULL DEFAULT 0'],
-              ['images', 'price_web_cents', 'INTEGER'], ['galleries', 'client_id', 'INTEGER'], ['clients', 'release_text', "TEXT DEFAULT ''"], ['clients', 'release_stage', "TEXT DEFAULT ''"], ['clients', 'release_dob', "TEXT DEFAULT ''"], ['clients', 'release_gallery', "TEXT DEFAULT ''"], ['clients', 'release_version', "TEXT DEFAULT ''"], ['clients', 'release_pdf', "TEXT DEFAULT ''"], ['clients', 'release_sig', "TEXT DEFAULT ''"], ['clients', 'drive_status', "TEXT DEFAULT ''"], ['clients', 'drive_url', "TEXT DEFAULT ''"], ['clients', 'shoot_date', "TEXT DEFAULT ''"], ['clients', 'shoot_location', "TEXT DEFAULT ''"], ['clients', 'id_verified', "TEXT DEFAULT ''"], ['clients', 'release_name', "TEXT DEFAULT ''"], ['clients', 'release_at', 'INTEGER'], ['clients', 'photo_path', "TEXT DEFAULT ''"], ['clients', 'idphoto_path', "TEXT DEFAULT ''"], ['clients', 'discount_percent', 'INTEGER NOT NULL DEFAULT 0'], ['orders', 'tier', "TEXT NOT NULL DEFAULT 'full'"]] as [$t, $c, $def]) {
+              ['images', 'price_web_cents', 'INTEGER'], ['galleries', 'client_id', 'INTEGER'], ['clients', 'release_text', "TEXT DEFAULT ''"], ['clients', 'release_stage', "TEXT DEFAULT ''"], ['clients', 'release_dob', "TEXT DEFAULT ''"], ['clients', 'release_gallery', "TEXT DEFAULT ''"], ['clients', 'release_version', "TEXT DEFAULT ''"], ['clients', 'release_pdf', "TEXT DEFAULT ''"], ['clients', 'release_sig', "TEXT DEFAULT ''"], ['clients', 'drive_status', "TEXT DEFAULT ''"], ['clients', 'drive_url', "TEXT DEFAULT ''"], ['clients', 'shoot_date', "TEXT DEFAULT ''"], ['clients', 'shoot_location', "TEXT DEFAULT ''"], ['clients', 'id_verified', "TEXT DEFAULT ''"], ['clients', 'release_name', "TEXT DEFAULT ''"], ['clients', 'release_at', 'INTEGER'], ['clients', 'photo_path', "TEXT DEFAULT ''"], ['clients', 'idphoto_path', "TEXT DEFAULT ''"], ['clients', 'discount_percent', 'INTEGER NOT NULL DEFAULT 0'], ['orders', 'tier', "TEXT NOT NULL DEFAULT 'full'"], ['galleries', 'kind', "TEXT NOT NULL DEFAULT ''"]] as [$t, $c, $def]) {
         $has = false;
         foreach ($pdo->query("PRAGMA table_info($t)") as $col) if ($col['name'] === $c) $has = true;
         if (!$has) $pdo->exec("ALTER TABLE $t ADD COLUMN $c $def");
@@ -240,6 +245,24 @@ function ensure_web(int $gid, string $file): string {
     if (!$src) return '';
     $web = resize_to($src, 2048);
     imagejpeg($web, $p, 88);
+    return $p;
+}
+
+// Builds the watermarked display/thumb copy on first request (order galleries skip this work at checkout).
+function ensure_derivative(int $gid, string $file, string $kind): string {
+    $p = gdir($gid, $kind) . '/' . basename($file);
+    if (is_file($p)) return $p;
+    $o = gdir($gid, 'orig') . '/' . basename($file);
+    if (!is_file($o)) return '';
+    @ini_set('memory_limit', '512M'); @set_time_limit(120);
+    $src = @imagecreatefromjpeg($o);
+    if (!$src) return '';
+    if (function_exists('exif_read_data')) {
+        $ex = @exif_read_data($o); $ori = $ex['Orientation'] ?? 1;
+        if ($ori == 3) $src = imagerotate($src, 180, 0); elseif ($ori == 6) $src = imagerotate($src, -90, 0); elseif ($ori == 8) $src = imagerotate($src, 90, 0);
+    }
+    if ($kind === 'thumb') { $d = resize_to($src, 520); wm_apply($d, 0.6, 0.45); imagejpeg($d, $p, 80); }
+    else { $d = resize_to($src, 1600); wm_apply($d, 0.5, 0.4); imagejpeg($d, $p, 84); }
     return $p;
 }
 

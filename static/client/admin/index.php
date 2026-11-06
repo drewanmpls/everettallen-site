@@ -187,6 +187,9 @@ if ($post) {
         set_setting('stripe_enabled', !empty($_POST['stripe_enabled']) ? '1' : '0');
         foreach (['stripe_secret_key', 'stripe_webhook_secret'] as $k) if (trim((string)($_POST[$k] ?? '')) !== '') set_setting($k, trim((string)$_POST[$k]));
         set_setting('manual_pay_text', trim((string)($_POST['manual_pay_text'] ?? '')));
+        set_setting('shop_enabled', !empty($_POST['shop_enabled']) ? '1' : '0');
+        set_setting('shop_price_web_cents', (string)dollars_to_cents((string)($_POST['shop_price_web'] ?? '')));
+        set_setting('shop_price_full_cents', (string)dollars_to_cents((string)($_POST['shop_price_full'] ?? '')));
         go($base . '?a=settings&saved=1');
     }
     if ($a === 'makegallery') {
@@ -489,17 +492,27 @@ if ($a === 'settings') {
 <label>Stripe webhook signing secret <?= setting('stripe_webhook_secret', '') ? '(saved; type a new one to replace it)' : '(starts with whsec_)' ?><input name="stripe_webhook_secret" type="text" autocomplete="off"></label>
 <p style="font-size:14px">In Stripe, add a webhook endpoint with this address, listening for <b>checkout.session.completed</b>:<br><code>https://<?= h($_SERVER['HTTP_HOST'] ?? '') ?>/client/stripe-webhook.php</code></p>
 <label>How to pay manually (emailed to clients when they send a request without Stripe)<textarea name="manual_pay_text" rows="4" placeholder="Venmo @yourname, or Zelle to you@example.com. Please put your gallery name in the note."><?= h((string)setting('manual_pay_text', '')) ?></textarea></label>
+<h2>Selling from public galleries</h2>
+<p>Lets visitors buy photos from any public gallery (single photos or a cart). Needs the full-size originals uploaded with the publish script. Prices are per photo.</p>
+<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="shop_enabled" value="1" style="width:auto" <?= setting('shop_enabled', '') === '1' ? 'checked' : '' ?>> Show "Buy" on public gallery photos</label>
+<label>Web size price (2048px, for social media)<input name="shop_price_web" value="<?= h(((int)setting('shop_price_web_cents', '0')) > 0 ? number_format(((int)setting('shop_price_web_cents', '0')) / 100, 2, '.', '') : '') ?>" placeholder="5.00" inputmode="decimal"></label>
+<label>Full size price (original, for printing)<input name="shop_price_full" value="<?= h(((int)setting('shop_price_full_cents', '0')) > 0 ? number_format(((int)setting('shop_price_full_cents', '0')) / 100, 2, '.', '') : '') ?>" placeholder="25.00" inputmode="decimal"></label>
 <button class="btn">Save payment settings</button></form>
 <?php afoot(); exit;
 }
 
 // list
-$rows = db()->query('SELECT g.*, (SELECT COUNT(*) FROM images i WHERE i.gallery_id=g.id) AS n, (SELECT COUNT(*) FROM favorites f JOIN images i ON i.id=f.image_id WHERE i.gallery_id=g.id) AS fav, (SELECT COUNT(*) FROM comments c JOIN images i ON i.id=c.image_id WHERE i.gallery_id=g.id AND c.from_owner=0) AS com, (SELECT COUNT(*) FROM orders o WHERE o.gallery_id=g.id AND o.status=\'requested\') AS req FROM galleries g ORDER BY g.id DESC')->fetchAll();
+$rows = db()->query('SELECT g.*, (SELECT COUNT(*) FROM images i WHERE i.gallery_id=g.id) AS n, (SELECT COUNT(*) FROM favorites f JOIN images i ON i.id=f.image_id WHERE i.gallery_id=g.id) AS fav, (SELECT COUNT(*) FROM comments c JOIN images i ON i.id=c.image_id WHERE i.gallery_id=g.id AND c.from_owner=0) AS com, (SELECT COUNT(*) FROM orders o WHERE o.gallery_id=g.id AND o.status=\'requested\') AS req FROM galleries g WHERE g.kind <> \'shop\' ORDER BY g.id DESC')->fetchAll();
 ahead('Galleries'); $tok = csrf(); ?>
 <h1 style="font-size:clamp(32px,5vw,64px)">Client galleries</h1>
 <?php if (!$rows): ?><p>No galleries yet. Create your first below.</p><?php else: ?>
 <table><tr><th>Gallery</th><th>Client</th><th>Photos</th><th>Favorites</th><th>Comments</th><th>Open requests</th><th></th></tr>
 <?php foreach ($rows as $r): ?><tr><td><a href="?a=gallery&id=<?= $r['id'] ?>"><b><?= h($r['title']) ?></b></a><?= $r['active'] ? '' : ' <span class="pill">off</span>' ?></td><td><?= h($r['client_name']) ?></td><td><?= $r['n'] ?></td><td><?= $r['fav'] ?></td><td><?= $r['com'] ?></td><td><?= $r['req'] ?></td><td><a href="?a=gallery&id=<?= $r['id'] ?>">Manage</a></td></tr><?php endforeach; ?></table><?php endif; ?>
+<?php $shop = db()->query("SELECT g.*, (SELECT COUNT(*) FROM images i WHERE i.gallery_id=g.id) AS n, (SELECT COUNT(*) FROM orders o WHERE o.gallery_id=g.id AND o.status='paid') AS paid FROM galleries g WHERE g.kind = 'shop' ORDER BY g.id DESC LIMIT 100")->fetchAll(); if ($shop): ?>
+<h2>Photo orders from the public galleries</h2>
+<table><tr><th>Buyer</th><th>Photos</th><th>Paid</th><th>Placed</th><th></th></tr>
+<?php foreach ($shop as $r): ?><tr><td><?= h($r['client_email']) ?></td><td><?= (int)$r['n'] ?></td><td><?= $r['paid'] ? '<span class="pill" style="background:#0a6b2d">paid</span>' : 'not yet' ?></td><td><?= date('M j, Y g:ia', (int)$r['created']) ?></td><td><a href="?a=gallery&id=<?= $r['id'] ?>">Manage</a></td></tr><?php endforeach; ?></table>
+<?php endif; ?>
 <h2>New gallery</h2>
 <form method="post" class="cols"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="create">
 <label>Title<input name="title" required placeholder="Jordan and Sam, spring session"></label>
