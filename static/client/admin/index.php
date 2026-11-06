@@ -22,7 +22,7 @@ function ahead(string $title): void { ?>
 .link{font-family:monospace;background:#f6f3ec;border:1px solid var(--line);padding:8px 10px;word-break:break-all;display:block}
 h2{font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:20px;margin:32px 0 8px}
 .drop{border:2px dashed var(--ink);padding:24px;text-align:center;background:#f6f3ec}.ok{color:#0a6b2d}.pill{display:inline-block;padding:1px 8px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:12px}</style></head><body>
-<header class="top"><a class="brand" href="/client/admin/">Gallery admin</a><span style="display:flex;gap:22px"><a href="/client/admin/">Galleries</a><a href="/client/admin/?a=clients">Clients</a><a href="/client/admin/?a=stats">Stats</a><a href="/client/admin/?a=settings">Settings</a><a href="/client/admin/?a=logout">Log out</a></span></header><script>try{localStorage.setItem("eaSkip","1")}catch(e){}</script><div class="adm">
+<header class="top"><a class="brand" href="/client/admin/">Gallery admin</a><span style="display:flex;gap:22px"><a href="/client/admin/">Galleries</a><a href="/client/admin/?a=clients">Clients</a><a href="/client/admin/?a=publish">Publish</a><a href="/client/admin/?a=stats">Stats</a><a href="/client/admin/?a=settings">Settings</a><a href="/client/admin/?a=logout">Log out</a></span></header><script>try{localStorage.setItem("eaSkip","1")}catch(e){}</script><div class="adm">
 <?php }
 function afoot(): void { echo '</div></body></html>'; }
 
@@ -84,6 +84,9 @@ if ($a === 'releasepdf') {
     header('Content-Type: application/pdf'); header('Content-Disposition: inline; filename="' . release_filename($c) . '"'); header('Cache-Control: private, no-store');
     readfile($c['release_pdf']); exit;
 }
+
+// ----- Publish photos (browser upload to the public galleries) -----
+if (in_array($a, ['publish', 'pubfile', 'pubdone'], true)) require __DIR__ . '/publish.php';
 
 // ----- POST actions -----
 if ($post) {
@@ -182,6 +185,12 @@ if ($post) {
         set_setting('drive_webhook_url', trim((string)($_POST['drive_webhook_url'] ?? '')));
         if (trim((string)($_POST['drive_webhook_secret'] ?? '')) !== '') set_setting('drive_webhook_secret', trim((string)$_POST['drive_webhook_secret']));
         go($base . '?a=settings&saved=1');
+    }
+    if ($a === 'githubsave') {
+        if (trim((string)($_POST['github_token'] ?? '')) !== '') set_setting('github_token', trim((string)$_POST['github_token']));
+        if (!empty($_POST['github_clear'])) set_setting('github_token', '');
+        $r = trim((string)($_POST['github_repo'] ?? '')); set_setting('github_repo', preg_match('#^[\w.-]+/[\w.-]+$#', $r) ? $r : '');
+        go($base . '?a=settings&saved=1#github');
     }
     if ($a === 'paysave') {
         set_setting('stripe_enabled', !empty($_POST['stripe_enabled']) ? '1' : '0');
@@ -484,6 +493,13 @@ if ($a === 'settings') {
 <form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="settingssave">
 <label>Web app address<input name="drive_webhook_url" value="<?= h((string)setting('drive_webhook_url', '')) ?>" placeholder="https://script.google.com/macros/s/.../exec"></label>
 <label>Secret word <?= setting('drive_webhook_secret', '') ? '(already saved, type a new one to replace it)' : '' ?><input name="drive_webhook_secret" type="text" autocomplete="off"></label>
+<button class="btn">Save</button></form>
+<h2 id="github">Publishing from the browser (GitHub)</h2>
+<p>The <a href="?a=publish">Publish</a> page saves each new gallery to your GitHub repository so the site rebuilds. Paste a fine-grained GitHub token here that can only edit the contents of that one repository.</p>
+<form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="githubsave">
+<label>GitHub token <?= setting('github_token', '') ? '(saved; type a new one to replace it)' : '(starts with github_pat_)' ?><input name="github_token" type="text" autocomplete="off"></label>
+<label>Repository<input name="github_repo" value="<?= h((string)setting('github_repo', '') ?: 'drewanmpls/everettallen-site') ?>"></label>
+<?php if (setting('github_token', '')): ?><label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="github_clear" value="1" style="width:auto"> Remove the saved token</label><?php endif; ?>
 <button class="btn">Save</button></form>
 <h2>Payments</h2>
 <p>Clients pay with Stripe on a secure Stripe page. If Stripe is switched off, not set up, or has a problem, the site automatically uses the manual flow instead: you get an email, the client gets your payment instructions, and you click "Mark paid" in the gallery.</p>
