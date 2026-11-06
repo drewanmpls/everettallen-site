@@ -1,10 +1,13 @@
 services:
   eap-watcher:
-    build: .
+    image: python:3.12-slim
     container_name: eap-watcher
     restart: unless-stopped
+    working_dir: /app
+    command: ["python", "-u", "/app/watcher.py"]
     env_file: .env
     environment:
       WATCH_DIR: /watch
     volumes:
+      - ./watcher.py:/app/watcher.py:ro
       - ${WATCH_FOLDER}:/watch
