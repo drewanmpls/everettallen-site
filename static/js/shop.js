@@ -1,7 +1,7 @@
 // Buying photos from the public galleries: "Add to order" in the lightbox / on photo pages, a small cart, one checkout.
 // Only shows up when selling is switched on (Admin > Settings > Payments).
 (function(){
-var KEY='eaCart',cfg=null,bar=null,dlg=null,addBtns=[],done=false;
+var KEY='eaCart',cfg=null,bar=null,dlg=null,addBtns=[],done=false,selMode=false,selBtn=null,tiles=[];
 function load(){try{var a=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(a)?a.filter(function(x){return /^[a-z0-9-]+\/\d{3,6}$/.test(x)}).slice(0,30):[]}catch(e){return[]}}
 function save(a){try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){}}
 var cart=load();
@@ -13,6 +13,8 @@ function el(t,c,h){var e=document.createElement(t);if(c)e.className=c;if(h!=null
 
 function paint(){
  addBtns.forEach(function(b){var k=b.getKey();if(!k)return;b.el.textContent=has(k)?'In your order (remove)':'Add to order';b.el.classList.toggle('on',has(k))});
+ tiles.forEach(function(a){a.classList.toggle('sel',has(keyFromUrl(a.getAttribute('href'))))});
+ if(selBtn){selBtn.textContent=selMode?'Done selecting':'Select photos to buy';selBtn.classList.toggle('on',selMode);var n=tiles.filter(function(a){return has(keyFromUrl(a.getAttribute('href')))}).length;selBtn.parentNode.querySelector('.selhelp').textContent=selMode?(n?n+' selected. Tap photos to add or remove them.':'Tap the photos you want.'):''}
  if(!bar)return;
  bar.hidden=!cart.length;
  bar.querySelector('.cnt').textContent=cart.length+(cart.length===1?' photo':' photos')+' in your order'+(cfg.discountPct>0&&cfg.discountMin>1&&cart.length<cfg.discountMin&&cart.length>0?' (save '+cfg.discountPct+'% at '+cfg.discountMin+')':'');
@@ -28,6 +30,13 @@ function build(){
  var lb=document.querySelector('.lb');
  if(lb){var img=lb.querySelector('img');lb.appendChild(makeAddBtn(function(){return keyFromUrl(img.getAttribute('src'))},'lbbuy'));
   new MutationObserver(paint).observe(img,{attributes:true,attributeFilter:['src']})}
+ // select-many mode on the gallery grid
+ var grid=document.querySelector('.grid');tiles=[].slice.call(document.querySelectorAll('.ph'));
+ if(grid&&tiles.length){var tb=el('div','selbar','<button type="button" class="buy selbtn">Select photos to buy</button><button type="button" class="buy sall">Select all</button><button type="button" class="buy sclr">Clear</button><span class="selhelp"></span>');grid.parentNode.insertBefore(tb,grid);
+  selBtn=tb.querySelector('.selbtn');selBtn.onclick=function(){selMode=!selMode;grid.classList.toggle('selecting',selMode);tb.classList.toggle('open',selMode);paint()};
+  tb.querySelector('.sall').onclick=function(){tiles.forEach(function(a){var k=keyFromUrl(a.getAttribute('href'));if(k&&!has(k)&&cart.length<30)cart.push(k)});save(cart);paint()};
+  tb.querySelector('.sclr').onclick=function(){var ks=tiles.map(function(a){return keyFromUrl(a.getAttribute('href'))});cart=cart.filter(function(k){return ks.indexOf(k)<0});save(cart);paint()};
+  grid.addEventListener('click',function(e){if(!selMode)return;var a=e.target.closest&&e.target.closest('.ph');if(!a)return;e.preventDefault();e.stopPropagation();var k=keyFromUrl(a.getAttribute('href'));if(k)toggle(k)},true)}
  // photo page button
  var pi=document.querySelector('.pimg');
  if(pi){var pb=makeAddBtn(function(){return keyFromUrl(pi.getAttribute('src'))},'pgbuy');var host=document.querySelector('.pnav');if(host&&host.parentNode)host.parentNode.insertBefore(el('p','buyrow'),host.nextSibling).appendChild(pb)}

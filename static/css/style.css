@@ -111,8 +111,8 @@ footer .fl a{text-decoration:none}footer .fl a:hover{text-decoration:underline}
 /* buying photos */
 .buy{font-family:"Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:15px;cursor:pointer;border:2px solid var(--ink);background:transparent;color:var(--ink);padding:6px 14px}
 .buy:hover,.buy.on{background:var(--ink);color:var(--bg)}
-.lb .lbbuy{position:absolute;bottom:6px;left:8px;top:auto;right:auto;font-size:15px;border:2px solid #fff8;color:#fff;padding:6px 14px;opacity:.95}
-.lb .lbbuy:hover,.lb .lbbuy.on{background:#fff;color:#111}
+.lb .lbbuy{position:absolute;bottom:8px;left:8px;top:auto;right:auto;font-size:17px;border:2px solid #fff;background:#fff;color:#111;padding:10px 20px;opacity:1;font-weight:500}
+.lb .lbbuy:hover{background:var(--blue);color:#fff;border-color:var(--blue)}.lb .lbbuy.on{background:#0a6b2d;border-color:#0a6b2d;color:#fff}
 .buyrow{margin:8px 0}
 .cartbar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--ink);color:var(--bg);display:flex;gap:16px;align-items:center;justify-content:center;padding:10px 16px;font-family:"Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em}
 .cartbar[hidden]{display:none}
@@ -131,3 +131,9 @@ footer .fl a{text-decoration:none}footer .fl a:hover{text-decoration:underline}
 .cbox .pay{width:100%}.cn{color:var(--mut);font-size:13px;margin:12px 0 0}.cn a{border-bottom:1px solid var(--ink)}
 @media(max-width:600px){.lb .lbbuy{bottom:52px}}
 .cs .dc{color:#0a6b2d;font-size:14px}
+
+.selbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:20px 0 0}.selbar .sall,.selbar .sclr{display:none}.selbar.open .sall,.selbar.open .sclr{display:inline-block}.selhelp{font-size:15px;color:var(--mut)}
+.ph{position:relative}.grid.selecting .ph{cursor:copy}
+.grid.selecting .ph::before{content:"";position:absolute;top:8px;left:8px;width:26px;height:26px;border-radius:50%;border:3px solid #fff;background:#0004;box-shadow:0 0 0 1px #0006;z-index:2}
+.ph.sel{outline:4px solid var(--blue);outline-offset:-4px}
+.grid .ph.sel::before{border:3px solid #fff;box-sizing:border-box;content:"\2713";display:block;position:absolute;top:8px;left:8px;width:26px;height:26px;border-radius:50%;background:var(--blue);color:#fff;font:700 17px/26px Archivo,sans-serif;text-align:center;z-index:2}
