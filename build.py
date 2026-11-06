@@ -103,7 +103,7 @@ for g in G:
     tg=''.join(f'<a href="/tag/{slugify(t)}/">{e(t)}</a>' for t in g['tags'])
     tg=f'<p class="tags">{tg}</p>' if tg else ''
     back=f'<a href="/{g["category"]}/">&larr; {sec}</a>'
-    w(f'/gallery/{s}/',page(g['title'],f'<div class="wrap"><p class="meta">{back}</p><h1 class="h1">{e(g["title"])}</h1><p class="meta">{g["year"]} / {len(g["images"])} photos{sx}</p><div class="desc">{d}</div>{tg}<div class="share" data-label="Share this gallery" data-path="/gallery/{s}/" data-title="{e(g["title"])}" data-media="/photos/{s}/{g["cover"]}-l.jpg"></div><div class="grid">{items}</div><p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div>',f'/{g["category"]}/',sec,re.sub('<[^>]+>','',d)[:160] or f'{g["title"]} by Everett Allen Photography',f'/photos/{s}/{g["cover"]}-l.jpg'))
+    w(f'/gallery/{s}/',page(g['title'],f'<div class="wrap"><p class="meta">{back}</p><h1 class="h1">{e(g["title"])}</h1><p class="meta">{g["year"]} / {len(g["images"])} photos{sx}</p><div class="desc">{d}</div>{tg}<div class="grid">{items}</div><div class="share" data-label="Share this gallery" data-path="/gallery/{s}/" data-title="{e(g["title"])}" data-media="/photos/{s}/{g["cover"]}-l.jpg"></div><p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div>',f'/{g["category"]}/',sec,re.sub('<[^>]+>','',d)[:160] or f'{g["title"]} by Everett Allen Photography',f'/photos/{s}/{g["cover"]}-l.jpg'))
 # ---- One page per photo (so a shared link shows that exact photo in the preview)
 for g in G:
     s=g['slug']; n=len(g['images']); sec=cats[g['category']]
