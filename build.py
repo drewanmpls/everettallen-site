@@ -25,15 +25,16 @@ def esc_desc(t):
     return ''.join(f'<p>{p}</p>' for p in t.split('\n\n') if p.strip())
 SOC=f'<a href="{site["facebook"]}" target="_blank" rel="noopener">Facebook</a> / <a href="{site["instagram"]}" target="_blank" rel="noopener">Instagram</a>'
 FL='<a href="/services/">Services</a> / <a href="/about/">About</a> / <a href="/licensing/">Press and licensing</a> / <a href="/removal/">Photo removal</a> / <a href="/privacy/">Privacy</a>'
-def page(title,body,path,section,desc='',image=''):
+def page(title,body,path,section,desc='',image='',url=''):
+    canon=url or path
     t=site['title'] if not title else f"{title} | {site['title']}"
     d=e(desc or site['tagline'])
     if section=='Portraits': nav='<a href="/events/">Events &rarr;</a><a href="/search/">Search</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
     elif section=='Events': nav='<a href="/">&larr; Portraits</a><a href="/search/">Search</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
     else: nav='<a href="/">Portraits</a><a href="/events/">Events</a><a href="/search/">Search</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{e(t)}</title><meta name="description" content="{d}"><link rel="canonical" href="{site['base_url']}{path}">
-<meta property="og:title" content="{e(t)}"><meta property="og:description" content="{d}"><meta property="og:type" content="website"><meta property="og:site_name" content="{e(site['title'])}"><meta property="og:url" content="{site['base_url']}{path}"><meta property="og:image" content="{site['base_url']}{image or '/assets/og-default.jpg'}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{e(t)}"><meta name="twitter:description" content="{d}"><meta name="twitter:image" content="{site['base_url']}{image or '/assets/og-default.jpg'}">
+<title>{e(t)}</title><meta name="description" content="{d}"><link rel="canonical" href="{site['base_url']}{canon}">
+<meta property="og:title" content="{e(t)}"><meta property="og:description" content="{d}"><meta property="og:type" content="website"><meta property="og:site_name" content="{e(site['title'])}"><meta property="og:url" content="{site['base_url']}{canon}"><meta property="og:image" content="{site['base_url']}{image or '/assets/og-default.jpg'}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{e(t)}"><meta name="twitter:description" content="{d}"><meta name="twitter:image" content="{site['base_url']}{image or '/assets/og-default.jpg'}">
 <link rel="icon" href="/assets/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Archivo+Narrow:wght@500&display=swap" rel="stylesheet"><link rel="stylesheet" href="/css/style.css?v={VCSS}"></head>
 <body><a class="skip" href="#content">Skip to content</a>
@@ -85,7 +86,7 @@ for x in active:
     yrs=sorted({g['year'] for g in gs},reverse=True)
     cards=''.join(f'<a class="card" href="/gallery/{g["slug"]}/"><img loading="lazy" src="{img(g,"t")}" alt=""><span><b>{e(g["title"])}</b><small>{g["year"]} / {len(g["images"])} photos</small></span></a>' for g in gs)
     n=sum(len(g['images']) for g in gs)
-    w(f'/series/{x["slug"]}/',page(x['name'],f'<div class="wrap"><p class="meta"><a href="/events/">&larr; Events</a></p><h1 class="h1">{e(x["name"])}</h1><p class="meta">{len(gs)} galleries / {n} photos / {yrs[-1]}{"" if yrs[-1]==yrs[0] else " &ndash; "+yrs[0]}</p><div class="desc"><p>{e(x["desc"])}</p></div><div class="cards">{cards}</div></div>','/events/','Events',x['desc'][:160],img(gs[0],'l')))
+    w(f'/series/{x["slug"]}/',page(x['name'],f'<div class="wrap"><p class="meta"><a href="/events/">&larr; Events</a></p><h1 class="h1">{e(x["name"])}</h1><p class="meta">{len(gs)} galleries / {n} photos / {yrs[-1]}{"" if yrs[-1]==yrs[0] else " &ndash; "+yrs[0]}</p><div class="desc"><p>{e(x["desc"])}</p></div><div class="cards">{cards}</div></div>','/events/','Events',x['desc'][:160],img(gs[0],'l'),f'/series/{x["slug"]}/'))
 # ---- Tag pages, search page and index
 for ts,tv in TAGS.items():
     gs=sorted(tv['g'],key=newest,reverse=True)
@@ -105,7 +106,7 @@ for g in G:
     tg=''.join(f'<a href="/tag/{slugify(t)}/">{e(t)}</a>' for t in g['tags'])
     tg=f'<p class="tags">{tg}</p>' if tg else ''
     back=f'<a href="/{g["category"]}/">&larr; {sec}</a>'
-    w(f'/gallery/{s}/',page(g['title'],f'<div class="wrap"><p class="meta">{back}</p><h1 class="h1">{e(g["title"])}</h1><p class="meta">{g["year"]} / {len(g["images"])} photos{sx}</p><div class="desc">{d}</div>{tg}<div class="grid">{items}</div><div class="share" data-label="Share this gallery" data-path="/gallery/{s}/" data-title="{e(g["title"])}" data-media="/photos/{s}/{g["cover"]}-l.jpg"></div><p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js?v={VSHOP}" defer></script>',f'/{g["category"]}/',sec,re.sub('<[^>]+>','',d)[:160] or f'{g["title"]} by Everett Allen Photography',f'/photos/{s}/{g["cover"]}-l.jpg'))
+    w(f'/gallery/{s}/',page(g['title'],f'<div class="wrap"><p class="meta">{back}</p><h1 class="h1">{e(g["title"])}</h1><p class="meta">{g["year"]} / {len(g["images"])} photos{sx}</p><div class="desc">{d}</div>{tg}<div class="grid">{items}</div><div class="share" data-label="Share this gallery" data-path="/gallery/{s}/" data-title="{e(g["title"])}" data-media="/photos/{s}/{g["cover"]}-l.jpg"></div><p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js?v={VSHOP}" defer></script>',f'/{g["category"]}/',sec,re.sub('<[^>]+>','',d)[:160] or f'{g["title"]} by Everett Allen Photography',f'/photos/{s}/{g["cover"]}-l.jpg',f'/gallery/{s}/'))
 # ---- One page per photo (so a shared link shows that exact photo in the preview)
 for g in G:
     s=g['slug']; n=len(g['images']); sec=cats[g['category']]
