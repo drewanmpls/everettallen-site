@@ -45,7 +45,13 @@ if ($hash === '') {
 <?php afoot(); exit;
 }
 if ($a === 'logout') { $_SESSION = []; session_destroy(); go($base); }
-if (empty($_SESSION['admin'])) {
+// The NAS watcher signs in with a secret key (header X-EA-Token) instead of a password; it can only use the two Publish actions.
+$apiAuth = false;
+if ($post && in_array($a, ['pubfile', 'pubdone'], true) && ($tk = (string)($_SERVER['HTTP_X_EA_TOKEN'] ?? '')) !== '') {
+    $th = (string)setting('nas_token_hash', '');
+    if ($th !== '' && hash_equals($th, hash('sha256', $tk))) $apiAuth = true; else { usleep(1000000); json_out(['error' => 'Bad key.'], 403); }
+}
+if (empty($_SESSION['admin']) && !$apiAuth) {
     $err = '';
     if ($post && csrf_ok()) {
         if (password_verify((string)($_POST['password'] ?? ''), $hash)) { session_regenerate_id(true); $_SESSION['admin'] = true; go($base); }
@@ -185,6 +191,11 @@ if ($post) {
         set_setting('drive_webhook_url', trim((string)($_POST['drive_webhook_url'] ?? '')));
         if (trim((string)($_POST['drive_webhook_secret'] ?? '')) !== '') set_setting('drive_webhook_secret', trim((string)$_POST['drive_webhook_secret']));
         go($base . '?a=settings&saved=1');
+    }
+    if ($a === 'nastoken') {
+        if (!empty($_POST['revoke'])) set_setting('nas_token_hash', '');
+        else { $k = bin2hex(random_bytes(24)); set_setting('nas_token_hash', hash('sha256', $k)); $_SESSION['new_nas_token'] = $k; }
+        go($base . '?a=settings#nas');
     }
     if ($a === 'githubsave') {
         if (trim((string)($_POST['github_token'] ?? '')) !== '') set_setting('github_token', trim((string)$_POST['github_token']));
@@ -501,6 +512,13 @@ if ($a === 'settings') {
 <label>Repository<input name="github_repo" value="<?= h((string)setting('github_repo', '') ?: 'drewanmpls/everettallen-site') ?>"></label>
 <?php if (setting('github_token', '')): ?><label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="github_clear" value="1" style="width:auto"> Remove the saved token</label><?php endif; ?>
 <button class="btn">Save</button></form>
+<h2 id="nas">Folder watcher key (NAS)</h2>
+<p>A small program on your NAS uses this key to publish photos to the site. Making a new key replaces the old one. Copy it right away, it is only shown once.</p>
+<?php if (!empty($_SESSION['new_nas_token'])): ?><p class="ok">Your new key (copy it now):</p><span class="link"><?= h($_SESSION['new_nas_token']) ?></span><?php unset($_SESSION['new_nas_token']); endif; ?>
+<form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="nastoken">
+<p><?= setting('nas_token_hash', '') ? 'A key is active.' : 'No key yet.' ?></p>
+<button class="btn"><?= setting('nas_token_hash', '') ? 'Make a new key' : 'Make a key' ?></button>
+<?php if (setting('nas_token_hash', '')): ?> <button class="btn" name="revoke" value="1" style="background:#fff;color:var(--ink)">Turn the key off</button><?php endif; ?></form>
 <h2>Payments</h2>
 <p>Clients pay with Stripe on a secure Stripe page. If Stripe is switched off, not set up, or has a problem, the site automatically uses the manual flow instead: you get an email, the client gets your payment instructions, and you click "Mark paid" in the gallery.</p>
 <?php $sk = (string)setting('stripe_secret_key', ''); ?>

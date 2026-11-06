@@ -56,7 +56,7 @@ function pub_logo_mark($im): void {   // small logo, bottom-right, soft shadow (
 
 // ---------- actions ----------
 if ($a === 'pubfile') {   // one JPEG per request
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !csrf_ok()) json_out(['error' => 'Session expired. Reload the page and try again.'], 400);
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !($apiAuth ?? false) && !csrf_ok()) json_out(['error' => 'Session expired. Reload the page and try again.'], 400);
     $slug = (string)($_POST['slug'] ?? '');
     if (!pub_slug_ok($slug)) json_out(['error' => 'Bad gallery name.'], 400);
     $f = $_FILES['photo'] ?? null;
@@ -98,7 +98,7 @@ if ($a === 'pubfile') {   // one JPEG per request
 }
 
 if ($a === 'pubdone') {   // save the gallery file to GitHub
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !csrf_ok()) json_out(['error' => 'Session expired. Reload the page and try again.'], 400);
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !($apiAuth ?? false) && !csrf_ok()) json_out(['error' => 'Session expired. Reload the page and try again.'], 400);
     $d = json_decode((string)($_POST['payload'] ?? ''), true);
     $slug = (string)($d['slug'] ?? '');
     if (!is_array($d) || !pub_slug_ok($slug) || empty($d['images']) || !is_array($d['images'])) json_out(['error' => 'Nothing to publish.'], 400);

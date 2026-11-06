@@ -1,0 +1,10 @@
+services:
+  eap-watcher:
+    build: .
+    container_name: eap-watcher
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      WATCH_DIR: /watch
+    volumes:
+      - ${WATCH_FOLDER}:/watch
