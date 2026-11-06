@@ -147,7 +147,7 @@ $titles = pub_titles(); asort($titles, SORT_NATURAL | SORT_FLAG_CASE);
 <div id="newbox">
 <label>Title<input id="ptitle" placeholder="2026 TCLF Friday Night" autocomplete="off"></label>
 <div class="cols"><label>Date<input id="pdate" type="date"></label>
-<label>Section<select id="pcat"><option value="events">Events</option><option value="portraits">Portraits</option></select></label></div>
+<label>Section<select id="pcat" style="display:block;margin-top:6px;padding:12px;font-size:16px;width:100%"><option value="events">Events</option><option value="portraits">Portraits</option></select></label></div>
 <label>Web address (made from the date and title; you can edit it)<input id="pslug" autocomplete="off"></label>
 </div>
 <?php if ($titles): ?>
@@ -164,7 +164,7 @@ $titles = pub_titles(); asort($titles, SORT_NATURAL | SORT_FLAG_CASE);
 var CSRF=<?= json_encode($tok) ?>,LIMIT=<?= (int)$limit ?>,$=function(i){return document.getElementById(i)};
 $('pdate').value=new Date().toISOString().slice(0,10);
 function slugify(t){return t.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}
-var slugEdited=false;function auto(){if(!slugEdited)$('pslug').value=slugify($('pdate').value+' '+$('ptitle').value)}
+var slugEdited=false;function auto(){if(slugEdited)return;var t=slugify($('ptitle').value),d=$('pdate').value,y=d.slice(0,4);if(t.indexOf(y+'-')===0)t=t.slice(5);$('pslug').value=slugify(d+' '+t)}
 $('ptitle').oninput=auto;$('pdate').oninput=auto;$('pslug').oninput=function(){slugEdited=true};
 document.querySelectorAll('input[name=mode]').forEach(function(r){r.onchange=function(){var o=document.querySelector('input[name=mode]:checked').value==='old';$('newbox').hidden=o;if($('oldbox'))$('oldbox').hidden=!o}});
 function post(fd){return fetch('/client/admin/',{method:'POST',body:fd,credentials:'same-origin'}).then(function(r){return r.json().catch(function(){return{error:'The server returned an unexpected answer (the file may be too big).'}})})}
