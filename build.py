@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Static site builder (no dependencies). Usage: python3 build.py  -> writes ./dist"""
-import json, os, shutil, html, re, glob
+import json, os, shutil, html, re, glob, hashlib
 R=os.path.dirname(os.path.abspath(__file__)); os.chdir(R)
 site=json.load(open('content/site.json'))
 e=html.escape
+def ver(path): return hashlib.md5(open(path,'rb').read()).hexdigest()[:8]  # cache-busting stamp so browsers never mix old CSS with new JS
+VCSS,VSITE,VSHOP,VSEARCH=[ver('static/'+x) for x in ('css/style.css','js/site.js','js/shop.js','js/search.js')]
 cats={'portraits':'Portraits','events':'Events'}
 G=[]
 for f in glob.glob('content/galleries/*.json'):
@@ -33,12 +35,12 @@ def page(title,body,path,section,desc='',image=''):
 <title>{e(t)}</title><meta name="description" content="{d}"><link rel="canonical" href="{site['base_url']}{path}">
 <meta property="og:title" content="{e(t)}"><meta property="og:description" content="{d}"><meta property="og:type" content="website"><meta property="og:site_name" content="{e(site['title'])}"><meta property="og:url" content="{site['base_url']}{path}"><meta property="og:image" content="{site['base_url']}{image or '/assets/og-default.jpg'}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{e(t)}"><meta name="twitter:description" content="{d}"><meta name="twitter:image" content="{site['base_url']}{image or '/assets/og-default.jpg'}">
 <link rel="icon" href="/assets/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Archivo+Narrow:wght@500&display=swap" rel="stylesheet"><link rel="stylesheet" href="/css/style.css"></head>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Archivo+Narrow:wght@500&display=swap" rel="stylesheet"><link rel="stylesheet" href="/css/style.css?v={VCSS}"></head>
 <body><a class="skip" href="#content">Skip to content</a>
 <header class="top"><span class="brand">{'<a href="/">EA</a>' if path=='/' else '<a href="/">Everett Allen Photography</a>'} / {section}</span><nav>{nav}</nav></header>
 <main id="content">{body}</main>
 <footer><span>Copyright 2026 Everett Allen Photography</span><span class="fl">{FL}</span><span>{SOC}</span></footer>
-<script src="/js/site.js" defer></script></body></html>'''
+<script src="/js/site.js?v={VSITE}" defer></script></body></html>'''
 def w(path,content):
     p=os.path.join('dist',path.strip('/'),'index.html') if not path.endswith('.html') else os.path.join('dist',path.lstrip('/'))
     os.makedirs(os.path.dirname(p),exist_ok=True); open(p,'w').write(content)
@@ -92,7 +94,7 @@ for ts,tv in TAGS.items():
 idx=[{'t':g['title'],'u':f'/gallery/{g["slug"]}/','i':img(g,'t'),'y':g['year'],'c':cats[g['category']],'s':ser_by[g['series']]['name'] if g.get('series') in ser_by else '','g':g['tags'],'k':ser_by[g['series']]['short'] if g.get('series') in ser_by else '','n':len(g['images'])} for g in sorted(G,key=newest,reverse=True)]
 open('dist/search-index.json','w').write(json.dumps(idx,separators=(',',':')))
 chips=''.join(f'<a href="#" data-q="{e(x["short"])}">{e(x["short"])}</a>' for x in active)+''.join(f'<a href="#" data-q="{e(tv["name"])}">{e(tv["name"])}</a>' for tv in sorted(TAGS.values(),key=lambda v:v['name'].lower()))+''.join(f'<a href="#" data-q="{y}">{y}</a>' for y in sorted({g['year'] for g in G},reverse=True))
-w('/search/',page('Search',f'<div class="wrap"><h1 class="h1">Search</h1><p class="meta">Find a gallery by name, year, event or tag</p><form class="sform" role="search" onsubmit="return false"><input id="q" type="search" placeholder="Try a name, TCLFW, Pride, 2025..." autocomplete="off" aria-label="Search galleries"></form><div class="chips">{chips}</div><p class="meta" id="rc"></p><div class="cards" id="res"></div><noscript><p class="lede2">Search needs JavaScript. Browse <a href="/portraits/">Portraits</a> or <a href="/events/">Events</a> instead.</p></noscript></div><script src="/js/search.js" defer></script>','/search/','Events','Search galleries by name, year, event or tag'))
+w('/search/',page('Search',f'<div class="wrap"><h1 class="h1">Search</h1><p class="meta">Find a gallery by name, year, event or tag</p><form class="sform" role="search" onsubmit="return false"><input id="q" type="search" placeholder="Try a name, TCLFW, Pride, 2025..." autocomplete="off" aria-label="Search galleries"></form><div class="chips">{chips}</div><p class="meta" id="rc"></p><div class="cards" id="res"></div><noscript><p class="lede2">Search needs JavaScript. Browse <a href="/portraits/">Portraits</a> or <a href="/events/">Events</a> instead.</p></noscript></div><script src="/js/search.js?v={VSEARCH}" defer></script>','/search/','Events','Search galleries by name, year, event or tag'))
 # ---- Gallery pages
 for g in G:
     s=g['slug']; sec=cats[g['category']]
@@ -103,7 +105,7 @@ for g in G:
     tg=''.join(f'<a href="/tag/{slugify(t)}/">{e(t)}</a>' for t in g['tags'])
     tg=f'<p class="tags">{tg}</p>' if tg else ''
     back=f'<a href="/{g["category"]}/">&larr; {sec}</a>'
-    w(f'/gallery/{s}/',page(g['title'],f'<div class="wrap"><p class="meta">{back}</p><h1 class="h1">{e(g["title"])}</h1><p class="meta">{g["year"]} / {len(g["images"])} photos{sx}</p><div class="desc">{d}</div>{tg}<div class="grid">{items}</div><div class="share" data-label="Share this gallery" data-path="/gallery/{s}/" data-title="{e(g["title"])}" data-media="/photos/{s}/{g["cover"]}-l.jpg"></div><p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js" defer></script>',f'/{g["category"]}/',sec,re.sub('<[^>]+>','',d)[:160] or f'{g["title"]} by Everett Allen Photography',f'/photos/{s}/{g["cover"]}-l.jpg'))
+    w(f'/gallery/{s}/',page(g['title'],f'<div class="wrap"><p class="meta">{back}</p><h1 class="h1">{e(g["title"])}</h1><p class="meta">{g["year"]} / {len(g["images"])} photos{sx}</p><div class="desc">{d}</div>{tg}<div class="grid">{items}</div><div class="share" data-label="Share this gallery" data-path="/gallery/{s}/" data-title="{e(g["title"])}" data-media="/photos/{s}/{g["cover"]}-l.jpg"></div><p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js?v={VSHOP}" defer></script>',f'/{g["category"]}/',sec,re.sub('<[^>]+>','',d)[:160] or f'{g["title"]} by Everett Allen Photography',f'/photos/{s}/{g["cover"]}-l.jpg'))
 # ---- One page per photo (so a shared link shows that exact photo in the preview)
 for g in G:
     s=g['slug']; n=len(g['images']); sec=cats[g['category']]
@@ -115,7 +117,7 @@ for g in G:
               f'<img class="pimg" src="/photos/{s}/{pid}-l.jpg" alt="{e(title)}" style="aspect-ratio:{i["ratio"]}">'
               f'<p class="meta pnav">{nav}</p>'
               f'<div class="share" data-label="Share this photo" data-path="/photo/{s}/{pid}/" data-title="{e(g["title"])}" data-media="/photos/{s}/{pid}-l.jpg"></div>'
-              f'<p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js" defer></script>')
+              f'<p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js?v={VSHOP}" defer></script>')
         html=page(title,body,f'/photo/{s}/{pid}/',sec,f'{g["title"]}, photo {k+1}, by Everett Allen Photography',f'/photos/{s}/{pid}-l.jpg')
         w(f'/photo/{s}/{pid}/',html.replace('<meta name="description"','<meta name="robots" content="noindex,follow"><meta name="description"',1))
 # ---- Contact etc.
