@@ -46,3 +46,8 @@ Lives in `static/client/` (PHP + SQLite, no WordPress). Private data is stored *
 
 ## Payments (Stripe, with manual backup)
 Admin > Settings > Payments holds the Stripe secret key, the webhook signing secret and the "use Stripe" switch. The webhook address is `/client/stripe-webhook.php` (event `checkout.session.completed`). If Stripe is off, missing, under $0.50 or errors, requests fall back to the manual flow: Andrew gets an email, the client gets the "how to pay manually" text from Settings, and "Mark paid" in the gallery unlocks the download and emails the client.
+
+## Publishing photos from Lightroom
+`scripts/eap-publish.py` turns a folder of exported JPEGs into a gallery: it makes the 400px and 1000px copies, uploads them to the server over SSH, writes `content/galleries/<name>.json`, then commits and pushes. Run it with `python3 scripts/eap-publish.py ~/EAP-Publish/<gallery-name>` (use `--dry-run` to preview). Re-running updates the gallery: new or edited photos are redone, photos removed from the folder drop out of the gallery. Title, date, series and description are filled in afterwards in Pages CMS. Settings (server, repo location) can be overridden in `~/.eap-publish.json`.
+
+In Lightroom Classic, create a Publish Service of type Hard Drive pointing at `~/EAP-Publish/`, one collection per gallery, JPEG, sRGB, long edge 2000 px, metadata "Copyright & Contact Info Only" (keeps GPS and camera data off the web).
