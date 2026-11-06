@@ -7,6 +7,7 @@ content:
     type: collection
     path: content/galleries
     format: json
+    extension: json
     fields:
       - { name: title, label: Title, type: string }
       - { name: category, label: Category, type: select, options: { values: [portraits, events] } }
@@ -43,6 +44,7 @@ content:
     type: collection
     path: content/pages
     format: json
+    extension: json
     fields:
       - { name: title, label: Page title, type: string }
       - { name: lede, label: Short intro line, type: string }
