@@ -1,118 +1,119 @@
 {
- "title": "TCLF Thursday Atons Kickoff",
- "category": "events",
- "year": "2026",
- "date": "2026-11-05",
- "cover": "001",
- "description": "",
- "images": [
-  {
-   "id": "001",
-   "ratio": 1.5
-  },
-  {
-   "id": "002",
-   "ratio": 1.5
-  },
-  {
-   "id": "003",
-   "ratio": 1.5
-  },
-  {
-   "id": "004",
-   "ratio": 1.5
-  },
-  {
-   "id": "005",
-   "ratio": 1.5
-  },
-  {
-   "id": "006",
-   "ratio": 1.5
-  },
-  {
-   "id": "007",
-   "ratio": 1.5
-  },
-  {
-   "id": "008",
-   "ratio": 1.5
-  },
-  {
-   "id": "009",
-   "ratio": 1.5
-  },
-  {
-   "id": "010",
-   "ratio": 1.5
-  },
-  {
-   "id": "011",
-   "ratio": 1.5
-  },
-  {
-   "id": "012",
-   "ratio": 1.5
-  },
-  {
-   "id": "013",
-   "ratio": 1.5
-  },
-  {
-   "id": "014",
-   "ratio": 1.5
-  },
-  {
-   "id": "015",
-   "ratio": 1.5
-  },
-  {
-   "id": "016",
-   "ratio": 1.5
-  },
-  {
-   "id": "017",
-   "ratio": 1.4998
-  },
-  {
-   "id": "018",
-   "ratio": 1.5
-  },
-  {
-   "id": "019",
-   "ratio": 1.5
-  },
-  {
-   "id": "020",
-   "ratio": 1.5
-  },
-  {
-   "id": "021",
-   "ratio": 0.6667
-  },
-  {
-   "id": "022",
-   "ratio": 1.5
-  },
-  {
-   "id": "023",
-   "ratio": 1.5
-  },
-  {
-   "id": "024",
-   "ratio": 1.5
-  },
-  {
-   "id": "025",
-   "ratio": 1.5
-  },
-  {
-   "id": "026",
-   "ratio": 1.5
-  },
-  {
-   "id": "027",
-   "ratio": 1.5
-  }
- ]
+  "title": "TCLF Thursday Atons Kickoff",
+  "category": "events",
+  "year": "2026",
+  "series": "tclfw",
+  "date": "2026-11-05",
+  "cover": "001",
+  "description": "The Atons threw a kickoff celebration for Twin Cities Leather & Fetish weekend at Twin Cities Leather and Umbra Arts. ",
+  "images": [
+    {
+      "id": "001",
+      "ratio": 1.5
+    },
+    {
+      "id": "002",
+      "ratio": 1.5
+    },
+    {
+      "id": "003",
+      "ratio": 1.5
+    },
+    {
+      "id": "004",
+      "ratio": 1.5
+    },
+    {
+      "id": "005",
+      "ratio": 1.5
+    },
+    {
+      "id": "006",
+      "ratio": 1.5
+    },
+    {
+      "id": "007",
+      "ratio": 1.5
+    },
+    {
+      "id": "008",
+      "ratio": 1.5
+    },
+    {
+      "id": "009",
+      "ratio": 1.5
+    },
+    {
+      "id": "010",
+      "ratio": 1.5
+    },
+    {
+      "id": "011",
+      "ratio": 1.5
+    },
+    {
+      "id": "012",
+      "ratio": 1.5
+    },
+    {
+      "id": "013",
+      "ratio": 1.5
+    },
+    {
+      "id": "014",
+      "ratio": 1.5
+    },
+    {
+      "id": "015",
+      "ratio": 1.5
+    },
+    {
+      "id": "016",
+      "ratio": 1.5
+    },
+    {
+      "id": "017",
+      "ratio": 1.4998
+    },
+    {
+      "id": "018",
+      "ratio": 1.5
+    },
+    {
+      "id": "019",
+      "ratio": 1.5
+    },
+    {
+      "id": "020",
+      "ratio": 1.5
+    },
+    {
+      "id": "021",
+      "ratio": 0.6667
+    },
+    {
+      "id": "022",
+      "ratio": 1.5
+    },
+    {
+      "id": "023",
+      "ratio": 1.5
+    },
+    {
+      "id": "024",
+      "ratio": 1.5
+    },
+    {
+      "id": "025",
+      "ratio": 1.5
+    },
+    {
+      "id": "026",
+      "ratio": 1.5
+    },
+    {
+      "id": "027",
+      "ratio": 1.5
+    }
+  ]
 }
