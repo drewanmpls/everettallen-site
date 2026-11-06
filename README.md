@@ -55,3 +55,7 @@ In Lightroom Classic, create a Publish Service of type Hard Drive pointing at `~
 ### Full-size originals (for paid downloads)
 
 `eap-publish.py` also uploads your full-size exports to a private folder on the server (`~/everettallen-private/masters/<gallery>/`, outside the web root, never public). Re-running the script on a folder only sends new or changed files. Buyers of a photo get an emailed link to a small private "order gallery" with their files; set prices and switch selling on in Admin > Settings > Payments.
+
+### Watermark on public photos
+
+The 1000px photos get a small, semi-transparent logo in the bottom-right corner (thumbnails stay clean; full-size downloads never have it). It needs Pillow once: `pip3 install pillow`. The logo is downloaded from the site's `/assets/logo-white.png` and cached at `~/.eap-logo.png` (falls back to plain text). Re-running the script on an older gallery adds the watermark to its photos automatically. Use `--no-watermark` to skip.

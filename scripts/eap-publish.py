@@ -5,6 +5,8 @@
 
 What it does (safe to re-run; it only adds and updates):
   1. Makes a 400px thumbnail (-t.jpg) and a 1000px lightbox photo (-l.jpg) of each JPEG.
+     The 1000px photo gets a small logo in the bottom-right corner (needs Pillow:
+     pip3 install pillow). Thumbnails stay clean. Use --no-watermark to skip it.
   2. Uploads them to the server at photos/<gallery>/ over SSH (rsync).
      Also uploads your full-size originals to a PRIVATE folder (outside the web root)
      so paid downloads can deliver the real files.
@@ -24,7 +26,10 @@ DEFAULTS = {
     "repo": "~/everettallen-site",
     "ssh_key": "",  # e.g. ~/.ssh/everettallen_deploy (skips the password prompt)
     "masters_dir": "~/everettallen-private/masters",  # private, NOT inside the web folder
+    "logo_url": "https://new.everettallenphotography.com/assets/logo-white.png",  # white logo, downloaded once
+    "logo_path": "",  # or a local PNG with a transparent background
 }
+WM_VERSION = 1  # bump to re-do the watermark on every photo next run
 THUMB, LARGE = 400, 1000
 STATE = ".eap-publish.json"  # remembers which photo got which number, inside the folder
 
@@ -58,6 +63,60 @@ def size_of(path):
         return w, h
 
 
+def get_logo(c):
+    """White logo with transparent background (PIL RGBA). Local file, else cached download, else plain text."""
+    from PIL import Image, ImageDraw, ImageFont
+    cache = os.path.expanduser("~/.eap-logo.png")
+    p = os.path.expanduser(c.get("logo_path") or "")
+    if not (p and os.path.exists(p)):
+        p = cache
+        if not os.path.exists(p):
+            try:
+                import urllib.request
+                with urllib.request.urlopen(c["logo_url"], timeout=15) as r, open(cache, "wb") as fh:
+                    fh.write(r.read())
+            except Exception as ex:
+                print(f"  (couldn't download the logo: {ex}; using plain text instead)")
+                if os.path.exists(cache):
+                    os.remove(cache)
+                p = ""
+    if p:
+        try:
+            lg = Image.open(p).convert("RGBA")
+            if lg.getbbox():
+                return lg.crop(lg.split()[3].getbbox())
+        except Exception:
+            pass
+    txt = "EVERETT ALLEN PHOTOGRAPHY"
+    try:
+        f = ImageFont.load_default(size=64)
+    except TypeError:
+        f = ImageFont.load_default()
+    box = Image.new("RGBA", (1400, 120), (0, 0, 0, 0))
+    ImageDraw.Draw(box).text((0, 0), txt, font=f, fill=(255, 255, 255, 255))
+    return box.crop(box.split()[3].getbbox())
+
+
+def watermark(path, logo):
+    """Small semi-transparent logo, bottom-right, with a soft dark shadow so it reads on light and dark photos."""
+    from PIL import Image
+    im = Image.open(path).convert("RGBA")
+    lw = max(90, int(im.width * 0.2))
+    lh = max(1, int(logo.height * lw / logo.width))
+    lg = logo.resize((lw, lh), Image.LANCZOS)
+    alpha = lg.split()[3]
+    m = int(im.width * 0.03)
+    x, y = im.width - lw - m, im.height - lh - m
+    shadow = Image.new("RGBA", lg.size, (0, 0, 0, 255))
+    shadow.putalpha(alpha.point(lambda v: int(v * 0.45)))
+    white = lg.copy()
+    white.putalpha(alpha.point(lambda v: int(v * 0.7)))
+    layer = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    layer.paste(shadow, (x + 2, y + 2), shadow)
+    layer.alpha_composite(white, (x, y))
+    Image.alpha_composite(im, layer).convert("RGB").save(path, "JPEG", quality=86, optimize=True)
+
+
 def make(src, dst, px, quality):
     try:
         from PIL import Image, ImageOps
@@ -77,6 +136,7 @@ def main():
     ap.add_argument("--category", choices=["events", "portraits"], default="events", help="for a NEW gallery")
     ap.add_argument("--date", help="YYYY-MM-DD for a NEW gallery (default: today)")
     ap.add_argument("--no-upload", action="store_true", help="skip the server upload")
+    ap.add_argument("--no-watermark", action="store_true", help="do not put the logo on the 1000px photos")
     ap.add_argument("--no-masters", action="store_true", help="skip uploading the full-size originals")
     ap.add_argument("--no-push", action="store_true", help="write the gallery file but do not commit or push")
     ap.add_argument("--local-dest", help="copy to this folder instead of the server (testing)")
@@ -114,7 +174,7 @@ def main():
         if e is None:
             e = {"id": "%03d" % nxt}
             nxt += 1
-        if e.get("sig") != sig:
+        if e.get("sig") != sig or (not a.no_watermark and e.get("wm") != WM_VERSION):
             todo.append((f, e["id"], sig))
         state[f] = e
         images.append((f, e))
@@ -127,6 +187,13 @@ def main():
     if a.dry_run:
         return
 
+    logo = None
+    if todo and not a.no_watermark:
+        try:
+            import PIL  # noqa: F401
+        except ImportError:
+            sys.exit("The watermark needs Pillow. Run this once, then try again:\n  pip3 install pillow\n(or add --no-watermark to skip the logo)")
+        logo = get_logo(c)
     if todo:
         tmp = tempfile.mkdtemp(prefix="eap-")
         out = os.path.join(tmp, slug)
@@ -137,6 +204,9 @@ def main():
             state[f].update(ratio=round(w / h, 4), sig=sig)
             make(p, os.path.join(out, pid + "-t.jpg"), THUMB, 80)
             make(p, os.path.join(out, pid + "-l.jpg"), LARGE, 84)
+            if logo is not None:
+                watermark(os.path.join(out, pid + "-l.jpg"), logo)
+                state[f]["wm"] = WM_VERSION
             print(f"\r  resized {n}/{len(todo)}", end="", flush=True)
         print()
         if a.local_dest:
