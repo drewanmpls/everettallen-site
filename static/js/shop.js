@@ -15,7 +15,7 @@ function paint(){
  addBtns.forEach(function(b){var k=b.getKey();if(!k)return;b.el.textContent=has(k)?'In your order (remove)':'Add to order';b.el.classList.toggle('on',has(k))});
  if(!bar)return;
  bar.hidden=!cart.length;
- bar.querySelector('.cnt').textContent=cart.length+(cart.length===1?' photo':' photos')+' in your order';
+ bar.querySelector('.cnt').textContent=cart.length+(cart.length===1?' photo':' photos')+' in your order'+(cfg.discountPct>0&&cfg.discountMin>1&&cart.length<cfg.discountMin&&cart.length>0?' (save '+cfg.discountPct+'% at '+cfg.discountMin+')':'');
  if(dlg&&!dlg.hidden)paintDlg();
 }
 
@@ -53,7 +53,9 @@ function paintDlg(){
  if(done)return;
  if(!cart.length){dlg.hidden=true;document.body.style.overflow='';return}
  cart.forEach(function(k){var p=k.split('/');var d=el('div','ci','<img alt="" src="/photos/'+p[0]+'/'+p[1]+'-t.jpg"><span>Photo '+parseInt(p[1],10)+'</span>');var x=el('button','rm','Remove');x.type='button';x.onclick=function(){toggle(k)};d.appendChild(x);cl.appendChild(d)});
- var t=tier(),per=t==='web'?cfg.web:cfg.full;dlg.querySelector('.cs').innerHTML='<b>Total: '+money(per*cart.length)+'</b> ('+cart.length+' x '+money(per)+')'}
+ var t=tier(),base=t==='web'?cfg.web:cfg.full,per=base,n=cart.length,msg='';
+ if(cfg.discountPct>0&&cfg.discountMin>1){if(n>=cfg.discountMin){per=Math.round(base*(100-cfg.discountPct)/100);msg='<br><small class="dc">'+cfg.discountPct+'% multi-photo discount applied</small>'}else{msg='<br><small class="dc">Add '+(cfg.discountMin-n)+' more photo'+(cfg.discountMin-n===1?'':'s')+' to save '+cfg.discountPct+'% on every photo</small>'}}
+ dlg.querySelector('.cs').innerHTML='<b>Total: '+money(per*n)+'</b> ('+n+' x '+money(per)+')'+msg}
 function pay(){
  var m=dlg.querySelector('.cm'),btn=dlg.querySelector('.pay'),em=dlg.querySelector('input[type=email]').value.trim();
  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){m.textContent='Please enter a valid email so I can send your download link.';return}

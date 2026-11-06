@@ -9,13 +9,15 @@ noindex();
 start_session();
 
 function shop_prices(): array { return ['web' => (int)setting('shop_price_web_cents', '0'), 'full' => (int)setting('shop_price_full_cents', '0')]; }
+// Multi-photo discount: {min, pct}. Applies to every photo once the order has at least `min` photos.
+function shop_discount(): array { $m = (int)setting('shop_discount_min', '0'); $p = (int)setting('shop_discount_pct', '0'); return ($m >= 2 && $p > 0 && $p < 100) ? ['min' => $m, 'pct' => $p] : ['min' => 0, 'pct' => 0]; }
 function shop_enabled(): bool { $p = shop_prices(); return setting('shop_enabled', '') === '1' && ($p['web'] > 0 || $p['full'] > 0); }
 
 $a = (string)($_REQUEST['a'] ?? 'info');
 
 if ($a === 'info') {
     $p = shop_prices(); $on = shop_enabled();
-    json_out(['enabled' => $on, 'web' => $on ? $p['web'] : 0, 'full' => $on ? $p['full'] : 0, 'webText' => money($p['web']), 'fullText' => money($p['full'])]);
+    json_out(['enabled' => $on, 'web' => $on ? $p['web'] : 0, 'full' => $on ? $p['full'] : 0, 'webText' => money($p['web']), 'fullText' => money($p['full']), 'discountMin' => shop_discount()['min'], 'discountPct' => shop_discount()['pct']]);
 }
 
 if ($a !== 'checkout' || $_SERVER['REQUEST_METHOD'] !== 'POST') json_out(['error' => 'Bad request'], 400);
@@ -50,6 +52,8 @@ foreach ($items as $it) {
     $picked[] = ['slug' => $m[1], 'id' => $m[2], 'file' => $file, 'label' => preg_replace('/\.jpe?g$/i', '', $label), 'title' => (string)($lab['title'] ?? '')];
 }
 if (!$picked) json_out(['error' => 'Pick at least one photo.'], 400);
+$d = shop_discount();
+if ($d['pct'] > 0 && count($picked) >= $d['min']) $price = (int)round($price * (100 - $d['pct']) / 100);
 
 // tidy: order galleries that were never paid for, older than 3 days
 $old = db()->prepare("SELECT id FROM galleries WHERE kind = 'shop' AND created < ? AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.gallery_id = galleries.id AND o.status = 'paid')");

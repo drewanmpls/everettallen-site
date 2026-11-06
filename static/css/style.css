@@ -130,3 +130,4 @@ footer .fl a{text-decoration:none}footer .fl a:hover{text-decoration:underline}
 .cs{margin:8px 0;font-size:18px}.cm{min-height:22px;margin:4px 0;color:#a00;font-size:15px}
 .cbox .pay{width:100%}.cn{color:var(--mut);font-size:13px;margin:12px 0 0}.cn a{border-bottom:1px solid var(--ink)}
 @media(max-width:600px){.lb .lbbuy{bottom:52px}}
+.cs .dc{color:#0a6b2d;font-size:14px}
