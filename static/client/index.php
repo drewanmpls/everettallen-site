@@ -22,7 +22,7 @@ if (!$g) { http_response_code(404); page_head('Gallery not found'); ?>
 <?php exit; }
 
 // Back from Stripe Checkout: confirm the payment directly with Stripe, unlock the photo, then show a clean URL.
-if (!empty($_GET['sid'])) { $paid = stripe_confirm_session((string)$_GET['sid']); header('Location: /client/g/' . $g['token'] . '/' . ($paid ? '?paid=1' : '')); exit; }
+if (!empty($_GET['sid'])) { $paid = stripe_confirm_session((string)$_GET['sid']); $paidImg = 0; if ($paid) { $q = db()->prepare('SELECT image_id FROM orders WHERE provider_ref = ? LIMIT 1'); $q->execute([(string)$_GET['sid']]); $paidImg = (int)$q->fetchColumn(); } header('Location: /client/g/' . $g['token'] . '/' . ($paid ? '?paid=1' . ($paidImg ? '#' . $paidImg : '') : '')); exit; }
 
 // password gate
 if (!gallery_authorized($g)) {
@@ -71,7 +71,7 @@ page_head($g['title']); ?>
   <figure class="ph" data-id="<?= $d['id'] ?>" style="--r:<?= $d['w'] && $d['h'] ? round($d['w'] / $d['h'], 4) : 1.5 ?>">
     <a href="#<?= $d['id'] ?>" data-i="<?= $n ?>"><img loading="lazy" src="/client/img.php?t=<?= h($t) ?>&i=<?= $d['id'] ?>&s=thumb" alt="<?= h($d['label']) ?>" draggable="false"></a>
     <button class="heart" data-id="<?= $d['id'] ?>" aria-label="Favorite" aria-pressed="false">&#9825;</button>
-    <span class="tag"><?= $d['claimed'] ? 'Included' : h($d['pfText']) ?></span>
+    <span class="tag"><?= $d['claimed'] ? 'Included' : ($d['dlFull'] ? 'Full size ready' : ($d['dlWeb'] ? 'Web size ready' : h($d['pfText']))) ?></span>
     <?php if ($d['n']): ?><span class="cm"><?= $d['n'] ?></span><?php endif; ?>
   </figure>
 <?php endforeach; ?>

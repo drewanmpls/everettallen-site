@@ -1,7 +1,7 @@
 (function(){
 var E=window.EA, imgs=E.images, cur=-1, filter='all';
 var $=function(id){return document.getElementById(id)};
-if(/[?&]paid=1/.test(location.search)){try{history.replaceState(null,'',location.pathname)}catch(e){}setTimeout(function(){toast('Payment received. Your download is unlocked.')},400)}
+if(/[?&]paid=1/.test(location.search)){try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}setTimeout(function(){toast('Payment received. Your photo is unlocked: tap Download.')},400)}
 function toast(m){var t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(function(){t.hidden=true},3500)}
 function api(a,data,method){
   var o={method:method||'POST',headers:{'X-CSRF':E.csrf}};
@@ -72,7 +72,7 @@ function renderBuy(im){
   if(!(im.dlWeb&&im.dlFull)){em=document.createElement('input');em.type='email';em.placeholder='Your email (so Andrew can reply)';em.value=mailVal();b.appendChild(em)}
 }
 function afterChange(im){
-  var tag=document.querySelector('.ph[data-id="'+im.id+'"] .tag');if(tag)tag.textContent=im.claimed?'Included':im.pfText;
+  var tag=document.querySelector('.ph[data-id="'+im.id+'"] .tag');if(tag)tag.textContent=im.claimed?'Included':(im.dlFull?'Full size ready':(im.dlWeb?'Web size ready':im.pfText));
   paintPkg();renderBuy(im);
 }
 function fmt(ts){return new Date(ts*1000).toLocaleDateString(undefined,{month:'short',day:'numeric'})}
