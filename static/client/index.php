@@ -33,7 +33,7 @@ if (!gallery_authorized($g)) {
         }
         $err = 'That password didn\'t match.'; usleep(700000);
     }
-    page_head($g['title']); ?>
+page_head($g['title']); ?>
 <main class="narrow"><p class="kicker">Private gallery</p><h1><?= h($g['title']) ?></h1>
 <form method="post"><input type="hidden" name="csrf" value="<?= h(csrf()) ?>">
 <label>Password<input type="password" name="password" autofocus required></label>
@@ -52,14 +52,16 @@ foreach ($imgs as $i) {
         'dlFull' => can_download($i, $g, 'full'), 'dlWeb' => can_download($i, $g, 'web')];
 }
 $cfg = ['token' => $t, 'csrf' => csrf(), 'payments' => payments_enabled(), 'included' => (int)$g['included_count'], 'used' => claims_used((int)$g['id']), 'client' => (string)$g['client_name'], 'images' => $data];
+$isShop = ($g['kind'] ?? '') === 'shop';
 page_head($g['title']); ?>
-<header class="top"><a href="/" class="brand">Everett Allen Photography</a><span class="kicker">Private gallery</span></header>
+<header class="top"><a href="/" class="brand">Everett Allen Photography</a><span class="kicker"><?= $isShop ? 'Your photos' : 'Private gallery' ?></span></header>
+<?php if ($isShop): ?><style>.bar,.heart,.cm,#lbh,.side h3,#lbc,#lbf{display:none!important}</style><?php endif; ?>
 <main class="wrap">
 <div class="intro">
   <h1><?= h($g['title']) ?></h1>
   <?php if ($g['client_name']): ?><p class="who">For <?= h($g['client_name']) ?></p><?php endif; ?>
   <?php if (trim((string)$g['note'])): ?><p class="note"><?= nl2br(h($g['note'])) ?></p><?php endif; ?>
-  <p class="help">Tap the heart to mark favorites. Tap a photo to see it larger, leave a comment, or get your files.<?php if ($g['included_count'] > 0): ?> Your package includes <b><?= (int)$g['included_count'] ?></b> photos: choose them with <b>Add to my package</b>.<?php endif; ?> Previews are watermarked; downloads are not.</p>
+  <?php if ($isShop): ?><p class="help">Thank you! Tap a photo to see it larger, then tap <b>Download</b>. Keep this page's link (it is also in your email): it works any time you want to download your photos again.</p><?php else: ?><p class="help">Tap the heart to mark favorites. Tap a photo to see it larger, leave a comment, or get your files.<?php if ($g['included_count'] > 0): ?> Your package includes <b><?= (int)$g['included_count'] ?></b> photos: choose them with <b>Add to my package</b>.<?php endif; ?> Previews are watermarked; downloads are not.</p><?php endif; ?>
 </div>
 <div class="bar">
   <div class="tabs"><button class="tab on" data-f="all">All <span id="cAll"><?= count($data) ?></span></button><button class="tab" data-f="fav">Favorites <span id="cFav">0</span></button></div>

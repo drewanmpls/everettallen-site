@@ -66,7 +66,8 @@ foreach ($old->fetchAll(PDO::FETCH_COLUMN) as $oid) {
 }
 
 // the order gallery
-$titles = array_values(array_unique(array_filter(array_map(fn($p) => $p['title'], $picked))));
+$gt = is_file(__DIR__ . '/gallery-titles.json') ? (json_decode((string)file_get_contents(__DIR__ . '/gallery-titles.json'), true) ?: []) : [];
+$titles = array_values(array_unique(array_filter(array_map(fn($p) => (string)($gt[$p['slug']] ?? $p['title']), $picked))));
 $gtitle = 'Your photos' . ($titles ? ': ' . $titles[0] . (count($titles) > 1 ? ' and more' : '') : '');
 db()->prepare("INSERT INTO galleries (token, title, client_email, default_price_cents, default_web_cents, kind, created) VALUES (?,?,?,?,?, 'shop', ?)")
     ->execute([bin2hex(random_bytes(12)), $gtitle, $email, $prices['full'], $prices['web'], time()]);

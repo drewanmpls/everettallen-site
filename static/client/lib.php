@@ -249,8 +249,8 @@ function ensure_web(int $gid, string $file): string {
 }
 
 // Builds the watermarked display/thumb copy on first request (order galleries skip this work at checkout).
-function ensure_derivative(int $gid, string $file, string $kind): string {
-    $p = gdir($gid, $kind) . '/' . basename($file);
+function ensure_derivative(int $gid, string $file, string $kind, bool $wm = true): string {
+    $p = gdir($gid, ($wm ? '' : 's') . $kind) . '/' . basename($file);
     if (is_file($p)) return $p;
     $o = gdir($gid, 'orig') . '/' . basename($file);
     if (!is_file($o)) return '';
@@ -261,8 +261,8 @@ function ensure_derivative(int $gid, string $file, string $kind): string {
         $ex = @exif_read_data($o); $ori = $ex['Orientation'] ?? 1;
         if ($ori == 3) $src = imagerotate($src, 180, 0); elseif ($ori == 6) $src = imagerotate($src, -90, 0); elseif ($ori == 8) $src = imagerotate($src, 90, 0);
     }
-    if ($kind === 'thumb') { $d = resize_to($src, 520); wm_apply($d, 0.6, 0.45); imagejpeg($d, $p, 80); }
-    else { $d = resize_to($src, 1600); wm_apply($d, 0.5, 0.4); imagejpeg($d, $p, 84); }
+    if ($kind === 'thumb') { $d = resize_to($src, 520); if ($wm) wm_apply($d, 0.6, 0.45); imagejpeg($d, $p, 80); }
+    else { $d = resize_to($src, 1600); if ($wm) wm_apply($d, 0.5, 0.4); imagejpeg($d, $p, 84); }
     return $p;
 }
 
