@@ -53,6 +53,12 @@
       "name": "Umbra Arts Minneapolis",
       "short": "Umbra Arts Minneapolis",
       "desc": "Events at Umbra Arts Minneapolis cafe space and gallery."
+    },
+    {
+      "slug": "weddings",
+      "name": "Weddings",
+      "short": "Weddings",
+      "desc": "Wedding photography by Everett Allen Photography."
     }
   ]
 }
