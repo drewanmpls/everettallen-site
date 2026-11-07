@@ -2,6 +2,32 @@ media:
   input: static/assets
   output: /assets
 content:
+  - name: start
+    label: "START HERE: how to run the site (admin link inside)"
+    type: file
+    path: content/start-here.json
+    format: json
+    fields:
+      - name: admin
+        label: "1. Admin (Publish, Codes, Stats, Settings)"
+        type: string
+        description: "Open https://www.everettallenphotography.com/client/admin/ for Publish (upload photos), Codes (free download codes and their links), Stats (visits and photo likes) and Settings (Stripe, GitHub token, NAS folder key)."
+      - name: photos
+        label: "2. Adding photos"
+        type: string
+        description: "Browser: Admin > Publish. NAS: export into EAP-Publish in a folder named like 2026-11-06 TCLF Friday, then add -READY to the end of the folder name. It becomes -PUBLISHED when done (or -FAILED). After publishing, come back here to Galleries to tidy the title, series, tags and cover."
+      - name: galleries
+        label: "3. Editing galleries"
+        type: string
+        description: "Galleries: keep the year in the title (2026 TCLF Friday). Cover photo ID picks the Events page tile and the Facebook preview. New recurring events go in Event series first; the Series dropdown updates about a minute later."
+      - name: codes
+        label: "4. Free download codes"
+        type: string
+        description: "Admin > Codes. Each code has a copyable link like https://www.everettallenphotography.com/events/?code=your-code. Opening it unlocks free downloads in that person's browser, and the code keeps a log of what they downloaded."
+      - name: fixes
+        label: "5. If something looks wrong"
+        type: string
+        description: "Wait two minutes after saving, then refresh. Check https://github.com/drewanmpls/everettallen-site/actions for a red X. Facebook showing the wrong picture: paste the address at https://developers.facebook.com/tools/debug/ and click Scrape Again. Full cheat sheet: https://claude.ai/artifact/2UUp61c3o6VbS9Y7STQVnx"
   - name: galleries
     label: Galleries
     type: collection
