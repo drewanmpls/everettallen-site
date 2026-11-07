@@ -37,28 +37,22 @@
       "desc": "The Twin Cities Pride parade and festival."
     },
     {
-      "slug": "floggapalooza",
-      "name": "Floggapalooza",
-      "short": "Floggapalooza",
-      "desc": "MNLP's Floggapalooza."
-    },
-    {
       "slug": "deconstructed-pride",
       "name": "Deconstructed Pride / Ritual Acts",
       "short": "Deconstructed Pride",
       "desc": "Deconstructed Pride and Ritual Acts."
     },
     {
-      "slug": "mr-minnesota-leather",
-      "name": "Mr. Minnesota Leather and title contests",
-      "short": "MN titles",
-      "desc": "Mr. Minnesota Leather and other title contests."
-    },
-    {
       "slug": "mme",
       "name": "Mr. Minneapolis Eagle and title contests",
       "short": "Mr Minneapolis Eagle",
       "desc": "Mr. Minneapolis Eagle and title contests"
+    },
+    {
+      "slug": "umbra",
+      "name": "Umbra Arts Minneapolis",
+      "short": "Umbra Arts Minneapolis",
+      "desc": "Events at Umbra Arts Minneapolis cafe space and gallery."
     }
   ]
 }
