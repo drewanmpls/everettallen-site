@@ -518,7 +518,15 @@ if ($a === 'stats') {
 <h2>Top pages</h2><?php $tbl($pages, 'Page'); ?>
 <h2>Where visitors came from</h2><p>Sites that sent people here. "direct" means typed the address, used a bookmark, or came from an app that hides it.</p><?php $tbl($refs, 'Source'); ?>
 <h2>Devices</h2><?php $tbl($devs, 'Device'); ?>
-<?php afoot(); exit;
+<?php     $tl = (int)db()->query('SELECT COALESCE(SUM(n),0) FROM photo_likes')->fetchColumn();
+    $top = db()->query('SELECT g, id, n FROM photo_likes WHERE n > 0 ORDER BY n DESC, g, id LIMIT 12')->fetchAll();
+    $gt = is_file(dirname(__DIR__) . '/gallery-titles.json') ? (json_decode((string)file_get_contents(dirname(__DIR__) . '/gallery-titles.json'), true) ?: []) : []; ?>
+<h2>Photo likes</h2>
+<p><?= $tl ?> like<?= $tl === 1 ? '' : 's' ?> in total.</p>
+<?php if ($top): ?><table><tr><th>Photo</th><th>Gallery</th><th>Likes</th></tr>
+<?php foreach ($top as $r): ?><tr><td><a href="/photo/<?= h($r['g']) ?>/<?= h($r['id']) ?>/" target="_blank"><img src="/photos/<?= h($r['g']) ?>/<?= h($r['id']) ?>-t.jpg" alt="" style="height:54px;vertical-align:middle"> <?= h($r['id']) ?></a></td><td><?= h($gt[$r['g']] ?? $r['g']) ?></td><td><?= (int)$r['n'] ?></td></tr><?php endforeach; ?></table><?php endif; ?>
+<?php
+afoot(); exit;
 }
 
 if ($a === 'codescsv') {

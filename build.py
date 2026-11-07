@@ -5,7 +5,7 @@ R=os.path.dirname(os.path.abspath(__file__)); os.chdir(R)
 site=json.load(open('content/site.json'))
 e=html.escape
 def ver(path): return hashlib.md5(open(path,'rb').read()).hexdigest()[:8]  # cache-busting stamp so browsers never mix old CSS with new JS
-VCSS,VSITE,VSHOP,VSEARCH=[ver('static/'+x) for x in ('css/style.css','js/site.js','js/shop.js','js/search.js')]
+VCSS,VSITE,VSHOP,VSEARCH,VLIKES=[ver('static/'+x) for x in ('css/style.css','js/site.js','js/shop.js','js/search.js','js/likes.js')]
 cats={'portraits':'Portraits','events':'Events'}
 G=[]
 for f in glob.glob('content/galleries/*.json'):
@@ -107,7 +107,7 @@ for g in G:
     tg=''.join(f'<a href="/tag/{slugify(t)}/">{e(t)}</a>' for t in g['tags'])
     tg=f'<p class="tags">{tg}</p>' if tg else ''
     back=f'<a href="/{g["category"]}/">&larr; {sec}</a>'
-    w(f'/gallery/{s}/',page(g['title'],f'<div class="wrap"><p class="meta">{back}</p><h1 class="h1">{e(g["title"])}</h1><p class="meta">{g["year"]} / {len(g["images"])} photos{sx}</p><div class="desc">{d}</div>{tg}<div class="grid">{items}</div><div class="share" data-label="Share this gallery" data-path="/gallery/{s}/" data-title="{e(g["title"])}" data-media="/photos/{s}/{g["cover"]}-l.jpg"></div><p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js?v={VSHOP}" defer></script>',f'/{g["category"]}/',sec,re.sub('<[^>]+>','',d)[:160] or f'{g["title"]} by Everett Allen Photography',f'/photos/{s}/{g["cover"]}-l.jpg',f'/gallery/{s}/'))
+    w(f'/gallery/{s}/',page(g['title'],f'<div class="wrap"><p class="meta">{back}</p><h1 class="h1">{e(g["title"])}</h1><p class="meta">{g["year"]} / {len(g["images"])} photos{sx}</p><div class="desc">{d}</div>{tg}<div class="grid">{items}</div><div class="share" data-label="Share this gallery" data-path="/gallery/{s}/" data-title="{e(g["title"])}" data-media="/photos/{s}/{g["cover"]}-l.jpg"></div><p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js?v={VSHOP}" defer></script><script src="/js/likes.js?v={VLIKES}" defer></script>',f'/{g["category"]}/',sec,re.sub('<[^>]+>','',d)[:160] or f'{g["title"]} by Everett Allen Photography',f'/photos/{s}/{g["cover"]}-l.jpg',f'/gallery/{s}/'))
 # ---- One page per photo (so a shared link shows that exact photo in the preview)
 for g in G:
     s=g['slug']; n=len(g['images']); sec=cats[g['category']]
@@ -119,7 +119,7 @@ for g in G:
               f'<img class="pimg" src="/photos/{s}/{pid}-l.jpg" alt="{e(title)}" style="aspect-ratio:{i["ratio"]}">'
               f'<p class="meta pnav">{nav}</p>'
               f'<div class="share" data-label="Share this photo" data-path="/photo/{s}/{pid}/" data-title="{e(g["title"])}" data-media="/photos/{s}/{pid}-l.jpg"></div>'
-              f'<p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js?v={VSHOP}" defer></script>')
+              f'<p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js?v={VSHOP}" defer></script><script src="/js/likes.js?v={VLIKES}" defer></script>')
         html=page(title,body,f'/photo/{s}/{pid}/',sec,f'{g["title"]}, photo {k+1}, by Everett Allen Photography',f'/photos/{s}/{pid}-l.jpg')
         w(f'/photo/{s}/{pid}/',html.replace('<meta name="description"','<meta name="robots" content="noindex,follow"><meta name="description"',1))
 # ---- Contact etc.

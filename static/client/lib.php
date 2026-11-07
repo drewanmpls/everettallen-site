@@ -60,6 +60,8 @@ function db(): PDO {
         share_pref TEXT DEFAULT '', message TEXT DEFAULT '', status TEXT NOT NULL DEFAULT 'new', notes TEXT DEFAULT '',
         source TEXT NOT NULL DEFAULT 'form', ip_hash TEXT DEFAULT '', created INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS codes (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, code TEXT UNIQUE NOT NULL, active INTEGER NOT NULL DEFAULT 1, expires TEXT DEFAULT '', created INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS photo_likes (g TEXT NOT NULL, id TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (g, id));
+    CREATE TABLE IF NOT EXISTS like_rate (h TEXT NOT NULL, hr TEXT NOT NULL, c INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (h, hr));
     CREATE TABLE IF NOT EXISTS claims (image_id INTEGER PRIMARY KEY REFERENCES images(id) ON DELETE CASCADE, created INTEGER NOT NULL);
     ");
     foreach ([['galleries', 'included_count', 'INTEGER NOT NULL DEFAULT 0'], ['galleries', 'default_web_cents', 'INTEGER NOT NULL DEFAULT 0'],
