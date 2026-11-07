@@ -9,7 +9,7 @@ VCSS,VSITE,VSHOP,VSEARCH=[ver('static/'+x) for x in ('css/style.css','js/site.js
 cats={'portraits':'Portraits','events':'Events'}
 G=[]
 for f in glob.glob('content/galleries/*.json'):
-    g=json.load(open(f)); g['slug']=os.path.basename(f)[:-5]; g.setdefault('year',g['date'][:4]); G.append(g)
+    g=json.load(open(f)); g['slug']=os.path.basename(f)[:-5]; g.setdefault('year',g['date'][:4]); g.setdefault('description',''); g['cover']=str(g.get('cover') or g['images'][0]['id']); G.append(g)
 G=[g for g in G if g['images']]
 SER=json.load(open('content/series.json'))['series']
 ser_by={x['slug']:x for x in SER}
