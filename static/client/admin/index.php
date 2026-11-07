@@ -529,7 +529,7 @@ if ($a === 'codes') {
 <label>Code (leave blank to make one)<input name="code" autocomplete="off" placeholder="made for you"></label>
 <label>Stops working after (optional)<input name="expires" type="date"></label></div>
 <button class="btn">Add code</button></form>
-<?php if ($rows): ?><h2>Codes</h2><p><a href="?a=codescsv">Download everything as a spreadsheet (CSV)</a></p><?php endif; ?>
+<?php if ($rows): ?><p style="font-size:14px">The link opens the Events page with the code applied. To land on a specific gallery instead, put <code>?code=...</code> on the end of that gallery's address.</p><h2>Codes</h2><p><a href="?a=codescsv">Download everything as a spreadsheet (CSV)</a></p><?php endif; ?>
 <?php foreach ($rows as $c):
     $u = db()->prepare("SELECT g.id, g.created, g.client_email, g.title, (SELECT COUNT(*) FROM images i WHERE i.gallery_id = g.id) n, (SELECT COUNT(DISTINCT d.image_id) FROM downloads d JOIN images i ON i.id = d.image_id WHERE i.gallery_id = g.id) dl, (SELECT GROUP_CONCAT(i.label, ', ') FROM images i WHERE i.gallery_id = g.id) labels FROM galleries g WHERE g.code_id = ? ORDER BY g.created DESC");
     $u->execute([$c['id']]); $uses = $u->fetchAll();
@@ -538,6 +538,8 @@ if ($a === 'codes') {
 <h3 style="margin:28px 0 4px"><?= h($c['name']) ?> <span class="pill"><?= $c['active'] ? ($exp ? 'expired' : 'on') : 'off' ?></span></h3>
 <p style="margin:0 0 6px">Code: <span class="link" style="display:inline;padding:3px 8px"><?= h($c['code']) ?></span><?= ($c['expires'] ?? '') !== '' ? ' &nbsp; until ' . h($c['expires']) : '' ?> &nbsp;
 <?= count($uses) ?> use<?= count($uses) === 1 ? '' : 's' ?>, <?= (int)$np ?> photo<?= $np === 1 ? '' : 's' ?>, <?= (int)$nd ?> downloaded</p>
+<?php $lh = preg_replace('/^new\./', 'www.', (string)($_SERVER['HTTP_HOST'] ?? '')); $link = 'https://' . $lh . '/events/?code=' . rawurlencode($c['code']); ?>
+<p style="margin:0 0 8px">Link to send: <span class="link" style="display:inline;padding:3px 8px"><?= h($link) ?></span> <button type="button" class="btn" style="padding:4px 12px" onclick="navigator.clipboard.writeText(this.dataset.l).then(()=>{this.textContent='Copied'})" data-l="<?= h($link) ?>">Copy link</button></p>
 <form method="post" style="display:inline"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codetoggle"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><button class="btn" style="background:#fff;color:var(--ink)"><?= $c['active'] ? 'Turn off' : 'Turn on' ?></button></form>
 <?php if ($uses): ?><table><tr><th>When</th><th>Email</th><th>Photos</th><th>Downloaded</th></tr>
 <?php foreach ($uses as $r): ?><tr><td><?= h(date('M j, Y g:ia', (int)$r['created'])) ?></td><td><?= h($r['client_email']) ?></td><td><?= (int)$r['n'] ?>: <?= h(mb_strimwidth((string)$r['labels'], 0, 90, '...')) ?></td><td><?= (int)$r['dl'] ?> of <?= (int)$r['n'] ?></td></tr><?php endforeach; ?></table><?php endif; ?>
