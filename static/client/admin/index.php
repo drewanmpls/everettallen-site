@@ -208,6 +208,17 @@ if ($post) {
         catch (Throwable $e) { go($base . '?a=codes&err=dup'); }
         go($base . '?a=codes&saved=1');
     }
+    if ($a === 'codeedit') {
+        $cid = (int)($_POST['cid'] ?? 0);
+        $c = strtolower(trim((string)($_POST['code'] ?? '')));
+        $name = trim(strip_tags((string)($_POST['name'] ?? '')));
+        if ($name === '') go($base . '?a=codes&err=name');
+        if (strlen($c) < 6 || !preg_match('/^[a-z0-9-]+$/', $c)) go($base . '?a=codes&err=code');
+        $ex = trim((string)($_POST['expires'] ?? '')); if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $ex)) $ex = '';
+        try { db()->prepare('UPDATE codes SET name = ?, code = ?, expires = ? WHERE id = ?')->execute([mb_substr($name, 0, 80), $c, $ex, $cid]); }
+        catch (Throwable $e) { go($base . '?a=codes&err=dup'); }
+        go($base . '?a=codes&saved=1');
+    }
     if ($a === 'codetoggle') {
         db()->prepare('UPDATE codes SET active = 1 - active WHERE id = ?')->execute([(int)($_POST['cid'] ?? 0)]);
         go($base . '?a=codes');
@@ -522,7 +533,7 @@ if ($a === 'codes') {
     $rows = db()->query('SELECT * FROM codes ORDER BY id DESC')->fetchAll(); ?>
 <h1 style="font-size:clamp(32px,5vw,64px)">Free download codes</h1>
 <p>Give someone a code and they can get photos from the public galleries with no payment: add photos to the order, open the cart, click "Have a code?". Each code is logged with who used it, which photos, and whether they downloaded them. Turn a code off any time without affecting the others.</p>
-<?php if (!empty($_GET['saved'])): ?><p class="ok">Code added.</p><?php endif; ?>
+<?php if (!empty($_GET['saved'])): ?><p class="ok">Saved.</p><?php endif; ?>
 <?php $errs = ['name' => 'Give the code a name.', 'code' => 'A code needs 6 or more letters, numbers or dashes.', 'dup' => 'That code already exists.']; if (!empty($errs[$_GET['err'] ?? ''])): ?><p class="err"><?= h($errs[$_GET['err']]) ?></p><?php endif; ?>
 <form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codenew">
 <div class="cols"><label>Who it is for (example: Q Minnesota)<input name="name" required></label>
@@ -541,6 +552,10 @@ if ($a === 'codes') {
 <?php $lh = preg_replace('/^new\./', 'www.', (string)($_SERVER['HTTP_HOST'] ?? '')); $link = 'https://' . $lh . '/events/?code=' . rawurlencode($c['code']); ?>
 <p style="margin:0 0 8px">Link to send: <span class="link" style="display:inline;padding:3px 8px"><?= h($link) ?></span> <button type="button" class="btn" style="padding:4px 12px" onclick="navigator.clipboard.writeText(this.dataset.l).then(()=>{this.textContent='Copied'})" data-l="<?= h($link) ?>">Copy link</button></p>
 <form method="post" style="display:inline"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codetoggle"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><button class="btn" style="background:#fff;color:var(--ink)"><?= $c['active'] ? 'Turn off' : 'Turn on' ?></button></form>
+<details style="margin:8px 0"><summary style="cursor:pointer">Change name, code or end date</summary>
+<form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codeedit"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>">
+<div class="cols"><label>Name<input name="name" value="<?= h($c['name']) ?>" required></label><label>Code<input name="code" value="<?= h($c['code']) ?>" autocomplete="off" required></label><label>Stops working after<input name="expires" type="date" value="<?= h((string)$c['expires']) ?>"></label></div>
+<button class="btn">Save changes</button></form></details>
 <?php if ($uses): ?><table><tr><th>When</th><th>Email</th><th>Photos</th><th>Downloaded</th></tr>
 <?php foreach ($uses as $r): ?><tr><td><?= h(date('M j, Y g:ia', (int)$r['created'])) ?></td><td><?= h($r['client_email']) ?></td><td><?= (int)$r['n'] ?>: <?= h(mb_strimwidth((string)$r['labels'], 0, 90, '...')) ?></td><td><?= (int)$r['dl'] ?> of <?= (int)$r['n'] ?></td></tr><?php endforeach; ?></table><?php endif; ?>
 <?php endforeach; ?>
