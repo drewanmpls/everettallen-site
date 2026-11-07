@@ -119,7 +119,7 @@ if ($a === 'pubdone') {   // save the gallery file to GitHub
             $g = ['title' => $title, 'category' => (($d['category'] ?? '') === 'portraits') ? 'portraits' : 'events', 'year' => substr($date, 0, 4), 'date' => $date, 'cover' => (string)array_key_first($new), 'description' => '', 'images' => []];
         }
         $have = []; foreach ($g['images'] as $k => $im) $have[(string)$im['id']] = $k;
-        foreach ($new as $id => $ratio) { if (isset($have[$id])) $g['images'][$have[$id]]['ratio'] = $ratio; else $g['images'][] = ['id' => $id, 'ratio' => $ratio]; }
+        foreach ($new as $id => $ratio) { $id = (string)$id; if (isset($have[$id])) $g['images'][$have[$id]]['ratio'] = $ratio; else $g['images'][] = ['id' => $id, 'ratio' => $ratio]; }
         if (empty($g['cover']) || !in_array($g['cover'], array_map(fn($i) => (string)$i['id'], $g['images']), true)) $g['cover'] = (string)$g['images'][0]['id'];
         $body = ['message' => 'Gallery: ' . $slug . ' (' . count($g['images']) . ' photos)', 'branch' => 'main',
                  'content' => base64_encode(json_encode($g, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n")];
