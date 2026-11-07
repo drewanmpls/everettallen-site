@@ -59,3 +59,24 @@ In Lightroom Classic, create a Publish Service of type Hard Drive pointing at `~
 ### Watermark on public photos
 
 The 1000px photos get a small, semi-transparent logo in the bottom-right corner (thumbnails stay clean; full-size downloads never have it). It needs Pillow once: `pip3 install pillow`. The logo is downloaded from the site's `/assets/logo-white.png` and cached at `~/.eap-logo.png` (falls back to plain text). Re-running the script on an older gallery adds the watermark to its photos automatically. Use `--no-watermark` to skip.
+
+## Admin and Pages CMS quick guide
+
+Admin: https://www.everettallenphotography.com/client/admin/ (Publish, Codes, Stats, Settings, Clients). Pages CMS: https://app.pagescms.org (sign in with GitHub, repo `drewanmpls/everettallen-site`). Edits in Pages CMS commit to GitHub and go live in a minute or two.
+
+### Publish from the browser or the NAS
+- **Browser:** Admin > Publish. Pick a new or existing gallery, set date, section and slug, drop in JPEGs. Needs the GitHub token saved in Admin > Settings ("Publishing from the browser").
+- **NAS folder watcher:** drop a folder into `EAP-Publish` on the Ugreen NAS and rename it to end in `-READY` (or `-portraits-READY`). The `eap-watcher` Docker container (see `nas/README.md`) uploads it, then renames it `-PUBLISHED` or `-FAILED`. Folder names should start with the date and include the year, for example `2026-11-06 TCLF Friday`. Restart the container after changing `nas/watcher.py`. The folder key lives in Admin > Settings ("Folder watcher key").
+
+### Pages CMS tips
+- **Event series:** add new ones under Event Series (`content/series.json`). The dropdown on galleries refreshes automatically after a minute (`sync-series` workflow).
+- **Cover photo:** set "Cover" to the photo's ID (for example `153`). It drives the Events page tile and the Facebook preview image.
+- **Titles:** keep the year in the title (`2026 TCLF Friday`).
+- **Tags:** TCL galleries carry the `TCLFW` series.
+- If a deploy fails, check GitHub Actions for the red X.
+
+### Free download codes
+Admin > Codes. Create a named code (for example Twin Cities Leather), optionally with an end date. Each code has a copyable link: `https://www.everettallenphotography.com/events/?code=<code>`. Visitors who open it get free downloads in their browser. Each code keeps a log of what was downloaded. The code is not passed along when someone shares a photo or gallery link.
+
+### Photo likes and Stats
+Anonymous hearts on gallery tiles, the photo viewer and photo pages. Counts are in Admin > Stats ("Photo likes"). Stats are privacy friendly (no cookies; hashed visitor markers).
