@@ -13,11 +13,26 @@ function shop_prices(): array { return ['web' => (int)setting('shop_price_web_ce
 function shop_discount(): array { $m = (int)setting('shop_discount_min', '0'); $p = (int)setting('shop_discount_pct', '0'); return ($m >= 2 && $p > 0 && $p < 100) ? ['min' => $m, 'pct' => $p] : ['min' => 0, 'pct' => 0]; }
 function shop_enabled(): bool { $p = shop_prices(); return setting('shop_enabled', '') === '1' && ($p['web'] > 0 || $p['full'] > 0); }
 
+// Looks a code up (any case). Returns the row, or answers "did not work" (and counts the miss; 20 misses in 10 minutes locks guessing for everyone).
+function shop_find_code(string $raw, bool $quiet = false): ?array {
+    $code = strtolower(trim($raw));
+    $fails = explode(':', (string)setting('shop_code_fails', '0:0'));
+    $ft = (int)($fails[0] ?? 0); $fc = (int)($fails[1] ?? 0);
+    if ($ft < time() - 600) $fc = 0;
+    if ($fc >= 20) { if ($quiet) return null; json_out(['error' => 'Too many wrong codes. Please wait a few minutes.'], 429); }
+    $cr = db()->prepare('SELECT * FROM codes WHERE code = ? AND active = 1'); $cr->execute([$code]); $cr = $cr->fetch();
+    if ($cr && ($cr['expires'] === '' || $cr['expires'] === null || $cr['expires'] >= date('Y-m-d'))) return $cr;
+    set_setting('shop_code_fails', time() . ':' . ($fc + 1));
+    if ($quiet) return null;
+    json_out(['error' => 'That code did not work.'], 400);
+}
+
 $a = (string)($_REQUEST['a'] ?? 'info');
 
 if ($a === 'info') {
     $p = shop_prices(); $on = shop_enabled();
-    json_out(['enabled' => $on, 'web' => $on ? $p['web'] : 0, 'full' => $on ? $p['full'] : 0, 'webText' => money($p['web']), 'fullText' => money($p['full']), 'discountMin' => shop_discount()['min'], 'discountPct' => shop_discount()['pct']]);
+    $cn = ''; if ($on && trim((string)($_GET['code'] ?? '')) !== '') { $cr = shop_find_code((string)$_GET['code'], true); $cn = $cr ? (string)$cr['name'] : ''; }
+    json_out(['codeName' => $cn, 'enabled' => $on, 'web' => $on ? $p['web'] : 0, 'full' => $on ? $p['full'] : 0, 'webText' => money($p['web']), 'fullText' => money($p['full']), 'discountMin' => shop_discount()['min'], 'discountPct' => shop_discount()['pct']]);
 }
 
 if ($a !== 'checkout' || $_SERVER['REQUEST_METHOD'] !== 'POST') json_out(['error' => 'Bad request'], 400);
@@ -56,17 +71,8 @@ $d = shop_discount();
 if ($d['pct'] > 0 && count($picked) >= $d['min']) $price = (int)round($price * (100 - $d['pct']) / 100);
 
 // Free-download code (made in Admin > Codes). A right code skips payment and unlocks the photos right away.
-$code = strtolower(trim((string)($_POST['code'] ?? '')));
 $free = false; $codeId = 0;
-if ($code !== '') {
-    $fails = explode(':', (string)setting('shop_code_fails', '0:0'));   // time:count, shared by everyone
-    $ft = (int)($fails[0] ?? 0); $fc = (int)($fails[1] ?? 0);
-    if ($ft < time() - 600) $fc = 0;
-    if ($fc >= 20) json_out(['error' => 'Too many wrong codes. Please wait a few minutes.'], 429);
-    $cr = db()->prepare('SELECT * FROM codes WHERE code = ? AND active = 1'); $cr->execute([$code]); $cr = $cr->fetch();
-    if ($cr && ($cr['expires'] === '' || $cr['expires'] === null || $cr['expires'] >= date('Y-m-d'))) { $free = true; $codeId = (int)$cr['id']; }
-    else { set_setting('shop_code_fails', time() . ':' . ($fc + 1)); json_out(['error' => 'That code did not work.'], 400); }
-}
+if (strtolower(trim((string)($_POST['code'] ?? ''))) !== '') { $cr = shop_find_code((string)$_POST['code']); $free = true; $codeId = (int)$cr['id']; }
 
 // tidy: order galleries that were never paid for, older than 3 days
 $old = db()->prepare("SELECT id FROM galleries WHERE kind = 'shop' AND created < ? AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.gallery_id = galleries.id AND o.status = 'paid')");

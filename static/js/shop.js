@@ -1,6 +1,7 @@
 // Buying photos from the public galleries: "Add to order" in the lightbox / on photo pages, a small cart, one checkout.
 // Only shows up when selling is switched on (Admin > Settings > Payments).
 (function(){
+function getCode(){try{return localStorage.getItem('eaCode')||''}catch(e){return ''}}
 var KEY='eaCart',cfg=null,bar=null,dlg=null,addBtns=[],done=false,selMode=false,selBtn=null,tiles=[];
 function load(){try{var a=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(a)?a.filter(function(x){return /^[a-z0-9-]+\/\d{3,6}$/.test(x)}).slice(0,30):[]}catch(e){return[]}}
 function save(a){try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){}}
@@ -56,7 +57,7 @@ function openDlg(){
    if(!(o[3]>0))return;var l=el('label','opt','<input type="radio" name="sz" value="'+o[0]+'"><span><b>'+o[1]+'</b> <em>'+money(o[3])+' each</em><small>'+o[2]+'</small></span>');ct.appendChild(l);l.querySelector('input').onchange=paintDlg});
   var first=ct.querySelector('input');if(first)first.checked=true;
   var rs=ct.querySelectorAll('input');if(rs.length>1)rs[rs.length-1].checked=true}
- done=false;dlg.querySelector('.pay').hidden=false;dlg.querySelector('.cm').textContent='';dlg.hidden=false;document.body.style.overflow='hidden';paintDlg()}
+ done=false;dlg.querySelector('.pay').hidden=false;var hcp=dlg.querySelector('.hc');if(hcp)hcp.hidden=!!cfg.codeName;dlg.querySelector('.cm').textContent='';dlg.hidden=false;document.body.style.overflow='hidden';paintDlg()}
 function tier(){var r=dlg.querySelector('input[name=sz]:checked');return r?r.value:''}
 function paintDlg(){
  var cl=dlg.querySelector('.cl');cl.innerHTML='';
@@ -65,12 +66,13 @@ function paintDlg(){
  cart.forEach(function(k){var p=k.split('/');var d=el('div','ci','<img alt="" src="/photos/'+p[0]+'/'+p[1]+'-t.jpg"><span>Photo '+parseInt(p[1],10)+'</span>');var x=el('button','rm','Remove');x.type='button';x.onclick=function(){toggle(k)};d.appendChild(x);cl.appendChild(d)});
  var t=tier(),base=t==='web'?cfg.web:cfg.full,per=base,n=cart.length,msg='';
  if(cfg.discountPct>0&&cfg.discountMin>1){if(n>=cfg.discountMin){per=Math.round(base*(100-cfg.discountPct)/100);msg='<br><small class="dc">'+cfg.discountPct+'% multi-photo discount applied</small>'}else{msg='<br><small class="dc">Add '+(cfg.discountMin-n)+' more photo'+(cfg.discountMin-n===1?'':'s')+' to save '+cfg.discountPct+'% on every photo</small>'}}
+ if(cfg.codeName){dlg.querySelector('.cs').innerHTML='<b>Free</b> with your code ('+cfg.codeName.replace(/[<>&]/g,'')+')';return}
  dlg.querySelector('.cs').innerHTML='<b>Total: '+money(per*n)+'</b> ('+n+' x '+money(per)+')'+msg}
 function pay(){
  var m=dlg.querySelector('.cm'),btn=dlg.querySelector('.pay'),em=dlg.querySelector('input[type=email]').value.trim();
  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){m.textContent='Please enter a valid email so I can send your download link.';return}
  btn.disabled=true;m.textContent='One moment...';
- var fd=new URLSearchParams();fd.append('a','checkout');fd.append('email',em);fd.append('tier',tier());var cd=dlg.querySelector('.cd');if(cd&&cd.value.trim())fd.append('code',cd.value.trim());cart.forEach(function(k){fd.append('items[]',k)});
+ var fd=new URLSearchParams();fd.append('a','checkout');fd.append('email',em);fd.append('tier',tier());if(cfg.codeName&&getCode())fd.append('code',getCode());var cd=dlg.querySelector('.cd');if(cd&&cd.value.trim())fd.append('code',cd.value.trim());cart.forEach(function(k){fd.append('items[]',k)});
  fetch('/client/shop.php',{method:'POST',body:fd,credentials:'same-origin'}).then(function(r){return r.json()}).then(function(j){
   if(j.checkout){cart=[];save(cart);location.href=j.checkout;return}
   btn.disabled=false;
@@ -80,7 +82,7 @@ function pay(){
 
 window.addEventListener('load',function(){
  if(!document.querySelector('.ph,.pimg'))return;
- fetch('/client/shop.php?a=info',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(j){if(j&&j.enabled){cfg=j;build()}}).catch(function(){});
+ fetch('/client/shop.php?a=info'+(getCode()?'&code='+encodeURIComponent(getCode()):''),{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(j){if(j&&j.enabled){if(getCode()&&!j.codeName){try{localStorage.removeItem('eaCode')}catch(e){}}cfg=j;build()}}).catch(function(){});
  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&dlg&&!dlg.hidden){dlg.hidden=true;document.body.style.overflow=''}});
 });
 })();
