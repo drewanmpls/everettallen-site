@@ -45,11 +45,12 @@ function build(){
 
 function openDlg(){
  if(!dlg){dlg=el('div','cdlg');dlg.setAttribute('role','dialog');dlg.setAttribute('aria-modal','true');dlg.hidden=true;
-  dlg.innerHTML='<div class="cbox"><button type="button" class="cx" aria-label="Close">&times;</button><h2>Your order</h2><div class="cl"></div><fieldset class="ct"><legend>Size</legend></fieldset><label class="ce">Email for your download link<input type="email" autocomplete="email" placeholder="you@example.com"></label><p class="cs"></p><p class="cm" role="status"></p><button type="button" class="btn pay">Pay securely</button><p class="cn">You pay on Stripe\'s secure page. Right after, you get a private link to download your photos, and the same link works any time later. Photos are for personal use; see the usage note on each gallery, or <a href="/contact/">get in touch</a> for other uses.</p></div>';
+  dlg.innerHTML='<div class="cbox"><button type="button" class="cx" aria-label="Close">&times;</button><h2>Your order</h2><div class="cl"></div><fieldset class="ct"><legend>Size</legend></fieldset><label class="ce">Email for your download link<input type="email" autocomplete="email" placeholder="you@example.com"></label><p class="hc"><a href="#">Have a code?</a></p><label class="ce code" hidden>Code<input type="text" class="cd" autocomplete="off" autocapitalize="off"></label><p class="cs"></p><p class="cm" role="status"></p><button type="button" class="btn pay">Pay securely</button><p class="cn">You pay on Stripe\'s secure page. Right after, you get a private link to download your photos, and the same link works any time later. Photos are for personal use; see the usage note on each gallery, or <a href="/contact/">get in touch</a> for other uses.</p></div>';
   document.body.appendChild(dlg);
   dlg.querySelector('.cx').onclick=function(){dlg.hidden=true;document.body.style.overflow=''};
   dlg.addEventListener('click',function(e){if(e.target===dlg){dlg.hidden=true;document.body.style.overflow=''}});
   dlg.querySelector('.pay').onclick=pay;
+  dlg.querySelector('.hc a').onclick=function(e){e.preventDefault();dlg.querySelector('.code').hidden=false;this.parentNode.hidden=true;dlg.querySelector('.cd').focus()};
   var ct=dlg.querySelector('.ct');
   [['web','Web size','2048 pixels on the long side, great for social media and sharing',cfg.web],['full','Full size','The original full-resolution file, for printing',cfg.full]].forEach(function(o,i){
    if(!(o[3]>0))return;var l=el('label','opt','<input type="radio" name="sz" value="'+o[0]+'"><span><b>'+o[1]+'</b> <em>'+money(o[3])+' each</em><small>'+o[2]+'</small></span>');ct.appendChild(l);l.querySelector('input').onchange=paintDlg});
@@ -69,7 +70,7 @@ function pay(){
  var m=dlg.querySelector('.cm'),btn=dlg.querySelector('.pay'),em=dlg.querySelector('input[type=email]').value.trim();
  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){m.textContent='Please enter a valid email so I can send your download link.';return}
  btn.disabled=true;m.textContent='One moment...';
- var fd=new URLSearchParams();fd.append('a','checkout');fd.append('email',em);fd.append('tier',tier());cart.forEach(function(k){fd.append('items[]',k)});
+ var fd=new URLSearchParams();fd.append('a','checkout');fd.append('email',em);fd.append('tier',tier());var cd=dlg.querySelector('.cd');if(cd&&cd.value.trim())fd.append('code',cd.value.trim());cart.forEach(function(k){fd.append('items[]',k)});
  fetch('/client/shop.php',{method:'POST',body:fd,credentials:'same-origin'}).then(function(r){return r.json()}).then(function(j){
   if(j.checkout){cart=[];save(cart);location.href=j.checkout;return}
   btn.disabled=false;

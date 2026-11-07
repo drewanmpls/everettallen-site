@@ -127,6 +127,7 @@ footer .fl a{text-decoration:none}footer .fl a:hover{text-decoration:underline}
 .ct{border:0;padding:0;margin:0 0 12px}.ct legend{font-family:"Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:14px;padding:0 0 4px}
 .opt{display:flex;gap:10px;align-items:flex-start;border:2px solid var(--ink);padding:10px;margin-bottom:6px;cursor:pointer}.opt input{margin-top:5px}.opt small{display:block;color:var(--mut);font-size:14px}.opt em{font-style:normal}
 .ce{display:block;margin:12px 0}.ce input{display:block;width:100%;box-sizing:border-box;margin-top:4px}
+.ce[hidden],.hc[hidden]{display:none}.hc{margin:6px 0;font-size:14px}.hc a{color:inherit;text-decoration:underline}
 .cs{margin:8px 0;font-size:18px}.cm{min-height:22px;margin:4px 0;color:#a00;font-size:15px}
 .cbox .pay{width:100%}.cn{color:var(--mut);font-size:13px;margin:12px 0 0}.cn a{border-bottom:1px solid var(--ink)}
 @media(max-width:600px){.lb .lbbuy{bottom:52px}}

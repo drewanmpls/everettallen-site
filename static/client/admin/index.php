@@ -211,6 +211,8 @@ if ($post) {
         set_setting('shop_price_web_cents', (string)dollars_to_cents((string)($_POST['shop_price_web'] ?? '')));
         set_setting('shop_price_full_cents', (string)dollars_to_cents((string)($_POST['shop_price_full'] ?? '')));
         set_setting('shop_discount_min', (string)max(0, min(30, (int)($_POST['shop_discount_min'] ?? 0))));
+        if (!empty($_POST['shop_owner_code_clear'])) set_setting('shop_owner_code_hash', '');
+        elseif (strlen(trim((string)($_POST['shop_owner_code'] ?? ''))) >= 8) set_setting('shop_owner_code_hash', hash('sha256', strtolower(trim((string)$_POST['shop_owner_code']))));
         set_setting('shop_discount_pct', (string)max(0, min(90, (int)($_POST['shop_discount_pct'] ?? 0))));
         go($base . '?a=settings&saved=1');
     }
@@ -535,6 +537,8 @@ if ($a === 'settings') {
 <label>Full size price (original, for printing)<input name="shop_price_full" value="<?= h(((int)setting('shop_price_full_cents', '0')) > 0 ? number_format(((int)setting('shop_price_full_cents', '0')) / 100, 2, '.', '') : '') ?>" placeholder="25.00" inputmode="decimal"></label>
 <label>Multi-photo discount: starts at this many photos (leave 0 for no discount)<input name="shop_discount_min" value="<?= h((string)(int)setting('shop_discount_min', '0')) ?>" inputmode="numeric" placeholder="5"></label>
 <label>Discount percent off every photo in the order<input name="shop_discount_pct" value="<?= h((string)(int)setting('shop_discount_pct', '0')) ?>" inputmode="numeric" placeholder="20"></label>
+<label>Free download code for you (8+ characters, leave blank to keep the current one). Anyone who enters it at checkout gets their photos with no payment. <?= setting('shop_owner_code_hash', '') ? '(A code is set.)' : '(No code yet.)' ?><input name="shop_owner_code" type="text" autocomplete="off"></label>
+<?php if (setting('shop_owner_code_hash', '')): ?><label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="shop_owner_code_clear" value="1" style="width:auto"> Turn the code off</label><?php endif; ?>
 <button class="btn">Save payment settings</button></form>
 <?php afoot(); exit;
 }

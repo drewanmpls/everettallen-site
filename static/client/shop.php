@@ -55,6 +55,19 @@ if (!$picked) json_out(['error' => 'Pick at least one photo.'], 400);
 $d = shop_discount();
 if ($d['pct'] > 0 && count($picked) >= $d['min']) $price = (int)round($price * (100 - $d['pct']) / 100);
 
+// Owner / free-download code (set in Admin > Settings). A right code skips payment and unlocks the photos right away.
+$code = strtolower(trim((string)($_POST['code'] ?? '')));
+$free = false;
+if ($code !== '') {
+    $fails = explode(':', (string)setting('shop_code_fails', '0:0'));   // time:count, shared by everyone
+    $ft = (int)($fails[0] ?? 0); $fc = (int)($fails[1] ?? 0);
+    if ($ft < time() - 600) { $fc = 0; }
+    if ($fc >= 20) json_out(['error' => 'Too many wrong codes. Please wait a few minutes.'], 429);
+    $want = (string)setting('shop_owner_code_hash', '');
+    if ($want !== '' && hash_equals($want, hash('sha256', $code))) $free = true;
+    else { set_setting('shop_code_fails', time() . ':' . ($fc + 1)); json_out(['error' => 'That code did not work.'], 400); }
+}
+
 // tidy: order galleries that were never paid for, older than 3 days
 $old = db()->prepare("SELECT id FROM galleries WHERE kind = 'shop' AND created < ? AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.gallery_id = galleries.id AND o.status = 'paid')");
 $old->execute([time() - 3 * 86400]);
@@ -87,6 +100,11 @@ foreach ($picked as $p) {
     $orders[] = ['id' => (int)db()->lastInsertId(), 'email' => $email, 'tier' => $tier, 'price_cents' => $price, 'label' => $p['label']];
 }
 
+if ($free) {
+    db()->prepare('UPDATE images SET price_cents = 0 WHERE gallery_id = ?')->execute([$gid]);   // free order: shows as $0 in stats
+    mark_orders_paid(array_column($orders, 'id'), 'owner-code');
+    json_out(['ok' => true, 'checkout' => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/client/g/' . $g['token'] . '/']);
+}
 $url = create_checkout_multi($orders, $g);
 if ($url) json_out(['ok' => true, 'checkout' => $url]);
 
