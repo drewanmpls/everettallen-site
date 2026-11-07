@@ -55,16 +55,16 @@ if (!$picked) json_out(['error' => 'Pick at least one photo.'], 400);
 $d = shop_discount();
 if ($d['pct'] > 0 && count($picked) >= $d['min']) $price = (int)round($price * (100 - $d['pct']) / 100);
 
-// Owner / free-download code (set in Admin > Settings). A right code skips payment and unlocks the photos right away.
+// Free-download code (made in Admin > Codes). A right code skips payment and unlocks the photos right away.
 $code = strtolower(trim((string)($_POST['code'] ?? '')));
-$free = false;
+$free = false; $codeId = 0;
 if ($code !== '') {
     $fails = explode(':', (string)setting('shop_code_fails', '0:0'));   // time:count, shared by everyone
     $ft = (int)($fails[0] ?? 0); $fc = (int)($fails[1] ?? 0);
-    if ($ft < time() - 600) { $fc = 0; }
+    if ($ft < time() - 600) $fc = 0;
     if ($fc >= 20) json_out(['error' => 'Too many wrong codes. Please wait a few minutes.'], 429);
-    $want = (string)setting('shop_owner_code_hash', '');
-    if ($want !== '' && hash_equals($want, hash('sha256', $code))) $free = true;
+    $cr = db()->prepare('SELECT * FROM codes WHERE code = ? AND active = 1'); $cr->execute([$code]); $cr = $cr->fetch();
+    if ($cr && ($cr['expires'] === '' || $cr['expires'] === null || $cr['expires'] >= date('Y-m-d'))) { $free = true; $codeId = (int)$cr['id']; }
     else { set_setting('shop_code_fails', time() . ':' . ($fc + 1)); json_out(['error' => 'That code did not work.'], 400); }
 }
 
@@ -101,7 +101,8 @@ foreach ($picked as $p) {
 }
 
 if ($free) {
-    db()->prepare('UPDATE images SET price_cents = 0 WHERE gallery_id = ?')->execute([$gid]);   // free order: shows as $0 in stats
+    db()->prepare('UPDATE images SET price_cents = 0 WHERE gallery_id = ?')->execute([$gid]);
+    db()->prepare('UPDATE galleries SET code_id = ? WHERE id = ?')->execute([$codeId, $gid]);   // free order: shows as $0 in stats
     mark_orders_paid(array_column($orders, 'id'), 'owner-code');
     json_out(['ok' => true, 'checkout' => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/client/g/' . $g['token'] . '/']);
 }

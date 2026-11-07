@@ -22,7 +22,7 @@ function ahead(string $title): void { ?>
 .link{font-family:monospace;background:#f6f3ec;border:1px solid var(--line);padding:8px 10px;word-break:break-all;display:block}
 h2{font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:20px;margin:32px 0 8px}
 .drop{border:2px dashed var(--ink);padding:24px;text-align:center;background:#f6f3ec}.ok{color:#0a6b2d}.pill{display:inline-block;padding:1px 8px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:12px}</style></head><body>
-<header class="top"><a class="brand" href="/client/admin/">Gallery admin</a><span style="display:flex;gap:22px"><a href="/client/admin/">Galleries</a><a href="/client/admin/?a=clients">Clients</a><a href="/client/admin/?a=publish">Publish</a><a href="/client/admin/?a=stats">Stats</a><a href="/client/admin/?a=settings">Settings</a><a href="/client/admin/?a=logout">Log out</a></span></header><script>try{localStorage.setItem("eaSkip","1")}catch(e){}</script><div class="adm">
+<header class="top"><a class="brand" href="/client/admin/">Gallery admin</a><span style="display:flex;gap:22px"><a href="/client/admin/">Galleries</a><a href="/client/admin/?a=clients">Clients</a><a href="/client/admin/?a=publish">Publish</a><a href="/client/admin/?a=codes">Codes</a><a href="/client/admin/?a=stats">Stats</a><a href="/client/admin/?a=settings">Settings</a><a href="/client/admin/?a=logout">Log out</a></span></header><script>try{localStorage.setItem("eaSkip","1")}catch(e){}</script><div class="adm">
 <?php }
 function afoot(): void { echo '</div></body></html>'; }
 
@@ -197,6 +197,21 @@ if ($post) {
         else { $k = bin2hex(random_bytes(24)); set_setting('nas_token_hash', hash('sha256', $k)); $_SESSION['new_nas_token'] = $k; }
         go($base . '?a=settings#nas');
     }
+    if ($a === 'codenew') {
+        $name = trim(strip_tags((string)($_POST['name'] ?? '')));
+        if ($name === '') go($base . '?a=codes&err=name');
+        $c = strtolower(trim((string)($_POST['code'] ?? '')));
+        if ($c === '') { $al = 'abcdefghjkmnpqrstuvwxyz23456789'; $c = ''; for ($k = 0; $k < 10; $k++) $c .= $al[random_int(0, strlen($al) - 1)]; $c = substr($c, 0, 5) . '-' . substr($c, 5); }
+        if (strlen($c) < 6 || !preg_match('/^[a-z0-9-]+$/', $c)) go($base . '?a=codes&err=code');
+        $ex = trim((string)($_POST['expires'] ?? '')); if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $ex)) $ex = '';
+        try { db()->prepare('INSERT INTO codes (name, code, expires, created) VALUES (?,?,?,?)')->execute([mb_substr($name, 0, 80), $c, $ex, time()]); }
+        catch (Throwable $e) { go($base . '?a=codes&err=dup'); }
+        go($base . '?a=codes&saved=1');
+    }
+    if ($a === 'codetoggle') {
+        db()->prepare('UPDATE codes SET active = 1 - active WHERE id = ?')->execute([(int)($_POST['cid'] ?? 0)]);
+        go($base . '?a=codes');
+    }
     if ($a === 'githubsave') {
         if (trim((string)($_POST['github_token'] ?? '')) !== '') set_setting('github_token', trim((string)$_POST['github_token']));
         if (!empty($_POST['github_clear'])) set_setting('github_token', '');
@@ -211,8 +226,6 @@ if ($post) {
         set_setting('shop_price_web_cents', (string)dollars_to_cents((string)($_POST['shop_price_web'] ?? '')));
         set_setting('shop_price_full_cents', (string)dollars_to_cents((string)($_POST['shop_price_full'] ?? '')));
         set_setting('shop_discount_min', (string)max(0, min(30, (int)($_POST['shop_discount_min'] ?? 0))));
-        if (!empty($_POST['shop_owner_code_clear'])) set_setting('shop_owner_code_hash', '');
-        elseif (strlen(trim((string)($_POST['shop_owner_code'] ?? ''))) >= 8) set_setting('shop_owner_code_hash', hash('sha256', strtolower(trim((string)$_POST['shop_owner_code']))));
         set_setting('shop_discount_pct', (string)max(0, min(90, (int)($_POST['shop_discount_pct'] ?? 0))));
         go($base . '?a=settings&saved=1');
     }
@@ -497,6 +510,41 @@ if ($a === 'stats') {
 <?php afoot(); exit;
 }
 
+if ($a === 'codescsv') {
+    header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="code-uses.csv"');
+    $o = fopen('php://output', 'w'); fputcsv($o, ['Code name', 'Date', 'Email', 'Gallery', 'Photo', 'Downloaded']);
+    $q = db()->query("SELECT c.name cname, g.created, g.client_email, g.title, i.label, i.id iid, (SELECT COUNT(*) FROM downloads d WHERE d.image_id = i.id) dl FROM galleries g JOIN codes c ON c.id = g.code_id JOIN images i ON i.gallery_id = g.id ORDER BY g.created DESC, i.sort");
+    foreach ($q as $r) fputcsv($o, [$r['cname'], date('Y-m-d H:i', (int)$r['created']), $r['client_email'], $r['title'], $r['label'], $r['dl'] > 0 ? 'yes' : 'no']);
+    exit;
+}
+if ($a === 'codes') {
+    ahead('Codes'); $tok = csrf();
+    $rows = db()->query('SELECT * FROM codes ORDER BY id DESC')->fetchAll(); ?>
+<h1 style="font-size:clamp(32px,5vw,64px)">Free download codes</h1>
+<p>Give someone a code and they can get photos from the public galleries with no payment: add photos to the order, open the cart, click "Have a code?". Each code is logged with who used it, which photos, and whether they downloaded them. Turn a code off any time without affecting the others.</p>
+<?php if (!empty($_GET['saved'])): ?><p class="ok">Code added.</p><?php endif; ?>
+<?php $errs = ['name' => 'Give the code a name.', 'code' => 'A code needs 6 or more letters, numbers or dashes.', 'dup' => 'That code already exists.']; if (!empty($errs[$_GET['err'] ?? ''])): ?><p class="err"><?= h($errs[$_GET['err']]) ?></p><?php endif; ?>
+<form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codenew">
+<div class="cols"><label>Who it is for (example: Q Minnesota)<input name="name" required></label>
+<label>Code (leave blank to make one)<input name="code" autocomplete="off" placeholder="made for you"></label>
+<label>Stops working after (optional)<input name="expires" type="date"></label></div>
+<button class="btn">Add code</button></form>
+<?php if ($rows): ?><h2>Codes</h2><p><a href="?a=codescsv">Download everything as a spreadsheet (CSV)</a></p><?php endif; ?>
+<?php foreach ($rows as $c):
+    $u = db()->prepare("SELECT g.id, g.created, g.client_email, g.title, (SELECT COUNT(*) FROM images i WHERE i.gallery_id = g.id) n, (SELECT COUNT(DISTINCT d.image_id) FROM downloads d JOIN images i ON i.id = d.image_id WHERE i.gallery_id = g.id) dl, (SELECT GROUP_CONCAT(i.label, ', ') FROM images i WHERE i.gallery_id = g.id) labels FROM galleries g WHERE g.code_id = ? ORDER BY g.created DESC");
+    $u->execute([$c['id']]); $uses = $u->fetchAll();
+    $np = array_sum(array_column($uses, 'n')); $nd = array_sum(array_column($uses, 'dl'));
+    $exp = ($c['expires'] ?? '') !== '' && $c['expires'] < date('Y-m-d'); ?>
+<h3 style="margin:28px 0 4px"><?= h($c['name']) ?> <span class="pill"><?= $c['active'] ? ($exp ? 'expired' : 'on') : 'off' ?></span></h3>
+<p style="margin:0 0 6px">Code: <span class="link" style="display:inline;padding:3px 8px"><?= h($c['code']) ?></span><?= ($c['expires'] ?? '') !== '' ? ' &nbsp; until ' . h($c['expires']) : '' ?> &nbsp;
+<?= count($uses) ?> use<?= count($uses) === 1 ? '' : 's' ?>, <?= (int)$np ?> photo<?= $np === 1 ? '' : 's' ?>, <?= (int)$nd ?> downloaded</p>
+<form method="post" style="display:inline"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codetoggle"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><button class="btn" style="background:#fff;color:var(--ink)"><?= $c['active'] ? 'Turn off' : 'Turn on' ?></button></form>
+<?php if ($uses): ?><table><tr><th>When</th><th>Email</th><th>Photos</th><th>Downloaded</th></tr>
+<?php foreach ($uses as $r): ?><tr><td><?= h(date('M j, Y g:ia', (int)$r['created'])) ?></td><td><?= h($r['client_email']) ?></td><td><?= (int)$r['n'] ?>: <?= h(mb_strimwidth((string)$r['labels'], 0, 90, '...')) ?></td><td><?= (int)$r['dl'] ?> of <?= (int)$r['n'] ?></td></tr><?php endforeach; ?></table><?php endif; ?>
+<?php endforeach; ?>
+<?php afoot(); exit;
+}
+
 if ($a === 'settings') {
     ahead('Settings'); $tok = csrf(); ?>
 <h1 style="font-size:clamp(32px,5vw,64px)">Settings</h1>
@@ -537,8 +585,6 @@ if ($a === 'settings') {
 <label>Full size price (original, for printing)<input name="shop_price_full" value="<?= h(((int)setting('shop_price_full_cents', '0')) > 0 ? number_format(((int)setting('shop_price_full_cents', '0')) / 100, 2, '.', '') : '') ?>" placeholder="25.00" inputmode="decimal"></label>
 <label>Multi-photo discount: starts at this many photos (leave 0 for no discount)<input name="shop_discount_min" value="<?= h((string)(int)setting('shop_discount_min', '0')) ?>" inputmode="numeric" placeholder="5"></label>
 <label>Discount percent off every photo in the order<input name="shop_discount_pct" value="<?= h((string)(int)setting('shop_discount_pct', '0')) ?>" inputmode="numeric" placeholder="20"></label>
-<label>Free download code for you (8+ characters, leave blank to keep the current one). Anyone who enters it at checkout gets their photos with no payment. <?= setting('shop_owner_code_hash', '') ? '(A code is set.)' : '(No code yet.)' ?><input name="shop_owner_code" type="text" autocomplete="off"></label>
-<?php if (setting('shop_owner_code_hash', '')): ?><label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="shop_owner_code_clear" value="1" style="width:auto"> Turn the code off</label><?php endif; ?>
 <button class="btn">Save payment settings</button></form>
 <?php afoot(); exit;
 }
