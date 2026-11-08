@@ -71,8 +71,12 @@ function link_for(array $g): string { return 'https://' . ($_SERVER['HTTP_HOST']
 if ($a === 'thumb') {
     $s = db()->prepare('SELECT * FROM images WHERE id = ?'); $s->execute([(int)($_GET['id'] ?? 0)]); $i = $s->fetch();
     if (!$i) { http_response_code(404); exit; }
-    $p = gdir((int)$i['gallery_id'], 'thumb') . '/' . basename($i['file']);
-    if (!is_file($p)) { http_response_code(404); exit; }
+    // Order galleries (kind 'shop') keep unwatermarked copies in 'sthumb' and build them on first view.
+    $gk = db()->prepare('SELECT kind FROM galleries WHERE id = ?'); $gk->execute([(int)$i['gallery_id']]);
+    $wm = ($gk->fetchColumn() ?: '') !== 'shop';
+    $p = gdir((int)$i['gallery_id'], ($wm ? '' : 's') . 'thumb') . '/' . basename($i['file']);
+    if (!is_file($p)) $p = ensure_derivative((int)$i['gallery_id'], $i['file'], 'thumb', $wm);
+    if ($p === '' || !is_file($p)) { http_response_code(404); exit; }
     header('Content-Type: image/jpeg'); header('Cache-Control: private, max-age=3600'); readfile($p); exit;
 }
 
