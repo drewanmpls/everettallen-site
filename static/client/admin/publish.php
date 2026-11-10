@@ -116,6 +116,8 @@ if ($a === 'pubdone') {   // save the gallery file to GitHub
             $title = mb_substr(trim(strip_tags((string)($d['title'] ?? ''))), 0, 200);
             $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($d['date'] ?? '')) ? $d['date'] : date('Y-m-d');
             if ($title === '') json_out(['error' => 'A new gallery needs a title.'], 400);
+            // Events keep the year in the title ("2026 TCLF Friday"), even if the sender left it off.
+            if (!empty($apiAuth) && !preg_match('/^\d{4}\b/', $title) && (($d['category'] ?? '') !== 'portraits')) $title = substr($date, 0, 4) . ' ' . $title;
             $g = ['title' => $title, 'category' => (($d['category'] ?? '') === 'portraits') ? 'portraits' : 'events', 'year' => substr($date, 0, 4), 'date' => $date, 'cover' => (string)array_key_first($new), 'description' => '', 'images' => []];
         }
         $have = []; foreach ($g['images'] as $k => $im) $have[(string)$im['id']] = $k;
