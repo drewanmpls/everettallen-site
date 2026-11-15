@@ -22,7 +22,7 @@ function ahead(string $title): void { ?>
 .link{font-family:monospace;background:#f6f3ec;border:1px solid var(--line);padding:8px 10px;word-break:break-all;display:block}
 h2{font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:20px;margin:32px 0 8px}
 .drop{border:2px dashed var(--ink);padding:24px;text-align:center;background:#f6f3ec}.ok{color:#0a6b2d}.pill{display:inline-block;padding:1px 8px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:12px}</style></head><body>
-<header class="top"><a class="brand" href="/client/admin/">Gallery admin</a><span style="display:flex;gap:22px"><a href="/client/admin/">Galleries</a><a href="/client/admin/?a=clients">Clients</a><a href="/client/admin/?a=publish">Publish</a><a href="/client/admin/?a=codes">Codes</a><a href="/client/admin/?a=stats">Stats</a><a href="/client/admin/?a=settings">Settings</a><a href="/client/admin/?a=logout">Log out</a></span></header><script>try{localStorage.setItem("eaSkip","1")}catch(e){}</script><div class="adm">
+<header class="top"><a class="brand" href="/client/admin/">Gallery admin</a><span style="display:flex;gap:22px"><a href="/client/admin/">Galleries</a><a href="/client/admin/?a=clients">Clients</a><a href="/client/admin/?a=publish">Publish</a><a href="/client/admin/?a=library">Library</a><a href="/client/admin/?a=codes">Codes</a><a href="/client/admin/?a=stats">Stats</a><a href="/client/admin/?a=settings">Settings</a><a href="/client/admin/?a=logout">Log out</a></span></header><script>try{localStorage.setItem("eaSkip","1")}catch(e){}</script><div class="adm">
 <?php }
 function afoot(): void { echo '</div></body></html>'; }
 
@@ -97,6 +97,7 @@ if ($a === 'releasepdf') {
 
 // ----- Publish photos (browser upload to the public galleries) -----
 if (in_array($a, ['publish', 'pubfile', 'pubdone'], true)) require __DIR__ . '/publish.php';
+if (in_array($a, ['library', 'libfile', 'libzip'], true)) require __DIR__ . '/library.php';
 
 // ----- POST actions -----
 if ($post) {
