@@ -116,7 +116,7 @@ H = something Andrew does by hand. T = a ticket prompt for a remote Claude sessi
 | | H-05 | Hand | | | After a week without needing Pages CMS: remove the Pages CMS app from the repo (GitHub > Settings > Integrations) |
 | 5. Clients and orders | T-31 | Task | Sonnet | M | Client search and filters |
 | | T-32 | Task | Sonnet | M | Client timeline |
-| | T-33 | Task | Sonnet | M | Orders page with totals (needs Andrew's OK, touches order records) |
+| | T-33 | Task | Sonnet | M | Orders page with totals (approved by Andrew 2026-11-15) |
 | 6. Email clients | T-34 | Task | Sonnet | M | Outbox queue and sender |
 | | H-06 | Hand | | | DreamHost panel > Cron Jobs: add the outbox command from T-34 |
 | | T-35 | Task | Sonnet | M | Email templates and "Email this client" |
@@ -825,7 +825,7 @@ Header always set Content-Security-Policy "default-src 'self'; script-src 'self'
 * **Assigned Model:** Sonnet
 * **Size:** L
 * **Depends on:** T-25, T-03
-* **Needs Andrew's OK before starting:** yes (privacy and the sellable library).
+* **Approved by Andrew (2026-11-15):** yes, as written. Web copies are deleted and the original is moved to the private removed folder, not deleted.
 * **Target File(s):** `static/client/admin/pgalleries.php`, `static/client/admin/pgalleries.js` (new)
 * **The Problem / Goal:** A removal request today leaves the photo page, both web copies and the original on the server. There is also no way to reorder photos.
 * **Exact Instructions:**
@@ -946,7 +946,7 @@ Header always set Content-Security-Policy "default-src 'self'; script-src 'self'
 ### Ticket #T-33: Orders page with totals
 * **Assigned Model:** Sonnet
 * **Size:** M
-* **Needs Andrew's OK before starting:** yes (adds a column to order records and two lines in checkout code).
+* **Approved by Andrew (2026-11-15):** yes. Adding the price column and the two checkout lines is OK. Anything beyond that in payment code still needs a new OK.
 * **Target File(s):** `static/client/lib.php`, `static/client/api.php`, `static/client/shop.php`, `static/client/admin/orders.php` (new), `static/client/admin/index.php` (require and menu)
 * **The Problem / Goal:** There is no single orders page, and orders do not record the price charged, so totals cannot be shown.
 * **Exact Instructions:**
