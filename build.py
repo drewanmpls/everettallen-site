@@ -166,6 +166,8 @@ urls=['/','/portraits/','/events/','/search/','/services/','/contact/']+[f'/tag/
 open('dist/sitemap.xml','w').write('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+''.join(f'<url><loc>{site["base_url"]}{u}</loc></url>' for u in urls)+'</urlset>')
 open('dist/robots.txt','w').write(f'User-agent: *\nAllow: /\nDisallow: /client/\nSitemap: {site["base_url"]}/sitemap.xml\n')
 ht=['ErrorDocument 404 /404.html','RewriteEngine On','RewriteCond %{HTTPS} off','RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]',
+'# Short links made in Admin > Links',
+'RewriteRule ^go/([A-Za-z0-9-]+)/?$ /client/go.php?s=$1 [L,QSA]',
 '# Hotlink protection: other websites cannot embed /photos/ images. Allowed: this site, empty referrers (direct visits, privacy browsers, messaging apps), search engines and social/link-preview crawlers.',
 'RewriteCond %{REQUEST_URI} ^/photos/ [NC]',
 'RewriteCond %{HTTP_REFERER} !^$',
