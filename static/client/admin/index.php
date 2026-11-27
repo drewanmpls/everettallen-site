@@ -17,7 +17,7 @@ const ADMIN_MENU = [
     '' => [['Dashboard', 'dashboard', []]],
     'Studio' => [['Clients', 'clients', ['client']], ['Client galleries', 'list', ['gallery']], ['Codes', 'codes', []]],
     'Portfolio' => [['Galleries', 'pgalleries', ['pgallery']], ['Publish', 'publish', []], ['Event series', 'series', []], ['Library', 'library', []]],
-    'Website' => [['Pages', 'pages', []], ['Short links', 'links', []], ['Stats', 'stats', []], ['Settings', 'settings', []]],
+    'Website' => [['Pages', 'pages', []], ['Services', 'services', []], ['Short links', 'links', []], ['Stats', 'stats', []], ['Settings', 'settings', []]],
 ];
 // Claude models offered in Settings > Claude AI for "Suggest with Claude": id => label (rough cost per suggestion).
 const AI_MODELS = ['claude-opus-5-5' => 'Claude Opus 5.5: best writing (about 3 cents per suggestion)', 'claude-sonnet-5-5' => 'Claude Sonnet 5.5: very good, about half the price (1 to 2 cents)', 'claude-haiku-5-5' => 'Claude Haiku 5.5: fastest and cheapest (under 1 cent)'];
@@ -137,7 +137,7 @@ if (in_array($a, ['library', 'libfile', 'libzip'], true)) require __DIR__ . '/li
 if ($a === 'dashboard') require __DIR__ . '/dashboard.php';
 if ($a === 'pgsuggest') require __DIR__ . '/ai.php';
 if (in_array($a, ['pgalleries', 'pgallery', 'pgsave', 'pgorder', 'pgremove'], true)) require __DIR__ . '/pgalleries.php';
-if (in_array($a, ['series', 'seriessave', 'pages', 'pagesave', 'sitesave'], true)) require __DIR__ . '/content-editors.php';
+if (in_array($a, ['series', 'seriessave', 'pages', 'pagesave', 'sitesave', 'services', 'servicessave'], true)) require __DIR__ . '/content-editors.php';
 if (in_array($a, ['links', 'linknew', 'linktoggle', 'linkdel'], true)) require __DIR__ . '/links.php';
 
 // ----- POST actions -----

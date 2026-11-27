@@ -214,3 +214,116 @@ if ($a === 'pages') {
 </form>
 <?php endif; afoot(); exit;
 }
+
+// ---------- Services and rates (T-29) ----------
+const CE_RELEASE = ['release_title', 'release_terms', 'release_definitions', 'release_gallery_question', 'release_consideration'];   // legal wording (release_version is the label)
+// The form's values applied to services.json; unknown fields (wide, and anything added later) are kept. Returns [doc, problems].
+function ce_services_apply(array $doc, array $in, callable $clean, bool $forDisplay = false): array {
+    $p = []; $multi = fn($v) => trim(str_replace("\r\n", "\n", is_string($v) ? $v : ''));
+    foreach (['title' => 80, 'lede' => 200, 'delivery' => 600, 'callout' => 600, 'cta' => 200] as $k => $max) {
+        $doc[$k] = $clean($in[$k] ?? '');
+        if ($doc[$k] === '' && in_array($k, ['title', 'lede'], true)) $p[] = 'The page ' . $k . ' cannot be empty.';
+        if (mb_strlen($doc[$k]) > $max) $p[] = 'The page ' . $k . ' can be at most ' . $max . ' characters.';
+    }
+    $pct = trim((string)($in['share_discount_percent'] ?? '0'));
+    if (!preg_match('/^\d{1,3}$/', $pct) || (int)$pct > 100) $p[] = 'The share discount must be a whole number from 0 to 100.'; else $doc['share_discount_percent'] = (int)$pct;
+    $doc['share_note'] = $clean($in['share_note'] ?? ''); if (mb_strlen($doc['share_note']) > 400) $p[] = 'The share note can be at most 400 characters.';
+    $old = is_array($doc['cards'] ?? null) ? $doc['cards'] : []; $cards = [];
+    foreach ((array)($in['cards'] ?? []) as $n => $c) {
+        if (!is_array($c)) continue;
+        $o = isset($c['orig']) && $c['orig'] !== '' && isset($old[(int)$c['orig']]) ? $old[(int)$c['orig']] : ['wide' => false];
+        foreach (['title' => 80, 'price' => 40, 'unit' => 40, 'meta' => 120, 'badge' => 40] as $k => $max) { $o[$k] = $clean($c[$k] ?? ''); if (mb_strlen($o[$k]) > $max) $p[] = 'Card ' . (count($cards) + 1) . ': ' . $k . ' can be at most ' . $max . ' characters.'; }
+        $o['items'] = array_values(array_filter(array_map('trim', explode("\n", $multi($c['items'] ?? ''))), 'strlen'));
+        $inc = trim((string)($c['included'] ?? '0')); if (!preg_match('/^\d{1,3}$/', $inc)) $p[] = 'Card ' . (count($cards) + 1) . ': included photos must be a whole number.'; else $o['included'] = (int)$inc;
+        if ($o['title'] === '' || $o['price'] === '') $p[] = 'Card ' . (count($cards) + 1) . ' needs a title and a price.';
+        if ($forDisplay) $o['__orig'] = (string)($c['orig'] ?? '');   // re-shown form keeps each card's link to the saved card
+        $cards[] = $o;
+    }
+    if (!$cards) $p[] = 'Keep at least one service card.';
+    $doc['cards'] = $cards;
+    // model release (legal wording)
+    $doc['release_title'] = $clean($in['release_title'] ?? '');
+    $doc['release_version'] = $clean($in['release_version'] ?? '');
+    $doc['release_terms'] = array_values(array_filter(array_map(fn($t) => trim(preg_replace('/\s+/', ' ', $t)), preg_split('/\n\s*\n/', $multi($in['release_terms'] ?? ''))), 'strlen'));
+    $defs = []; foreach ((array)($in['defs'] ?? []) as $d) { $t = $clean($d['term'] ?? ''); $x = $clean($d['text'] ?? ''); if ($t === '' && $x === '') continue; if ($t === '' || $x === '') { $p[] = 'Each release definition needs both a term and its meaning.'; continue; } $defs[] = ['term' => $t, 'text' => $x]; }
+    $doc['release_definitions'] = $defs;
+    $doc['release_gallery_question'] = $clean($in['release_gallery_question'] ?? '');
+    $doc['release_consideration'] = $clean($in['release_consideration'] ?? '');
+    if ($doc['release_version'] === '' || mb_strlen($doc['release_version']) > 40) $p[] = 'The release version label needs 1 to 40 characters.';
+    foreach (['title', 'lede', 'delivery', 'callout', 'cta', 'share_note', 'release_title', 'release_gallery_question', 'release_consideration'] as $k) if (is_string($doc[$k] ?? null) && $doc[$k] !== strip_tags($doc[$k])) { $p[] = 'Use plain text, no HTML.'; break; }
+    return [$doc, $p];
+}
+
+if ($a === 'servicessave') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !csrf_ok()) { http_response_code(400); echo 'Session expired. Go back, reload the page and try again.'; exit; }
+    [$doc, $sha, $err] = content_get('content/services.json'); $problems = [];
+    if ($doc === null) $problems[] = 'Could not read the services from GitHub: ' . $err;
+    else {
+        [$new, $problems] = ce_services_apply($doc, $_POST, $ceClean);
+        $relChanged = false; foreach (CE_RELEASE as $k) if (($new[$k] ?? null) !== ($doc[$k] ?? null)) $relChanged = true;
+        if ($relChanged && ($new['release_version'] ?? '') === ($doc['release_version'] ?? '')) $problems[] = 'The model release wording changed but its version label did not. People who already signed keep the version they signed, so a changed release needs a new version label (for example ' . date('Y-m') . '-2). Change the label, or undo the wording change.';
+        if (!$problems && $new === $doc) go('/client/admin/?a=services&same=1');
+        if (!$problems) { [$ok, $err] = content_put('content/services.json', $new, (string)$sha, 'Services and rates'); if ($ok) go('/client/admin/?a=services&saved=1'); $problems[] = 'Could not save: ' . $err; }
+    }
+    $_SESSION['ce_err'] = $problems; $_SESSION['ce_svc'] = $_POST;
+    go('/client/admin/?a=services');
+}
+
+if ($a === 'services') {
+    ahead('Services'); $tok = csrf();
+    [$doc, , $err] = content_get('content/services.json');
+    $errs = $_SESSION['ce_err'] ?? []; $typed = $_SESSION['ce_svc'] ?? null; unset($_SESSION['ce_err'], $_SESSION['ce_svc']);
+    if (is_array($doc) && is_array($typed)) { [$doc] = ce_services_apply($doc, $typed, $ceClean, true); }   // show what was typed
+    $relOpen = $errs && array_filter($errs, fn($e) => stripos($e, 'release') !== false); ?>
+<div class="ph"><div><h1>Services and rates</h1></div><div class="act"><a class="btn alt" href="/services/" target="_blank" rel="noopener">View on site</a></div></div>
+<?php if (!empty($_GET['saved'])): ?><p class="msg good" role="status">Saved. The site updates in a minute or two.</p><?php endif; ?>
+<?php if (!empty($_GET['same'])): ?><p class="msg good" role="status">Nothing changed, so nothing was saved.</p><?php endif; ?>
+<?php if ($errs): ?><div class="msg bad" role="alert"><p>Not saved. Please fix:</p><ul><?php foreach ($errs as $e): ?><li><?= h($e) ?></li><?php endforeach; ?></ul></div><?php endif; ?>
+<?php if (!is_array($doc)): ?><p class="msg bad" role="alert">Could not open the services: <?= h($err) ?></p><?php else: ?>
+<form method="post" class="form wide" id="svcform"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="servicessave">
+<h2>Page text</h2>
+<label>Title<input name="title" value="<?= h((string)($doc['title'] ?? '')) ?>" maxlength="80" required></label>
+<label>Lede (under the title)<input name="lede" value="<?= h((string)($doc['lede'] ?? '')) ?>" maxlength="200" required></label>
+<label>Delivery<textarea name="delivery" rows="2" maxlength="600"><?= h((string)($doc['delivery'] ?? '')) ?></textarea></label>
+<label>Callout<textarea name="callout" rows="2" maxlength="600"><?= h((string)($doc['callout'] ?? '')) ?></textarea></label>
+<label>Call to action (above the booking buttons)<input name="cta" value="<?= h((string)($doc['cta'] ?? '')) ?>" maxlength="200"></label>
+<div class="cols"><label>Share discount (percent off for signing the model release)<input name="share_discount_percent" value="<?= (int)($doc['share_discount_percent'] ?? 0) ?>" inputmode="numeric" maxlength="3"></label></div>
+<label>Share note (<code>{percent}</code> becomes the discount)<textarea name="share_note" rows="2" maxlength="400"><?= h((string)($doc['share_note'] ?? '')) ?></textarea></label>
+<h2>Service cards</h2>
+<p class="hint">In the order shown on the Services page. "Included photos" pre-fills the free picks when you create a client gallery for that service.</p>
+<p class="sr" id="svcmoved" role="status" aria-live="polite"></p>
+<ol class="serlist" id="cardlist">
+<?php foreach (array_values((array)($doc['cards'] ?? [])) as $i => $c): ?>
+<li class="panel"><fieldset><legend><?= h((string)($c['title'] ?? 'New card')) ?></legend><input type="hidden" name="cards[<?= $i ?>][orig]" value="<?= h((string)($c['__orig'] ?? $i)) ?>">
+<div class="cols"><label>Title<input name="cards[<?= $i ?>][title]" value="<?= h((string)($c['title'] ?? '')) ?>" maxlength="80" required></label><label>Price (as shown, for example $175)<input name="cards[<?= $i ?>][price]" value="<?= h((string)($c['price'] ?? '')) ?>" maxlength="40" required></label></div>
+<div class="cols"><label>Unit (optional, for example / hour)<input name="cards[<?= $i ?>][unit]" value="<?= h((string)($c['unit'] ?? '')) ?>" maxlength="40"></label><label>Meta line<input name="cards[<?= $i ?>][meta]" value="<?= h((string)($c['meta'] ?? '')) ?>" maxlength="120"></label></div>
+<div class="cols"><label>Badge (optional)<input name="cards[<?= $i ?>][badge]" value="<?= h((string)($c['badge'] ?? '')) ?>" maxlength="40"></label><label>Included photos<input name="cards[<?= $i ?>][included]" value="<?= (int)($c['included'] ?? 0) ?>" inputmode="numeric" maxlength="3"></label></div>
+<label>What is included (one per line)<textarea name="cards[<?= $i ?>][items]" rows="4"><?= h(implode("\n", (array)($c['items'] ?? []))) ?></textarea></label>
+<div class="acts"><button type="button" class="btn sm alt" data-card="-1">Move up</button><button type="button" class="btn sm alt" data-card="1">Move down</button><button type="button" class="btn sm alt" data-card="0">Remove card</button></div>
+</fieldset></li>
+<?php endforeach; ?>
+</ol>
+<p><button type="button" class="btn sm alt" id="cardadd">Add a card</button></p>
+<details class="panel mt" id="release"<?= $relOpen ? ' open' : '' ?>><summary><b>Model release wording</b> (version <?= h((string)($doc['release_version'] ?? '')) ?>)</summary>
+<p class="msg wait mt" role="note">Legal wording. People who already signed keep the version they signed. Changing anything here requires a new version label.</p>
+<label>Version label<input name="release_version" value="<?= h((string)($doc['release_version'] ?? '')) ?>" maxlength="40" required></label>
+<label>Title<input name="release_title" value="<?= h((string)($doc['release_title'] ?? '')) ?>"></label>
+<label>Terms (one paragraph each, with a blank line between paragraphs)<textarea name="release_terms" rows="14"><?= h(implode("\n\n", (array)($doc['release_terms'] ?? []))) ?></textarea></label>
+<p><b>Definitions</b> <span class="hint">(clear both boxes to remove one)</span></p>
+<?php $defs = array_values((array)($doc['release_definitions'] ?? [])); $defs[] = ['term' => '', 'text' => '']; foreach ($defs as $i => $d): ?>
+<div class="cols"><label>Term<input name="defs[<?= $i ?>][term]" value="<?= h((string)($d['term'] ?? '')) ?>"></label><label>Meaning<textarea name="defs[<?= $i ?>][text]" rows="2"><?= h((string)($d['text'] ?? '')) ?></textarea></label></div>
+<?php endforeach; ?>
+<label>Gallery display question<input name="release_gallery_question" value="<?= h((string)($doc['release_gallery_question'] ?? '')) ?>"></label>
+<label>Consideration (<code>{percent}</code> becomes the discount)<input name="release_consideration" value="<?= h((string)($doc['release_consideration'] ?? '')) ?>"></label>
+</details>
+<div class="savebar"><button class="btn">Save services</button></div>
+</form>
+<template id="cardtpl"><li class="panel"><fieldset><legend>New card</legend><input type="hidden" data-n="orig" value="">
+<div class="cols"><label>Title<input data-n="title" maxlength="80" required></label><label>Price (as shown, for example $175)<input data-n="price" maxlength="40" required></label></div>
+<div class="cols"><label>Unit (optional, for example / hour)<input data-n="unit" maxlength="40"></label><label>Meta line<input data-n="meta" maxlength="120"></label></div>
+<div class="cols"><label>Badge (optional)<input data-n="badge" maxlength="40"></label><label>Included photos<input data-n="included" value="0" inputmode="numeric" maxlength="3"></label></div>
+<label>What is included (one per line)<textarea data-n="items" rows="4"></textarea></label>
+<div class="acts"><button type="button" class="btn sm alt" data-card="-1">Move up</button><button type="button" class="btn sm alt" data-card="1">Move down</button><button type="button" class="btn sm alt" data-card="0">Remove card</button></div>
+</fieldset></li></template>
+<?php endif; afoot(); exit;
+}
