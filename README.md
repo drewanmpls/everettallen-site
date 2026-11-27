@@ -60,6 +60,18 @@ In Lightroom Classic, create a Publish Service of type Hard Drive pointing at `~
 
 The 1000px photos get a small, semi-transparent logo in the bottom-right corner (thumbnails stay clean; full-size downloads never have it). It needs Pillow once: `pip3 install pillow`. The logo is downloaded from the site's `/assets/logo-white.png` and cached at `~/.eap-logo.png` (falls back to plain text). Re-running the script on an older gallery adds the watermark to its photos automatically. Use `--no-watermark` to skip.
 
+## Backups
+
+`client/cli/backup.php` saves a copy of the database (orders, clients, signed release records, codes, settings) to `~/everettallen-private/everettallenphotography.com/backups/data-YYYY-MM-DD.sqlite`. It keeps the newest 30 days plus the first backup of each month for 12 months, and deletes nothing else. Photos and originals are not included (they are large and already on the NAS). The `cli` folder cannot be opened from the web.
+
+Run it daily as a DreamHost cron job (Panel > Advanced > Cron Jobs), as user `dh_dbvmkc`:
+
+```
+php8.3 /home/dh_dbvmkc/new.everettallenphotography.com/client/cli/backup.php /home/dh_dbvmkc/everettallen-private/everettallenphotography.com
+```
+
+The web folder really is `new.everettallenphotography.com` (the live domain's web directory). Confirm the PHP command name in the panel; if `php8.3` is not found, use `/usr/local/php83/bin/php`. To restore, copy a backup over `data.sqlite` (keep the current one first).
+
 ## Admin and Pages CMS quick guide
 
 Admin: https://www.everettallenphotography.com/client/admin/ (Publish, Codes, Stats, Settings, Clients). Pages CMS: https://app.pagescms.org (sign in with GitHub, repo `drewanmpls/everettallen-site`). Edits in Pages CMS commit to GitHub and go live in a minute or two.
