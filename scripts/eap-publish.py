@@ -26,7 +26,7 @@ DEFAULTS = {
     "repo": "~/everettallen-site",
     "ssh_key": "",  # e.g. ~/.ssh/everettallen_deploy (skips the password prompt)
     "masters_dir": "~/everettallen-private/masters",  # private, NOT inside the web folder
-    "logo_url": "https://new.everettallenphotography.com/assets/logo-white.png",  # white logo, downloaded once
+    "logo_url": "https://www.everettallenphotography.com/assets/logo-white.png",  # white logo, downloaded once
     "logo_path": "",  # or a local PNG with a transparent background
 }
 WM_VERSION = 1  # bump to re-do the watermark on every photo next run
