@@ -159,3 +159,7 @@ footer .fl a{text-decoration:none}footer .fl a:hover{text-decoration:underline}
 .lb .lblike.on,.lkpage.on{color:#ff4d6d;border-color:#ff4d6d}
 .lkpage{margin:12px 0 0;background:transparent;color:inherit;border:2px solid currentColor;padding:9px 16px}
 .lkpage svg{width:1.3em;height:1.3em}.lkpage.on{color:#c4143c}
+/* T-04: keep the call-to-action buttons and year links inside a 320px screen */
+@media(max-width:480px){.cta .btn,.cta .btn.alt{width:100%;margin-left:0;padding:14px 16px;text-align:center}}
+.yj a:last-child{margin-right:0}
+.callout a{overflow-wrap:anywhere}
