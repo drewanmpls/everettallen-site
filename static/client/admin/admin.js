@@ -113,6 +113,22 @@
       document.getElementById('pgrmcancel').addEventListener('click', function () { rm.hidden = true; rmOpen.focus(); });
     }
 
+    // Event series: Move up / Move down reorder the rows (the form sends them in page order); the slug preview follows the name
+    var sl = document.getElementById('serlist');
+    if (sl) sl.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-sermove]'); if (!b) return;
+      var li = b.closest('li'), up = b.getAttribute('data-sermove') === '-1', to = up ? li.previousElementSibling : li.nextElementSibling;
+      if (!to) return;
+      if (up) sl.insertBefore(li, to); else sl.insertBefore(to, li);
+      b.focus();
+      document.getElementById('sermoved').textContent = li.querySelector('legend').firstChild.textContent.trim() + ' is now number ' + ([].indexOf.call(sl.children, li) + 1) + ' of ' + sl.children.length + '.';
+    });
+    document.querySelectorAll('input[data-slugto]').forEach(function (n) {
+      var out = document.querySelector(n.getAttribute('data-slugto'));
+      var f = function () { out.textContent = n.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, ''); };
+      n.addEventListener('input', f); if (n.value) f();
+    });
+
     // Client gallery: per-photo prices save as you change them; the upload box sends photos one at a time
     var files = document.getElementById('files');
     if (files) {

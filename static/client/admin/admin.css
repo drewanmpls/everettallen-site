@@ -103,6 +103,7 @@ details>summary{cursor:pointer}
 .prog{list-style:none;padding:0;margin:8px 0;display:grid;gap:6px}.prog li{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px}
 .prog img{width:56px;height:40px;object-fit:cover;border-radius:4px;background:var(--photo);flex:none}.prog .nm{flex:1;word-break:break-all}.prog .st{color:var(--mut);text-align:right}
 .prog li.ok .st{color:var(--good);font-weight:600}.prog li.bad .st{color:var(--bad);font-weight:600}.prog li.busy .st{color:var(--wait);font-weight:600}
+.serlist{list-style:none;margin:0;padding:0}.serlist fieldset{border:0;margin:0;padding:0}.serlist legend{font-weight:700;font-size:16px;padding:0;margin:0 0 10px}.serlist legend .hint{font-weight:400;display:block}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .secret{display:flex;gap:8px;align-items:center;margin-top:5px}.secret input{margin-top:0;flex:1}.secret button{flex:none}
 .btn.xs,button.xs{min-height:30px;padding:3px 8px;font-size:12px}
