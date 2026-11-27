@@ -107,6 +107,10 @@ details>summary{cursor:pointer}
 .pagelist{list-style:none;padding:0;margin:0 0 16px}.fplist{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:6px}
 .fplist li{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
 .aibox{margin:0 0 14px}.aibox p{margin:0 0 8px}.aibox p:last-child{margin:6px 0 0}.ai-new{outline:2px solid var(--acc)}
+.sescards{list-style:none;margin:0 0 24px;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.sesc{display:block;height:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;color:var(--ink);text-decoration:none}.sesc:hover{background:var(--hover)}
+.sesc img,.sesc .noimg{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;background:var(--photo)}.sesc .noimg{display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:13px}
+.sesc .sb{display:block;padding:10px 12px}.sesc .sb b{font-size:16px}.sesc small{display:block;margin-top:4px}.sesc .counts{color:var(--mut)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .secret{display:flex;gap:8px;align-items:center;margin-top:5px}.secret input{margin-top:0;flex:1}.secret button{flex:none}
 .btn.xs,button.xs{min-height:30px;padding:3px 8px;font-size:12px}

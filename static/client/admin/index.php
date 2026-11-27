@@ -15,7 +15,7 @@ function go(string $to): void { header('Location: ' . $to); exit; }
 // Later tickets add one line here when their page exists (Sessions, Sales, Galleries, Event series, Pages, Services).
 const ADMIN_MENU = [
     '' => [['Dashboard', 'dashboard', []]],
-    'Studio' => [['Clients', 'clients', ['client']], ['Client galleries', 'list', ['gallery']], ['Codes', 'codes', []]],
+    'Studio' => [['Clients', 'clients', ['client']], ['Sessions', 'sessions', ['gallery', 'list']], ['Codes', 'codes', []]],
     'Portfolio' => [['Galleries', 'pgalleries', ['pgallery']], ['Publish', 'publish', []], ['Event series', 'series', []], ['Library', 'library', []]],
     'Website' => [['Pages', 'pages', []], ['Services', 'services', []], ['Short links', 'links', []], ['Stats', 'stats', []], ['Settings', 'settings', []]],
 ];
@@ -25,7 +25,7 @@ const AI_MODELS = ['claude-opus-5-5' => 'Claude Opus 5.5: best writing (about 3 
 const ADMIN_TABS = [
     ['Dashboard', 'dashboard', 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'],
     ['Clients', 'clients', 'M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 4.15a3.5 3.5 0 0 1 0 6.7'],
-    ['Galleries', 'list', 'M4 5h16v14H4zM4 15l4.5-4.5 4 4 3-3L20 15'],
+    ['Sessions', 'sessions', 'M4 5h16v14H4zM4 15l4.5-4.5 4 4 3-3L20 15'],
     ['Publish', 'publish', 'M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3'],
 ];
 function admin_current(): string {
@@ -135,10 +135,18 @@ if ($a === 'releasepdf') {
 if (in_array($a, ['publish', 'pubfile', 'pubdone', 'nasstatus'], true)) require __DIR__ . '/publish.php';
 if (in_array($a, ['library', 'libfile', 'libzip'], true)) require __DIR__ . '/library.php';
 if ($a === 'dashboard') require __DIR__ . '/dashboard.php';
+if ($a === 'sessions') require __DIR__ . '/sessions.php';
 if ($a === 'pgsuggest') require __DIR__ . '/ai.php';
 if (in_array($a, ['pgalleries', 'pgallery', 'pgsave', 'pgorder', 'pgremove'], true)) require __DIR__ . '/pgalleries.php';
 if (in_array($a, ['series', 'seriessave', 'pages', 'pagesave', 'sitesave', 'services', 'servicessave'], true)) require __DIR__ . '/content-editors.php';
 if (in_array($a, ['links', 'linknew', 'linktoggle', 'linkdel'], true)) require __DIR__ . '/links.php';
+
+// Shoot date (YYYY-MM-DD, or empty) and location of a session, from the create and settings forms (T-41).
+function ses_shoot_save(int $id): void {
+    $d = trim((string)($_POST['shoot_date'] ?? '')); if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) || !checkdate((int)substr($d, 5, 2), (int)substr($d, 8, 2), (int)substr($d, 0, 4))) $d = '';
+    $l = mb_substr(trim(preg_replace('/\s+/', ' ', strip_tags((string)($_POST['shoot_location'] ?? '')))), 0, 120);
+    db()->prepare('UPDATE galleries SET shoot_date = ?, shoot_location = ? WHERE id = ?')->execute([$d, $l, $id]);
+}
 
 // ----- POST actions -----
 if ($post) {
@@ -150,7 +158,8 @@ if ($post) {
         $pw = (string)($_POST['password'] ?? '');
         db()->prepare('INSERT INTO galleries (token, title, client_name, client_email, password_hash, default_price_cents, default_web_cents, included_count, note, created) VALUES (?,?,?,?,?,?,?,?,?,?)')
             ->execute([bin2hex(random_bytes(12)), $title, trim((string)$_POST['client_name']), trim((string)$_POST['client_email']), $pw !== '' ? password_hash($pw, PASSWORD_DEFAULT) : '', dollars_to_cents((string)($_POST['price'] ?? '0')), dollars_to_cents((string)($_POST['price_web'] ?? '0')), max(0, (int)($_POST['included'] ?? 0)), trim((string)$_POST['note']), time()]);
-        go($base . '?a=gallery&id=' . db()->lastInsertId());
+        $nid = (int)db()->lastInsertId(); ses_shoot_save($nid);
+        go($base . '?a=gallery&id=' . $nid);
     }
     if ($a === 'update') {
         $g = gal($id);
@@ -158,6 +167,7 @@ if ($post) {
         if (!empty($_POST['clear_pw'])) $pwHash = ''; elseif ((string)($_POST['password'] ?? '') !== '') $pwHash = password_hash((string)$_POST['password'], PASSWORD_DEFAULT);
         db()->prepare('UPDATE galleries SET title=?, client_name=?, client_email=?, password_hash=?, default_price_cents=?, default_web_cents=?, included_count=?, note=?, active=?, client_id=? WHERE id=?')
             ->execute([trim((string)$_POST['title']) ?: $g['title'], trim((string)$_POST['client_name']), trim((string)$_POST['client_email']), $pwHash, dollars_to_cents((string)($_POST['price'] ?? '0')), dollars_to_cents((string)($_POST['price_web'] ?? '0')), max(0, (int)($_POST['included'] ?? 0)), trim((string)$_POST['note']), empty($_POST['active']) ? 0 : 1, (int)($_POST['client_id'] ?? 0) ?: null, $id]);
+        ses_shoot_save($id);
         go($base . '?a=gallery&id=' . $id . '&saved=1');
     }
     if ($a === 'upload') {
@@ -343,7 +353,7 @@ if ($a === 'gallery') {
     $imgs = $q->fetchAll();
     $nfav = count(array_filter($imgs, fn($i) => $i['fav'] > 0));
     ahead($g['title']); $tok = csrf(); ?>
-<div class="ph"><div><p class="back"><?php if ($g['client_id']): ?><a href="?a=client&id=<?= (int)$g['client_id'] ?>">&larr; Back to this client's record</a><?php else: ?><a href="?a=list">&larr; All client galleries</a><?php endif; ?></p>
+<div class="ph"><div><p class="back"><?php if ($g['client_id']): ?><a href="?a=client&id=<?= (int)$g['client_id'] ?>">&larr; Back to this client's record</a><?php else: ?><a href="?a=sessions">&larr; All sessions</a><?php endif; ?></p>
 <h1><?= h($g['title']) ?></h1><?= $g['active'] ? '<span class="tag good">On</span>' : '<span class="tag wait">Off</span>' ?><?= $g['password_hash'] ? ' <span class="tag">Password</span>' : '' ?></div>
 <div class="act"><a class="btn alt" target="_blank" href="/client/g/<?= h($g['token']) ?>/">Preview as client</a></div></div>
 <?php if (!empty($_GET['saved'])): ?><p class="msg good" role="status">Saved.</p><?php endif; ?>
@@ -359,6 +369,8 @@ if ($a === 'gallery') {
 <label>Title<input name="title" value="<?= h($g['title']) ?>" required></label>
 <label>Client name<input name="client_name" value="<?= h($g['client_name']) ?>"></label>
 <label>Client email<input name="client_email" type="email" value="<?= h($g['client_email']) ?>"></label>
+<label>Shoot date<input name="shoot_date" type="date" value="<?= h((string)$g['shoot_date']) ?>"></label>
+<label>Shoot location<input name="shoot_location" maxlength="120" value="<?= h((string)$g['shoot_location']) ?>" placeholder="Studio, Minneapolis"></label>
 <label>Client record<select name="client_id"><option value="">None</option><?php foreach (db()->query('SELECT id, name, service FROM clients ORDER BY name') as $cr): ?><option value="<?= $cr['id'] ?>" <?= (int)$g['client_id'] === (int)$cr['id'] ? 'selected' : '' ?>><?= h($cr['name'] . ($cr['service'] ? ' (' . $cr['service'] . ')' : '')) ?></option><?php endforeach; ?></select></label>
 <label>Included photos (free picks, 0 = none)<input name="included" type="number" min="0" value="<?= (int)$g['included_count'] ?>"></label>
 <label>Extra photo, web size ($, 0 = Free)<input name="price_web" value="<?= h(number_format($g['default_web_cents'] / 100, 2)) ?>"></label>
@@ -670,27 +682,5 @@ if ($a === 'settings') {
 <?php afoot(); exit;
 }
 
-// list
-$rows = db()->query('SELECT g.*, (SELECT COUNT(*) FROM images i WHERE i.gallery_id=g.id) AS n, (SELECT COUNT(*) FROM favorites f JOIN images i ON i.id=f.image_id WHERE i.gallery_id=g.id) AS fav, (SELECT COUNT(*) FROM comments c JOIN images i ON i.id=c.image_id WHERE i.gallery_id=g.id AND c.from_owner=0) AS com, (SELECT COUNT(*) FROM orders o WHERE o.gallery_id=g.id AND o.status=\'requested\') AS req FROM galleries g WHERE g.kind <> \'shop\' ORDER BY g.id DESC')->fetchAll();
-ahead('Galleries'); $tok = csrf(); ?>
-<div class="ph"><div><h1>Client galleries</h1></div><div class="act"><a class="btn" href="#new">New gallery</a></div></div>
-<?php if (!$rows): ?><p>No galleries yet. Create your first below.</p><?php else: ?>
-<table class="stack"><tr><th>Gallery</th><th>Client</th><th>Photos</th><th>Favorites</th><th>Comments</th><th>Open requests</th><th></th></tr>
-<?php foreach ($rows as $r): ?><tr><td><a href="?a=gallery&id=<?= $r['id'] ?>"><b><?= h($r['title']) ?></b></a><?= $r['active'] ? '' : ' <span class="tag wait">off</span>' ?></td><td data-label="Client"><?= h($r['client_name']) ?></td><td data-label="Photos"><?= $r['n'] ?></td><td data-label="Favorites"><?= $r['fav'] ?></td><td data-label="Comments"><?= $r['com'] ?></td><td data-label="Open requests"><?= $r['req'] ? '<span class="tag wait">' . $r['req'] . '</span>' : '0' ?></td><td><a href="?a=gallery&id=<?= $r['id'] ?>">Manage</a></td></tr><?php endforeach; ?></table><?php endif; ?>
-<?php $shop = db()->query("SELECT g.*, (SELECT COUNT(*) FROM images i WHERE i.gallery_id=g.id) AS n, (SELECT COUNT(*) FROM orders o WHERE o.gallery_id=g.id AND o.status='paid') AS paid FROM galleries g WHERE g.kind = 'shop' ORDER BY g.id DESC LIMIT 100")->fetchAll(); if ($shop): ?>
-<h2>Photo orders from the public galleries</h2>
-<table class="stack"><tr><th>Buyer</th><th>Photos</th><th>Paid</th><th>Placed</th><th></th></tr>
-<?php foreach ($shop as $r): ?><tr><td><?= h($r['client_email']) ?></td><td data-label="Photos"><?= (int)$r['n'] ?></td><td data-label="Paid"><?= $r['paid'] ? '<span class="tag good">paid</span>' : '<span class="tag wait">not yet</span>' ?></td><td data-label="Placed"><?= date('M j, Y g:ia', (int)$r['created']) ?></td><td><a href="?a=gallery&id=<?= $r['id'] ?>">Manage</a></td></tr><?php endforeach; ?></table>
-<?php endif; ?>
-<h2 id="new">New gallery</h2>
-<form method="post" class="cols"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="create">
-<label>Title<input name="title" required placeholder="Jordan and Sam, spring session"></label>
-<label>Client name<input name="client_name"></label>
-<label>Client email<input name="client_email" type="email"></label>
-<label>Included photos (free picks)<input name="included" type="number" min="0" value="0"></label>
-<label>Extra photo, web size ($, 0 = Free)<input name="price_web" value="0"></label>
-<label>Extra photo, full resolution ($, 0 = Free)<input name="price" value="0"></label>
-<label>Password (optional)<input name="password" autocomplete="off"></label>
-<label class="full">Note shown to client<textarea name="note" rows="2"></textarea></label>
-<div class="full"><button class="btn">Create gallery</button></div></form>
-<?php afoot();
+// list: client galleries are Sessions now (T-41). Old bookmarks and anything that falls through land there; #orders still works.
+go($base . '?a=sessions');

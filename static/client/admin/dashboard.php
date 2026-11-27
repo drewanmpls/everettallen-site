@@ -25,7 +25,7 @@ if ($a === 'dashboard') {
 ?>
 <div class="ph"><div><h1>Dashboard</h1></div></div>
 <div class="tiles">
-<a class="tile <?= $pending ? 'hot' : '' ?>" href="<?= $base ?>?a=list#orders"><b><?= $n($pending) ?></b><span>Orders needing action</span></a>
+<a class="tile <?= $pending ? 'hot' : '' ?>" href="<?= $base ?>?a=sessions#orders"><b><?= $n($pending) ?></b><span>Orders needing action</span></a>
 <a class="tile <?= $newcN ? 'hot' : '' ?>" href="<?= $base ?>?a=clients"><b><?= $n($newcN) ?></b><span>New inquiries</span></a>
 <div class="tile"><b><?= $n($d1['v']) ?></b><span>Visitors today</span></div>
 <div class="tile"><b><?= $n($d7['v']) ?></b><span>Visitors, 7 days</span></div>
@@ -38,7 +38,7 @@ if ($a === 'dashboard') {
 <div class="go">
 <a href="<?= $base ?>?a=publish">Publish photos<small>Upload to a gallery</small></a>
 <a href="<?= $base ?>?a=library">Library<small>Download originals</small></a>
-<a href="<?= $base ?>?a=list">Client galleries<small>Orders, prices, links</small></a>
+<a href="<?= $base ?>?a=sessions">Sessions<small>Client galleries, picks, orders</small></a>
 <a href="<?= $base ?>?a=clients">Clients<small>Inquiries and records</small></a>
 <a href="<?= $base ?>?a=codes">Codes<small>Free download links</small></a>
 <a href="<?= $base ?>?a=links">Short links<small>Short addresses for QR codes</small></a>
