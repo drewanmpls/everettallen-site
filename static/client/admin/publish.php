@@ -131,6 +131,20 @@ if ($a === 'pubdone') {   // save the gallery file to GitHub
     json_out(['error' => 'The gallery changed while saving. Please press Publish again.'], 409);
 }
 
+if ($a === 'nasstatus') {   // the NAS watcher's status report; only the NAS key may send it
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($apiAuth)) json_out(['error' => 'Only the folder watcher sends this.'], 403);
+    $d = json_decode((string)($_POST['payload'] ?? ''), true);
+    if (!is_array($d) || !is_array($d['folders'] ?? null)) json_out(['error' => 'Bad status.'], 400);
+    $clean = fn($v) => mb_substr(trim(preg_replace('/[\x00-\x1F\x7F]+/u', ' ', is_string($v) ? $v : '')), 0, 200);
+    $out = [];
+    foreach (array_slice($d['folders'], 0, 50) as $f) {
+        if (!is_array($f) || !in_array($f['state'] ?? '', ['ready', 'working', 'published', 'failed'], true)) continue;
+        $out[] = ['name' => $clean($f['name'] ?? ''), 'state' => $f['state'], 'photos' => max(0, min(100000, (int)($f['photos'] ?? 0))), 'error' => $clean($f['error'] ?? '')];
+    }
+    set_setting('nas_status', json_encode(['t' => time(), 'version' => mb_substr($clean($d['version'] ?? ''), 0, 40), 'folders' => $out], JSON_UNESCAPED_UNICODE));
+    json_out(['ok' => true]);
+}
+
 // ---------- page ----------
 ahead('Publish photos'); $tok = csrf();
 $hasTok = trim((string)setting('github_token', '')) !== '';
@@ -166,4 +180,16 @@ $series = pub_series();
 <p id="plive" class="msg wait" role="status" hidden></p>
 </form>
 <script src="<?= h(asset('/client/admin/publish.js')) ?>"></script>
+<?php $ns = json_decode((string)setting('nas_status', ''), true); $hasKey = setting('nas_token_hash', '') !== ''; ?>
+<section class="panel mt" aria-labelledby="nash"><h2 id="nash">NAS folder watcher</h2>
+<?php if (!is_array($ns)): ?><p><?= $hasKey ? 'Not heard from yet. It reports in once a minute after the new watcher is installed on the NAS.' : 'No folder watcher key yet. Make one in <a href="?a=settings&amp;tab=publishing#nas">Settings</a>.' ?></p>
+<?php else: $ago = time() - (int)$ns['t']; $when = (new DateTime('@' . (int)$ns['t']))->setTimezone(new DateTimeZone('America/Chicago'));
+    $by = []; foreach ($ns['folders'] as $f) $by[$f['state']][] = $f; ?>
+<p class="msg <?= $ago > 600 ? 'wait' : 'good' ?>" role="status">Last heard from <?= h($when->format('M j, Y g:i a')) ?><?= $ago > 600 ? ': not heard from in over 10 minutes. Check that the NAS and its eap-watcher container are on.' : '' ?></p>
+<?php if (!empty($by['working'])): ?><h3>Working now</h3><ul><?php foreach ($by['working'] as $f): ?><li><?= h($f['name']) ?> (<?= (int)$f['photos'] ?> photos)</li><?php endforeach; ?></ul><?php endif; ?>
+<?php if (!empty($by['ready'])): ?><h3>Waiting to start</h3><ul><?php foreach ($by['ready'] as $f): ?><li><?= h($f['name']) ?></li><?php endforeach; ?></ul><?php endif; ?>
+<?php if (!empty($by['failed'])): ?><h3>Failed</h3><ul><?php foreach ($by['failed'] as $f): ?><li><span class="tag bad">failed</span> <?= h($f['name']) ?><?= $f['error'] !== '' ? ': ' . h($f['error']) : '' ?></li><?php endforeach; ?></ul><p class="hint">Fix the problem, then rename the folder back to end with -READY.</p><?php endif; ?>
+<h3>Last published</h3><?php if (empty($by['published'])): ?><p>None yet.</p><?php else: ?><ul><?php foreach (array_slice($by['published'], 0, 5) as $f): ?><li><?= h($f['name']) ?><?= $f['photos'] ? ' (' . (int)$f['photos'] . ' photos)' : '' ?></li><?php endforeach; ?></ul><?php endif; ?>
+<?php if (($ns['version'] ?? '') !== ''): ?><p class="hint">Watcher version <?= h($ns['version']) ?></p><?php endif; ?>
+<?php endif; ?></section>
 <?php afoot(); exit;

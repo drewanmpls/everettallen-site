@@ -77,9 +77,10 @@ if ($hash === '') {
 <?php afoot(); exit;
 }
 if ($a === 'logout') { $_SESSION = []; session_destroy(); go($base); }
-// The NAS watcher signs in with a secret key (header X-EA-Token) instead of a password; it can only use the two Publish actions.
+// The NAS watcher signs in with a secret key (header X-EA-Token) instead of a password; it can only use the two Publish actions
+// and nasstatus (its status report, T-40).
 $apiAuth = false;
-if ($post && in_array($a, ['pubfile', 'pubdone'], true) && ($tk = (string)($_SERVER['HTTP_X_EA_TOKEN'] ?? '')) !== '') {
+if ($post && in_array($a, ['pubfile', 'pubdone', 'nasstatus'], true) && ($tk = (string)($_SERVER['HTTP_X_EA_TOKEN'] ?? '')) !== '') {
     $th = (string)setting('nas_token_hash', '');
     if ($th !== '' && hash_equals($th, hash('sha256', $tk))) $apiAuth = true; else { usleep(1000000); json_out(['error' => 'Bad key.'], 403); }
 }
@@ -129,7 +130,7 @@ if ($a === 'releasepdf') {
 }
 
 // ----- Publish photos (browser upload to the public galleries) -----
-if (in_array($a, ['publish', 'pubfile', 'pubdone'], true)) require __DIR__ . '/publish.php';
+if (in_array($a, ['publish', 'pubfile', 'pubdone', 'nasstatus'], true)) require __DIR__ . '/publish.php';
 if (in_array($a, ['library', 'libfile', 'libzip'], true)) require __DIR__ . '/library.php';
 if ($a === 'dashboard') require __DIR__ . '/dashboard.php';
 if (in_array($a, ['pgalleries', 'pgallery', 'pgsave', 'pgorder', 'pgremove'], true)) require __DIR__ . '/pgalleries.php';
