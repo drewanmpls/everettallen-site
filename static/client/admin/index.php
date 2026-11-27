@@ -641,21 +641,30 @@ if ($a === 'stats') {
     for ($i = 0; $i < $days; $i++) { $d = $dt->format('Y-m-d'); $r = $byday[$d] ?? ['hits' => 0, 'visitors' => 0]; $series[] = [$d, (int)$r['hits'], (int)$r['visitors']]; $maxv = max($maxv, (int)$r['hits']); $th += (int)$r['hits']; $tv += (int)$r['visitors']; $dt->modify('+1 day'); }
     $top = function (string $col, string $where = '', int $lim = 15) use ($from) { $s = db()->prepare("SELECT $col AS k, SUM(hits) AS n FROM stat_hits WHERE day >= ? $where GROUP BY $col ORDER BY n DESC LIMIT $lim"); $s->execute([$from]); return $s->fetchAll(); };
     $pages = $top('path', '', 20); $refs = $top('ref', "AND ref <> ''", 15); $devs = $top('dev', '', 5);
-    $tbl = function (array $rows, string $head) { echo '<table class="form"><tr><th>' . h($head) . '</th><th class="num">Views</th></tr>'; foreach ($rows as $r) echo '<tr><td class="brk">' . h($r['k']) . '</td><td class="num">' . (int)$r['n'] . '</td></tr>'; if (!$rows) echo '<tr><td colspan="2">Nothing yet.</td></tr>'; echo '</table>'; };
+    $tbl = function (array $rows, string $head) { echo '<table class="stack"><tr><th>' . h($head) . '</th><th class="num">Views</th></tr>'; foreach ($rows as $r) echo '<tr><td class="brk">' . h($r['k']) . '</td><td class="num" data-label="Views">' . number_format((int)$r['n']) . '</td></tr>'; if (!$rows) echo '<tr><td>Nothing yet.</td><td></td></tr>'; echo '</table>'; };
+    $tl = (int)db()->query('SELECT COALESCE(SUM(n),0) FROM photo_likes')->fetchColumn();
+    $pt = []; foreach ($series as $k => $r) $pt[] = ($k * 10 + 5) . ',' . round(140 - 130 * $r[2] / $maxv, 1); $fd = fn($d) => (new DateTime($d))->format('M j, Y');
     ?>
 <div class="ph"><div><h1>Stats</h1></div></div>
 <p>Page views and daily visitors for the public site. No cookies, no IP addresses or browser details are stored, and your own visits are not counted in this browser.</p>
 <div class="chips"><?php foreach ([7, 30, 90, 365] as $d): ?><a class="tab<?= $d === $days ? ' on" aria-current="page' : '' ?>" href="?a=stats&days=<?= $d ?>"><?= $d ?> days</a><?php endforeach; ?></div>
-<p class="lead"><b><?= $th ?></b> page views, <b><?= $tv ?></b> visitor-days (a person who visits on 3 different days counts 3 times)</p>
-<svg class="chart" viewBox="0 0 <?= $days * 10 ?> 140" preserveAspectRatio="none" role="img" aria-label="Page views per day">
-<?php foreach ($series as $k => [$d, $hv, $vv]): $bh = max(1, (int)round(130 * $hv / $maxv)); ?><rect x="<?= $k * 10 + 1 ?>" y="<?= 140 - $bh ?>" width="8" height="<?= $bh ?>"<?= $hv ? '' : ' class="z"' ?>><title><?= h($d) ?>: <?= $hv ?> views, <?= $vv ?> visitors</title></rect><?php endforeach; ?>
+<div class="tiles"><div class="tile"><b><?= number_format($th) ?></b><span>Page views, <?= $days ?> days</span></div><div class="tile"><b><?= number_format($tv) ?></b><span>Visitor-days, <?= $days ?> days</span></div><div class="tile"><b><?= number_format($tl) ?></b><span>Photo likes, all time</span></div></div>
+<p class="hint">A visitor-day is one person on one day: someone who visits on 3 different days counts 3 times. Likes are kept as running totals, so they are not split by date.</p>
+<h2>Daily views</h2>
+<p class="legend"><span class="kb"></span> Page views <span class="kl"></span> Visitors &middot; tallest day: <?= number_format($maxv) ?> views</p>
+<svg class="chart" viewBox="0 0 <?= $days * 10 ?> 140" preserveAspectRatio="none" aria-hidden="true">
+<line class="g" x1="0" x2="<?= $days * 10 ?>" y1="10" y2="10"/><line class="g" x1="0" x2="<?= $days * 10 ?>" y1="75" y2="75"/>
+<?php foreach ($series as $k => [$d, $hv, $vv]): $bh = max(1, (int)round(130 * $hv / $maxv)); ?><rect x="<?= $k * 10 + 1 ?>" y="<?= 140 - $bh ?>" width="8" height="<?= $bh ?>"<?= $hv ? '' : ' class="z"' ?>><title><?= h($fd($d)) ?>: <?= $hv ?> views, <?= $vv ?> visitors</title></rect><?php endforeach; ?>
+<polyline class="vl" points="<?= implode(' ', $pt) ?>"/>
 </svg>
-<p class="axis"><span><?= h($series[0][0]) ?></span><span><?= h(end($series)[0]) ?></span></p>
+<p class="axis"><span><?= h($fd($series[0][0])) ?></span><span><?= h($fd(end($series)[0])) ?></span></p>
+<details class="daytbl"><summary>Show the numbers for each day</summary>
+<table><tr><th>Day</th><th class="num">Views</th><th class="num">Visitors</th></tr>
+<?php foreach (array_reverse($series) as [$d, $hv, $vv]): ?><tr><td class="nw"><?= h($fd($d)) ?></td><td class="num"><?= $hv ?></td><td class="num"><?= $vv ?></td></tr><?php endforeach; ?></table></details>
 <h2>Top pages</h2><?php $tbl($pages, 'Page'); ?>
 <h2>Where visitors came from</h2><p>Sites that sent people here. "direct" means typed the address, used a bookmark, or came from an app that hides it.</p><?php $tbl($refs, 'Source'); ?>
 <h2>Devices</h2><?php $tbl($devs, 'Device'); ?>
-<?php     $tl = (int)db()->query('SELECT COALESCE(SUM(n),0) FROM photo_likes')->fetchColumn();
-    $top = db()->query('SELECT g, id, n FROM photo_likes WHERE n > 0 ORDER BY n DESC, g, id LIMIT 12')->fetchAll();
+<?php     $top = db()->query('SELECT g, id, n FROM photo_likes WHERE n > 0 ORDER BY n DESC, g, id LIMIT 12')->fetchAll();
     $gt = is_file(dirname(__DIR__) . '/gallery-titles.json') ? (json_decode((string)file_get_contents(dirname(__DIR__) . '/gallery-titles.json'), true) ?: []) : []; ?>
 <h2>Photo likes</h2>
 <p><?= $tl ?> like<?= $tl === 1 ? '' : 's' ?> in total.</p>

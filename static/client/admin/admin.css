@@ -127,7 +127,10 @@ details>summary{cursor:pointer}
 .thumb{height:54px;width:auto;vertical-align:middle;background:var(--photo)}.prev{max-width:200px;max-height:140px;display:block;margin-top:6px;background:var(--photo)}.camnote{font-size:13px}
 .cam{max-height:94vh;overflow:auto;padding:14px;max-width:640px;width:92vw}.cam p{margin:8px 0 0}.cam .t{margin:0 0 8px;font-weight:700}.cam video{width:100%;max-height:50vh;object-fit:contain;background:var(--photo)}
 .cam .row{margin:10px 0 0}
-.chart{display:block;width:100%;max-width:900px;height:140px;border-bottom:2px solid var(--ink)}.chart rect{fill:var(--acc)}.chart rect.z{opacity:.25}
+.chart{display:block;width:100%;max-width:900px;height:160px;border-bottom:2px solid var(--ink)}.chart rect{fill:var(--acc)}.chart rect.z{opacity:.25}
+.chart .g{stroke:var(--line);stroke-width:1;stroke-dasharray:4 4;vector-effect:non-scaling-stroke}.chart .vl{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.legend{font-size:13px;color:var(--mut);display:flex;flex-wrap:wrap;align-items:center;gap:6px}.legend span{display:inline-block;width:14px;height:10px;border-radius:2px;background:var(--acc)}.legend .kl{height:2px;background:var(--ink);margin-left:8px}
+.daytbl{max-width:900px;margin:8px 0 8px}.daytbl summary{min-height:44px;display:flex;align-items:center;font-weight:600}.daytbl table{display:table;width:100%;max-width:420px;margin-top:6px}
 .axis{display:flex;justify-content:space-between;max-width:900px;font-size:13px;color:var(--mut)}
 
 /* dashboard tiles and shortcuts */
@@ -170,7 +173,7 @@ a.tile{text-decoration:none;color:inherit}a.tile:hover{background:var(--hover)}.
   table.stack{display:block;overflow:visible;background:none;border:0;border-radius:0}table.stack tbody{display:block}
   table.stack tr{display:block;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:0 0 10px}table.stack tr:first-child{display:none}
   table.stack td{display:block;position:relative;padding:3px 0;border:0}table.stack td[data-label]{padding-left:104px}
-  table.stack td[data-label]::before{content:attr(data-label);position:absolute;left:0;top:5px;width:96px;color:var(--mut);font-size:12px;font-weight:600}
+  table.stack td[data-label]::before{content:attr(data-label);position:absolute;left:0;top:5px;width:96px;color:var(--mut);font-size:12px;font-weight:600;text-align:left}
   table.stack td:empty{display:none}
   button,.btn{min-height:44px}.btn.sm,button.sm{min-height:44px}
 }
