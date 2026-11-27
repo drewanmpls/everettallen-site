@@ -1,0 +1,49 @@
+name: Check
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the site
+        run: |
+          python3 build.py
+          for f in dist/index.html dist/sitemap.xml dist/.htaccess; do
+            [ -f "$f" ] || { echo "Missing after build: $f"; exit 1; }
+          done
+      - name: PHP lint
+        if: success() || failure()
+        run: |
+          find static -name '*.php' -print0 | sort -z | while IFS= read -r -d '' f; do
+            php -l "$f" >/dev/null || { php -l "$f"; exit 1; }
+          done
+          echo "PHP files OK"
+      - name: JSON check
+        if: success() || failure()
+        run: |
+          python3 -c '
+          import glob, json, sys
+          bad = []
+          for p in sorted(glob.glob("content/**/*.json", recursive=True)):
+              try: d = json.load(open(p, encoding="utf-8"))
+              except Exception as e: sys.exit(f"{p}: not valid JSON ({e})")
+              if p.startswith("content/galleries/"):
+                  ids = [i.get("id") for i in d.get("images", [])]
+                  if any(not isinstance(i, str) for i in ids): bad.append(f"{p}: a photo id is not a string")
+                  c = d.get("cover")
+                  if not isinstance(c, str): bad.append(f"{p}: cover is not a string")
+                  elif c not in ids: bad.append(f"{p}: cover {c} is not one of the photos")
+          if bad: sys.exit("\n".join(bad))
+          print("JSON OK")
+          '
+      - name: Em dash scan
+        if: success() || failure()
+        run: |
+          if git grep -n -I $'\xe2\x80\x94' -- . ':!content/facebook-events.json' ':!content/facebook-events.csv'; then
+            echo "Em dashes found (file:line above). Use commas, periods, colons, semicolons or parentheses."
+            exit 1
+          fi
+          echo "No em dashes"
