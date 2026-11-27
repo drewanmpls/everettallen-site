@@ -137,7 +137,7 @@ def md_body(t):
         blk=blk.strip()
         if not blk: continue
         lines=blk.split('\n')
-        if all(re.match(r'\d+\. ',l) for l in lines): out.append('<ol>'+''.join(f'<li>{md_inline(re.sub(r"^\d+\. ","",l))}</li>' for l in lines)+'</ol>')
+        if all(re.match(r'\d+\. ',l) for l in lines): out.append('<ol>'+''.join('<li>'+md_inline(re.sub(r'^\d+\. ','',l))+'</li>' for l in lines)+'</ol>')
         else: out.append(f'<p>{md_inline(blk)}</p>')
     return ''.join(out)
 TP={}

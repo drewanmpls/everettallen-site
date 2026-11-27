@@ -2,3 +2,4 @@ dist/
 photos/
 __pycache__/
 .env
+dev/.local/
