@@ -8,7 +8,7 @@
   --acc:#8c8cff;--acc2:#a6a6ff;--onacc:#0e0f0e;--link:#a6a6ff;--good:#6fd39a;--wait:#f2c14e;--bad:#ff8a8a;--goodbg:#1d3322;--waitbg:#3a2c14;--badbg:#3a1f1c;--photo:#2b2b2b;--shadow:rgba(0,0,0,.45)}
 @media(prefers-color-scheme:dark){:root:not([data-mode=light]){color-scheme:dark;--bg:#0e0f0e;--side:#151614;--card:#1c1d1b;--line:#2a2c29;--ink:#f1f2f0;--ink2:#dbe0dc;--mut:#9a9e98;--edge:#7d827c;--field:#121312;--sunk:#171816;--hover:#262825;
   --acc:#8c8cff;--acc2:#a6a6ff;--onacc:#0e0f0e;--link:#a6a6ff;--good:#6fd39a;--wait:#f2c14e;--bad:#ff8a8a;--goodbg:#1d3322;--waitbg:#3a2c14;--badbg:#3a1f1c;--photo:#2b2b2b;--shadow:rgba(0,0,0,.45)}}
-*{box-sizing:border-box;min-width:0}html{-webkit-text-size-adjust:100%}
+[hidden]{display:none!important}*{box-sizing:border-box;min-width:0}html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
 .skip{position:absolute;left:-9999px}.skip:focus{left:8px;top:8px;background:var(--card);color:var(--ink);padding:10px 14px;border-radius:8px;z-index:99}
 
@@ -83,6 +83,7 @@ details>summary{cursor:pointer}
 .form{max-width:640px}.full{grid-column:1/-1}.mt{margin-top:16px}.hint{font-size:14px;color:var(--mut)}.lead{font-size:20px;color:var(--ink)}
 .pre{white-space:pre-line}.brk{word-break:break-all}.nw{white-space:nowrap}.num{text-align:right}.plain{list-style:none;padding:0;font-size:14px}.list{line-height:2;padding-left:18px}
 .link.inl{display:inline;padding:3px 8px}.link.ib{display:inline-block}
+.secret{display:flex;gap:8px;align-items:center;margin-top:5px}.secret input{margin-top:0;flex:1}.secret button{flex:none}
 .btn.xs,button.xs{min-height:30px;padding:3px 8px;font-size:12px}
 .cd .prices{display:grid;grid-template-columns:auto 1fr;gap:4px 6px;align-items:center;margin:4px 0;font-size:12px}.cd p{margin:6px 0 0}
 .thumb{height:54px;width:auto;vertical-align:middle;background:var(--photo)}.prev{max-width:200px;max-height:140px;display:block;margin-top:6px;background:var(--photo)}.camnote{font-size:13px}

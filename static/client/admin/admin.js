@@ -9,11 +9,21 @@
   try { localStorage.setItem('eaSkip', '1'); } catch (e) {}   // your own visits are not counted in Stats
 
   document.addEventListener('DOMContentLoaded', function () {
-    var sel = document.getElementById('eaTheme');
-    if (sel) {
+    var sels = document.querySelectorAll('#eaTheme,select[data-theme]');   // the menu one, and the one on Settings > Account
+    sels.forEach(function (sel) {
       sel.value = getMode();
-      sel.addEventListener('change', function () { try { localStorage.setItem('eaTheme', sel.value); } catch (e) {} applyMode(sel.value); });
-    }
+      sel.addEventListener('change', function () {
+        try { localStorage.setItem('eaTheme', sel.value); } catch (e) {}
+        applyMode(sel.value); sels.forEach(function (o) { o.value = sel.value; });
+      });
+    });
+    document.querySelectorAll('[data-show]').forEach(function (b) {   // Show / Hide on secret fields
+      var inp = b.previousElementSibling;
+      b.addEventListener('click', function () {
+        var show = inp.type === 'password'; inp.type = show ? 'text' : 'password';
+        b.textContent = show ? 'Hide' : 'Show'; b.setAttribute('aria-pressed', show ? 'true' : 'false');
+      });
+    });
     var side = document.getElementById('side');
     if (!side) return;
     var openers = document.querySelectorAll('[data-menu-open]');
