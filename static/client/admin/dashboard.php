@@ -23,10 +23,10 @@ if ($a === 'dashboard') {
     $stat = ['requested' => 'Needs action', 'paid' => 'Paid', 'declined' => 'Declined'];
     $n = fn($v) => number_format((int)$v);
 ?>
-<h1 style="font-size:clamp(32px,5vw,64px)">Dashboard</h1>
+<div class="ph"><div><h1>Dashboard</h1></div></div>
 <div class="tiles">
-<a class="tile <?= $pending ? 'hot' : '' ?>" href="<?= $base ?>?a=list#orders" style="text-decoration:none"><b><?= $n($pending) ?></b><span>Orders needing action</span></a>
-<a class="tile <?= $newcN ? 'hot' : '' ?>" href="<?= $base ?>?a=clients" style="text-decoration:none"><b><?= $n($newcN) ?></b><span>New inquiries</span></a>
+<a class="tile <?= $pending ? 'hot' : '' ?>" href="<?= $base ?>?a=list#orders"><b><?= $n($pending) ?></b><span>Orders needing action</span></a>
+<a class="tile <?= $newcN ? 'hot' : '' ?>" href="<?= $base ?>?a=clients"><b><?= $n($newcN) ?></b><span>New inquiries</span></a>
 <div class="tile"><b><?= $n($d1['v']) ?></b><span>Visitors today</span></div>
 <div class="tile"><b><?= $n($d7['v']) ?></b><span>Visitors, 7 days</span></div>
 <div class="tile"><b><?= $n($d30['v']) ?></b><span>Visitors, 30 days</span></div>
@@ -49,13 +49,13 @@ if ($a === 'dashboard') {
 
 <div class="cols">
 <div><h2>New inquiries</h2>
-<?php if (!$newc): ?><p>No new inquiries.</p><?php else: ?><table><?php foreach ($newc as $c): ?><tr><td><a href="<?= $base ?>?a=client&id=<?= (int)$c['id'] ?>"><?= h($c['name']) ?></a><br><small style="color:var(--mut)"><?= h(trim($c['service'] . ' ' . ($c['timeframe'] ? '(' . $c['timeframe'] . ')' : ''))) ?></small></td><td><?= h(date('M j', (int)$c['created'])) ?></td></tr><?php endforeach; ?></table><?php endif; ?></div>
+<?php if (!$newc): ?><p>No new inquiries.</p><?php else: ?><table><?php foreach ($newc as $c): ?><tr><td><a href="<?= $base ?>?a=client&id=<?= (int)$c['id'] ?>"><?= h($c['name']) ?></a><br><small><?= h(trim($c['service'] . ' ' . ($c['timeframe'] ? '(' . $c['timeframe'] . ')' : ''))) ?></small></td><td><?= h(date('M j', (int)$c['created'])) ?></td></tr><?php endforeach; ?></table><?php endif; ?></div>
 <div><h2>Top pages, 7 days</h2>
 <?php if (!$top): ?><p>No visits recorded yet.</p><?php else: ?><table><?php foreach ($top as $t): ?><tr><td><a href="<?= h($t['path']) ?>" target="_blank"><?= h($t['path']) ?></a></td><td><?= $n($t['h']) ?></td></tr><?php endforeach; ?></table><?php endif; ?></div>
 </div>
 
 <h2 id="orders">Recent orders</h2>
-<?php if (!$orders): ?><p>No orders yet.</p><?php else: ?><table><tr><th>When</th><th>Photo</th><th>Gallery</th><th>Buyer</th><th>Status</th></tr>
-<?php foreach ($orders as $o): ?><tr><td><?= h(date('M j, g:ia', (int)$o['created'])) ?></td><td><?= h($o['label']) ?></td><td><a href="<?= $base ?>?a=gallery&id=<?= (int)$o['gid'] ?>#orders"><?= h($o['title']) ?></a></td><td><?= h($o['email']) ?></td><td><span class="pill"><?= h($stat[$o['status']] ?? $o['status']) ?></span></td></tr><?php endforeach; ?></table><?php endif; ?>
+<?php if (!$orders): ?><p>No orders yet.</p><?php else: ?><table class="stack"><tr><th>When</th><th>Photo</th><th>Gallery</th><th>Buyer</th><th>Status</th></tr>
+<?php foreach ($orders as $o): ?><tr><td data-label="When"><?= h(date('M j, g:ia', (int)$o['created'])) ?></td><td data-label="Photo"><?= h($o['label']) ?></td><td data-label="Gallery"><a href="<?= $base ?>?a=gallery&id=<?= (int)$o['gid'] ?>#orders"><?= h($o['title']) ?></a></td><td data-label="Buyer"><?= h($o['email']) ?></td><td data-label="Status"><span class="tag <?= ['requested' => 'wait', 'paid' => 'good', 'declined' => 'bad'][$o['status']] ?? '' ?>"><?= h($stat[$o['status']] ?? $o['status']) ?></span></td></tr><?php endforeach; ?></table><?php endif; ?>
 <?php afoot(); exit;
 }

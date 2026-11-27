@@ -139,27 +139,27 @@ $hasTok = trim((string)setting('github_token', '')) !== '';
 $limit = min(pub_bytes((string)ini_get('upload_max_filesize')), pub_bytes((string)ini_get('post_max_size')));
 $titles = pub_titles(); asort($titles, SORT_NATURAL | SORT_FLAG_CASE);
 ?>
-<h1 style="font-size:clamp(32px,5vw,64px)">Publish photos</h1>
+<div class="ph"><div><h1>Publish photos</h1></div></div>
 <p>Upload JPEGs straight from your browser to a public gallery. The full-size originals are kept privately (for paid downloads), and the web copies get the small corner logo. Adding to a gallery you already published is fine: only the new photos are added.</p>
 <?php if (!$hasTok): ?>
-<p class="err"><b>One-time setup needed:</b> this page saves the gallery to GitHub, so it needs a GitHub token. Add it in <a href="/client/admin/?a=settings#github">Settings</a> first.</p>
+<p class="msg wait" role="alert"><b>One-time setup needed:</b> this page saves the gallery to GitHub, so it needs a GitHub token. Add it in <a href="/client/admin/?a=settings#github">Settings</a> first.</p>
 <?php endif; ?>
-<form id="pf" style="max-width:720px" onsubmit="return false">
-<label style="display:flex;gap:10px;align-items:center"><input type="radio" name="mode" value="new" style="width:auto" checked> New gallery</label>
+<form id="pf" class="form" onsubmit="return false">
+<label class="check"><input type="radio" name="mode" value="new" checked> New gallery</label>
 <div id="newbox">
 <label>Title<input id="ptitle" placeholder="2026 TCLF Friday Night" autocomplete="off"></label>
 <div class="cols"><label>Date<input id="pdate" type="date"></label>
-<label>Section<select id="pcat" style="display:block;margin-top:6px;padding:12px;font-size:16px;width:100%"><option value="events">Events</option><option value="portraits">Portraits</option></select></label></div>
+<label>Section<select id="pcat"><option value="events">Events</option><option value="portraits">Portraits</option></select></label></div>
 <label>Web address (made from the date and title; you can edit it)<input id="pslug" autocomplete="off"></label>
 </div>
 <?php if ($titles): ?>
-<label style="display:flex;gap:10px;align-items:center"><input type="radio" name="mode" value="old" style="width:auto"> Add to an existing gallery</label>
+<label class="check"><input type="radio" name="mode" value="old"> Add to an existing gallery</label>
 <div id="oldbox" hidden><label>Gallery<select id="pold"><?php foreach ($titles as $s => $t): ?><option value="<?= h($s) ?>"><?= h($t) ?></option><?php endforeach; ?></select></label></div>
 <?php endif; ?>
-<div class="drop" style="margin-top:16px"><input type="file" id="pfiles" accept="image/jpeg" multiple style="max-width:420px">
+<div class="drop mt"><input type="file" id="pfiles" accept="image/jpeg" multiple>
 <p class="kicker">JPEGs only. Largest file the server accepts: <b><?= h(number_format($limit / 1048576, 0)) ?> MB</b>.</p></div>
 <p><button class="btn" id="pgo" <?= $hasTok ? '' : 'disabled' ?>>Upload and publish</button></p>
-<p id="pstat" class="kicker"></p><ul id="plist" style="list-style:none;padding:0;font-size:14px"></ul>
+<p id="pstat" class="kicker"></p><ul id="plist" class="plain"></ul>
 </form>
 <script>
 (function(){

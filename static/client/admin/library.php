@@ -58,14 +58,13 @@ if ($a === 'library') {
     $gals = lib_galleries(); $sel = (string)($_GET['g'] ?? ''); $base = '/client/admin/';
     if ($sel !== '' && !isset($gals[$sel])) $sel = '';
     if ($sel === ''): ?>
-<h1 style="font-size:clamp(32px,5vw,64px)">Library</h1>
+<div class="ph"><div><h1>Library</h1></div></div>
 <p>Every gallery on the site. Open one to download full-size originals, one photo at a time or the whole gallery as a zip.</p>
 <?php if (!$gals): ?><p>No originals found on the server yet.</p><?php endif; ?>
-<ul style="line-height:2;padding-left:18px"><?php foreach ($gals as $s => $t): ?><li><a href="<?= $base ?>?a=library&g=<?= h($s) ?>"><?= h($t) ?></a> <small style="color:var(--mut)">(<?= count(lib_files($s)) ?> photos)</small></li><?php endforeach; ?></ul>
+<ul class="list"><?php foreach ($gals as $s => $t): ?><li><a href="<?= $base ?>?a=library&g=<?= h($s) ?>"><?= h($t) ?></a> <small>(<?= count(lib_files($s)) ?> photos)</small></li><?php endforeach; ?></ul>
 <?php else: $files = lib_files($sel); ?>
-<p><a href="<?= $base ?>?a=library">&larr; All galleries</a></p>
-<h1 style="font-size:clamp(28px,4vw,52px)"><?= h($gals[$sel]) ?></h1>
-<p><?= count($files) ?> photos. <a class="btn" href="<?= $base ?>?a=libzip&g=<?= h($sel) ?>" style="display:inline-block;text-decoration:none">Download all (zip)</a> <a href="/gallery/<?= h($sel) ?>/" target="_blank">View public gallery</a></p>
-<div class="cards"><?php foreach ($files as $id => $nm): ?><div class="cd"><img loading="lazy" src="/photos/<?= h($sel) ?>/<?= h($id) ?>-t.jpg" alt=""><small><?= h($nm) ?></small><p style="margin:6px 0 0"><a href="<?= $base ?>?a=libfile&g=<?= h($sel) ?>&id=<?= h($id) ?>">Download original</a></p></div><?php endforeach; ?></div>
+<div class="ph"><div><p class="back"><a href="<?= $base ?>?a=library">&larr; All galleries</a></p><h1><?= h($gals[$sel]) ?></h1></div><div class="act"><a class="btn" href="<?= $base ?>?a=libzip&g=<?= h($sel) ?>">Download all (zip)</a></div></div>
+<p><?= count($files) ?> photos. <a href="/gallery/<?= h($sel) ?>/" target="_blank">View public gallery</a></p>
+<div class="cards"><?php foreach ($files as $id => $nm): ?><div class="cd"><img loading="lazy" src="/photos/<?= h($sel) ?>/<?= h($id) ?>-t.jpg" alt=""><small><?= h($nm) ?></small><p><a href="<?= $base ?>?a=libfile&g=<?= h($sel) ?>&id=<?= h($id) ?>">Download original</a></p></div><?php endforeach; ?></div>
 <?php endif; afoot(); exit;
 }
