@@ -28,10 +28,12 @@ if (!empty($_GET['sid'])) { $paid = stripe_confirm_session((string)$_GET['sid'])
 if (!gallery_authorized($g)) {
     $err = '';
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && csrf_ok()) {
-        if (password_verify((string)($_POST['password'] ?? ''), $g['password_hash'])) {
-            session_regenerate_id(true); $_SESSION['g' . $g['id']] = true; header('Location: ' . $_SERVER['REQUEST_URI']); exit;
+        $sc = 'g' . (int)$g['id'];
+        if (throttle_blocked($sc)) $err = 'Too many tries. Please wait 15 minutes.';
+        elseif (password_verify((string)($_POST['password'] ?? ''), $g['password_hash'])) {
+            throttle_clear($sc); session_regenerate_id(true); $_SESSION['g' . $g['id']] = true; header('Location: ' . $_SERVER['REQUEST_URI']); exit;
         }
-        $err = 'That password didn\'t match.'; usleep(700000);
+        else { throttle_fail($sc); $err = 'That password didn\'t match.'; usleep(700000); }
     }
 page_head($g['title']); ?>
 <main class="narrow"><p class="kicker">Private gallery</p><h1><?= h($g['title']) ?></h1>

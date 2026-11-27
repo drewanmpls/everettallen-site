@@ -64,6 +64,8 @@ function db(): PDO {
     CREATE TABLE IF NOT EXISTS photo_likes (g TEXT NOT NULL, id TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (g, id));
     CREATE TABLE IF NOT EXISTS like_rate (h TEXT NOT NULL, hr TEXT NOT NULL, c INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (h, hr));
     CREATE TABLE IF NOT EXISTS claims (image_id INTEGER PRIMARY KEY REFERENCES images(id) ON DELETE CASCADE, created INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS login_fails (scope TEXT NOT NULL, h TEXT NOT NULL, t INTEGER NOT NULL);
+    CREATE INDEX IF NOT EXISTS login_fails_i ON login_fails (scope, h, t);
     ");
     foreach ([['galleries', 'included_count', 'INTEGER NOT NULL DEFAULT 0'], ['galleries', 'default_web_cents', 'INTEGER NOT NULL DEFAULT 0'],
               ['images', 'price_web_cents', 'INTEGER'], ['galleries', 'client_id', 'INTEGER'], ['galleries', 'code_id', 'INTEGER'], ['clients', 'release_text', "TEXT DEFAULT ''"], ['clients', 'release_stage', "TEXT DEFAULT ''"], ['clients', 'release_dob', "TEXT DEFAULT ''"], ['clients', 'release_gallery', "TEXT DEFAULT ''"], ['clients', 'release_version', "TEXT DEFAULT ''"], ['clients', 'release_pdf', "TEXT DEFAULT ''"], ['clients', 'release_sig', "TEXT DEFAULT ''"], ['clients', 'drive_status', "TEXT DEFAULT ''"], ['clients', 'drive_url', "TEXT DEFAULT ''"], ['clients', 'shoot_date', "TEXT DEFAULT ''"], ['clients', 'shoot_location', "TEXT DEFAULT ''"], ['clients', 'id_verified', "TEXT DEFAULT ''"], ['clients', 'release_name', "TEXT DEFAULT ''"], ['clients', 'release_at', 'INTEGER'], ['clients', 'photo_path', "TEXT DEFAULT ''"], ['clients', 'idphoto_path', "TEXT DEFAULT ''"], ['clients', 'discount_percent', 'INTEGER NOT NULL DEFAULT 0'], ['orders', 'tier', "TEXT NOT NULL DEFAULT 'full'"], ['galleries', 'kind', "TEXT NOT NULL DEFAULT ''"]] as [$t, $c, $def]) {
@@ -101,6 +103,29 @@ function csrf_ok(): bool {
     start_session();
     $t = $_SERVER['HTTP_X_CSRF'] ?? ($_POST['csrf'] ?? '');
     return is_string($t) && !empty($_SESSION['csrf']) && hash_equals($_SESSION['csrf'], $t);
+}
+
+// ---------- password guessing limit ----------
+// Blocked after 5 wrong tries from one visitor, or 30 from anyone, in 15 minutes, per scope ('admin', 'setup', 'g<galleryId>').
+// The visitor is a salted hash of the address; the address itself is never stored.
+const THROTTLE_WINDOW = 900;
+function throttle_key(): string {
+    $salt = (string)setting('stats_salt', ''); if ($salt === '') { $salt = bin2hex(random_bytes(16)); set_setting('stats_salt', $salt); }
+    return hash('sha256', 'thr|' . $salt . '|' . ($_SERVER['REMOTE_ADDR'] ?? ''));
+}
+function throttle_blocked(string $scope): bool {
+    $since = time() - THROTTLE_WINDOW;
+    $s = db()->prepare('SELECT COUNT(*) FROM login_fails WHERE scope = ? AND h = ? AND t > ?'); $s->execute([$scope, throttle_key(), $since]);
+    if ((int)$s->fetchColumn() >= 5) return true;
+    $s = db()->prepare('SELECT COUNT(*) FROM login_fails WHERE scope = ? AND t > ?'); $s->execute([$scope, $since]);
+    return (int)$s->fetchColumn() >= 30;
+}
+function throttle_fail(string $scope): void {
+    db()->prepare('INSERT INTO login_fails (scope, h, t) VALUES (?,?,?)')->execute([$scope, throttle_key(), time()]);
+    db()->prepare('DELETE FROM login_fails WHERE t < ?')->execute([time() - 86400]);
+}
+function throttle_clear(string $scope): void {
+    db()->prepare('DELETE FROM login_fails WHERE scope = ? AND h = ?')->execute([$scope, throttle_key()]);
 }
 
 function h($s): string { return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }

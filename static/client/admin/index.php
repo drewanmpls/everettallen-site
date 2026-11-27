@@ -34,9 +34,10 @@ if ($hash === '') {
     $err = '';
     if ($post && csrf_ok()) {
         $code = trim((string)file_get_contents($codeFile));
-        if (!hash_equals($code, trim((string)($_POST['code'] ?? '')))) { $err = 'Setup code is wrong.'; usleep(700000); }
+        if (throttle_blocked('setup')) $err = 'Too many tries. Wait 15 minutes and try again.';
+        elseif (!hash_equals($code, trim((string)($_POST['code'] ?? '')))) { throttle_fail('setup'); $err = 'Setup code is wrong.'; usleep(700000); }
         elseif (strlen((string)($_POST['password'] ?? '')) < 10) $err = 'Use at least 10 characters.';
-        else { set_setting('admin_hash', password_hash((string)$_POST['password'], PASSWORD_DEFAULT)); @unlink($codeFile); $_SESSION['admin'] = true; go($base); }
+        else { throttle_clear('setup'); set_setting('admin_hash', password_hash((string)$_POST['password'], PASSWORD_DEFAULT)); @unlink($codeFile); $_SESSION['admin'] = true; go($base); }
     }
     ahead('Set up'); ?>
 <div class="narrow"><h1>Set up</h1><p>Choose an admin password. The setup code is in the file <code>setup-code.txt</code> inside this site's private folder on the server.</p>
@@ -54,8 +55,9 @@ if ($post && in_array($a, ['pubfile', 'pubdone'], true) && ($tk = (string)($_SER
 if (empty($_SESSION['admin']) && !$apiAuth) {
     $err = '';
     if ($post && csrf_ok()) {
-        if (password_verify((string)($_POST['password'] ?? ''), $hash)) { session_regenerate_id(true); $_SESSION['admin'] = true; go($base); }
-        $err = 'Wrong password.'; usleep(1000000);
+        if (throttle_blocked('admin')) $err = 'Too many tries. Wait 15 minutes and try again.';
+        elseif (password_verify((string)($_POST['password'] ?? ''), $hash)) { throttle_clear('admin'); session_regenerate_id(true); $_SESSION['admin'] = true; go($base); }
+        else { throttle_fail('admin'); $err = 'Wrong password.'; usleep(1000000); }
     }
     ahead('Log in'); ?>
 <div class="narrow"><h1>Log in</h1><form method="post"><input type="hidden" name="csrf" value="<?= h(csrf()) ?>"><label>Password<input type="password" name="password" autofocus required></label>
