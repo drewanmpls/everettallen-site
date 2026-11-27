@@ -23,6 +23,8 @@ TOKEN = os.environ.get("EA_TOKEN", "").strip()
 WATCH = os.environ.get("WATCH_DIR", "/watch")
 EVERY = int(os.environ.get("POLL_SECONDS", "20"))
 ENDPOINT = SITE + "/client/admin/"
+VERSION = "2026-11-27"   # shown in Admin > Publish (T-40)
+WORKING = {}   # folder name -> photo count while it is being published
 
 
 def log(*a):
@@ -31,6 +33,53 @@ def log(*a):
 
 def slugify(t):
     return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", t.lower())).strip("-")
+
+
+def folder_state(name):
+    """ready, published or failed from the folder name (and the files the watcher leaves in it); None for other folders."""
+    full = os.path.join(WATCH, name)
+    low = name.lower()
+    if re.search(r"-published( \d+)?$", low):
+        n = 0
+        try:
+            m = re.search(r"Published (\d+) photos", open(os.path.join(full, "PUBLISHED.txt"), errors="ignore").read())
+            n = int(m.group(1)) if m else 0
+        except OSError:
+            pass
+        return "published", n, ""
+    if re.search(r"-failed( \d+)?$", low):
+        err = ""
+        try:
+            lines = open(os.path.join(full, "ERROR.txt"), errors="ignore").read().splitlines()
+            err = lines[1] if len(lines) > 1 else ""
+        except OSError:
+            pass
+        return "failed", 0, err
+    if READY_RE.match(name) or os.path.isfile(os.path.join(full, "READY")):
+        return "ready", 0, ""
+    return None
+
+
+def send_status():
+    """Tell the site what the watcher sees (Admin > Publish). Never raises: a failure is logged and publishing goes on."""
+    try:
+        rows = []
+        for name in os.listdir(WATCH):
+            full = os.path.join(WATCH, name)
+            if name.startswith(".") or not os.path.isdir(full):
+                continue
+            if name in WORKING:
+                rows.append((os.path.getmtime(full), {"name": name, "state": "working", "photos": WORKING[name], "error": ""}))
+                continue
+            st = folder_state(name)
+            if st:
+                rows.append((os.path.getmtime(full), {"name": name, "state": st[0], "photos": st[1], "error": st[2]}))
+        rows.sort(key=lambda r: r[0], reverse=True)   # newest change first
+        res = post({"a": "nasstatus", "payload": json.dumps({"version": VERSION, "folders": [r[1] for r in rows[:50]]})}, timeout=30)
+        if not res.get("ok"):
+            log("status not sent:", res.get("error"))
+    except Exception as e:
+        log("status not sent:", e)
 
 
 def post(fields, filepath=None, timeout=900):
@@ -79,6 +128,7 @@ def publish(folder, via_file):
     if not files:
         raise RuntimeError("The folder is marked ready but has no JPEGs in it")
     log(f"{folder}: publishing {len(files)} photos as {slug}")
+    WORKING[folder] = len(files); send_status()
     done, bad = [], []
     for i, f in enumerate(files, 1):
         res = {}
@@ -124,7 +174,8 @@ def rename(folder, new):
 def main():
     if not TOKEN:
         sys.exit("EA_TOKEN is not set. Make a key in Admin > Settings and put it in the .env file.")
-    log(f"Watching {WATCH} and publishing to {SITE}")
+    log(f"Watching {WATCH} and publishing to {SITE} (watcher {VERSION})")
+    last = 0
     while True:
         try:
             for folder in sorted(os.listdir(WATCH)):
@@ -137,6 +188,7 @@ def main():
                     continue
                 try:
                     publish(folder, by_file and not by_name)
+                    WORKING.clear(); send_status(); last = time.time()
                 except Exception as e:
                     log(f"{folder}: ERROR {e}")
                     with open(os.path.join(full, "ERROR.txt"), "w") as f:
@@ -145,8 +197,11 @@ def main():
                         os.remove(os.path.join(full, "READY"))
                     m0 = READY_RE.match(folder)
                     rename(folder, (m0.group(1).strip() if m0 else folder) + "-FAILED")
+                    WORKING.clear(); send_status(); last = time.time()
         except FileNotFoundError:
             log(f"{WATCH} is not there yet")
+        if time.time() - last >= 60:
+            send_status(); last = time.time()
         time.sleep(EVERY)
 
 
