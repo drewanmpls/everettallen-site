@@ -163,3 +163,8 @@ footer .fl a{text-decoration:none}footer .fl a:hover{text-decoration:underline}
 @media(max-width:480px){.cta .btn,.cta .btn.alt{width:100%;margin-left:0;padding:14px 16px;text-align:center}}
 .yj a:last-child{margin-right:0}
 .callout a{overflow-wrap:anywhere}
+/* T-05: keyboard focus and reduced motion */
+a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,.strip:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.fcard:focus-visible{outline-offset:-3px}
+.band:focus-visible,.lb button:focus-visible,.lb a:focus-visible,.cartbar a:focus-visible,.cartbar button:focus-visible{outline-color:#fff;outline-offset:-5px}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important;animation:none!important}}
