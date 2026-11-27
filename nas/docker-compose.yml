@@ -1,13 +1,14 @@
+# Matches the eap-watcher Project in the Ugreen Docker app. See README.md in this folder.
+# The container downloads the current nas/watcher.py from GitHub main each time it starts, so no file is copied to the NAS.
+# On the NAS the real key replaces paste-your-key-here. Never commit the real key.
 services:
   eap-watcher:
     image: python:3.12-slim
     container_name: eap-watcher
     restart: unless-stopped
-    working_dir: /app
-    command: ["python", "-u", "/app/watcher.py"]
-    env_file: .env
     environment:
+      EA_TOKEN: paste-your-key-here
       WATCH_DIR: /watch
     volumes:
-      - ./watcher.py:/app/watcher.py:ro
-      - ${WATCH_FOLDER}:/watch
+      - /volume1/@home/YOUR-NAS-USER/EAP-Publish:/watch
+    command: ["sh", "-c", "python -c \"import urllib.request as u;u.urlretrieve('https://raw.githubusercontent.com/drewanmpls/everettallen-site/main/nas/watcher.py','/tmp/w.py')\" && python -u /tmp/w.py"]

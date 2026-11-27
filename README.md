@@ -78,8 +78,8 @@ Admin: https://www.everettallenphotography.com/client/admin/ (Publish, Codes, St
 
 ### Publish from the browser or the NAS
 - **Browser:** Admin > Publish. Pick a new or existing gallery, set date, section and slug, drop in JPEGs. Needs the GitHub token saved in Admin > Settings ("Publishing from the browser").
-- **NAS folder watcher:** drop a folder into `EAP-Publish` on the Ugreen NAS and rename it to end in `-READY` (or `-portraits-READY`). The `eap-watcher` Docker container (see `nas/README.md`) uploads it, then renames it `-PUBLISHED` or `-FAILED`. Folder names should start with the date and include the year, for example `2026-11-06 TCLF Friday`. Restart the container after changing `nas/watcher.py`. The folder key lives in Admin > Settings ("Folder watcher key").
-- **NAS status (T-40):** the watcher reports to the "NAS folder watcher" card on Admin > Publish once a minute. After changing `nas/watcher.py`, copy it to the NAS and restart the `eap-watcher` container (H-11).
+- **NAS folder watcher:** drop a folder into `EAP-Publish` on the Ugreen NAS and rename it to end in `-READY` (or `-portraits-READY`). The `eap-watcher` Docker container (see `nas/README.md`) uploads it, then renames it `-PUBLISHED` or `-FAILED`. Folder names should start with the date and include the year, for example `2026-11-06 TCLF Friday`. The container downloads `nas/watcher.py` from GitHub `main` each time it starts: after changing it, merge, then Stop and Start the eap-watcher project in the NAS Docker app. The folder key lives in Admin > Settings ("Folder watcher key").
+- **NAS status (T-40):** the watcher reports to the "NAS folder watcher" card on Admin > Publish once a minute, with its version.
 
 ### Pages CMS tips
 - **Event series:** add new ones under Event Series (`content/series.json`). The dropdown on galleries refreshes automatically after a minute (`sync-series` workflow).

@@ -106,7 +106,7 @@ H = something Andrew does by hand. T = a ticket prompt for a remote Claude sessi
 | | T-26 | Task | Sonnet | L | Reorder photos and remove photos for real |
 | | T-39 | Task | Sonnet | M | Publish page: drag and drop, series at upload, live check |
 | | T-40 | Task | Sonnet | M | NAS watcher status in the admin (needs OK) |
-| | H-11 | Hand | | | Copy the new `nas/watcher.py` to the NAS and restart the `eap-watcher` container |
+| | H-11 | Hand | | | Stop and Start the `eap-watcher` project in the NAS Docker app (it downloads the new `nas/watcher.py` from GitHub on start). Done 2026-11-27 |
 | | T-27 | Task | Sonnet | M | Event series editor |
 | | T-28 | Task | Sonnet | M | Pages and site settings editor |
 | | T-29 | Task | Sonnet | M | Services and rates editor |
