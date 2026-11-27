@@ -1,5 +1,8 @@
 Options -Indexes
 RewriteEngine On
+# The new. address uses a separate private database; send it to the main domain (the root rule does not apply in this folder)
+RewriteCond %{HTTP_HOST} ^new\.everettallenphotography\.com$ [NC]
+RewriteRule ^ https://www.everettallenphotography.com%{REQUEST_URI} [L,R=301]
 # Friendly private link: /client/g/<token>/
 RewriteRule ^g/([a-f0-9]{24})/?$ index.php?t=$1 [L,QSA]
 # New-client intake form: /client/new/
