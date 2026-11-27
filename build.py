@@ -11,6 +11,8 @@ G=[]
 for f in glob.glob('content/galleries/*.json'):
     g=json.load(open(f)); g['slug']=os.path.basename(f)[:-5]; g.setdefault('year',g['date'][:4]); g.setdefault('description',''); g['cover']=str(g.get('cover') or g['images'][0]['id']); G.append(g)
 G=[g for g in G if g['images']]
+GA=G   # every gallery, for the admin's list (galleries-index.json)
+G=[g for g in GA if not g.get('hidden')]   # hidden galleries (T-25) are left out of the built site
 SER=json.load(open('content/series.json'))['series']
 ser_by={x['slug']:x for x in SER}
 def slugify(t): return re.sub(r'[^a-z0-9]+','-',t.lower()).strip('-')
@@ -160,7 +162,7 @@ os.makedirs('dist/client',exist_ok=True)
 json.dump([{'title':c['title'],'price':c['price'],'unit':c.get('unit',''),'meta':c['meta'],'included':int(c.get('included',0) or 0)} for c in SV['cards']],open('dist/client/services.json','w'),ensure_ascii=False)
 json.dump({g['slug']:g['title'] for g in G},open('dist/client/gallery-titles.json','w'),ensure_ascii=False)
 # every gallery for the admin's Portfolio pages (T-24), newest first; hidden ones are listed too (T-25 leaves them out of the site only)
-GI=[{'slug':g['slug'],'title':g['title'],'date':g['date'],'year':g['year'],'category':g.get('category',''),'series':g.get('series',''),'cover':g['cover'],'count':len(g['images']),'hidden':bool(g.get('hidden')),'described':bool(g.get('description','').strip())} for g in G]
+GI=[{'slug':g['slug'],'title':g['title'],'date':g['date'],'year':g['year'],'category':g.get('category',''),'series':g.get('series',''),'cover':g['cover'],'count':len(g['images']),'hidden':bool(g.get('hidden')),'described':bool(g.get('description','').strip())} for g in GA]
 GI.sort(key=lambda x:x['slug']); GI.sort(key=lambda x:x['date'],reverse=True)
 json.dump(GI,open('dist/client/galleries-index.json','w'),ensure_ascii=False,indent=1)
 json.dump([{'slug':x['slug'],'short':x['short'],'name':x['name']} for x in SER],open('dist/client/series-index.json','w'),ensure_ascii=False)

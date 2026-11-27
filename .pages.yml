@@ -43,6 +43,7 @@ content:
       - { name: tags, label: Tags (one per line or press Enter after each; they become search chips and tag pages), type: string, list: true }
       - { name: cover, label: Cover photo ID (e.g. 001), type: string }
       - { name: description, label: Description, type: text }
+      - { name: hidden, label: Hide this gallery from the site, type: boolean }
       - name: images
         label: Photos
         type: object
