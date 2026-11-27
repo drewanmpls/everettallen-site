@@ -2,6 +2,7 @@
 
 - **Site:** Everett Allen Photography, https://www.everettallenphotography.com
 - **Repo:** `drewanmpls/everettallen-site` (branch `main`), inspected at commit `57a3692` on 2026-11-15
+- **Updated 2026-11-27:** the admin rework (Clubhouse look, Sessions structure) is merged into this plan: new Section 3.7, new tickets T-37 to T-46, T-20 and T-31 to T-33 rewritten, roadmap reordered, deploy folder notes corrected (H-03, Section 3.2).
 - **Hosting:** DreamHost shared (user `dh_dbvmkc`, host `iad1-shared-b7-19.dreamhost.com`, PHP 8.3, SSH)
 - **Purpose and audience:** Portrait and event photography site for Andrew Bertke. Visitors are portrait clients, people looking for themselves in community event galleries, and press or organizations licensing photos.
 - **This document is planning only.** No site code was changed to produce it.
@@ -20,13 +21,14 @@ One ticket = one branch = one pull request. Never combine tickets.
 1. Never use em dashes anywhere: site copy, admin labels, code comments, commit messages, docs. Use commas, periods, colons, semicolons or parentheses.
 2. Never commit photos, originals, passwords, tokens, keys, or anything from the server's private folder. Font files (WOFF2) and the existing `static/assets/og-default.jpg` are the only binary files allowed.
 3. Never invent facts, quotes, dates, prices or contact details. If copy is missing, leave a clearly marked placeholder and say so in the pull request.
-4. No frameworks, no build tools, no npm runtime dependencies. Plain HTML, CSS, vanilla JavaScript (ES2017), Python 3 standard library for `build.py`, PHP 8.2+ with PDO SQLite, GD and curl.
+4. No frameworks, no build tools, no npm runtime dependencies. Plain HTML, CSS, vanilla JavaScript (ES2017), Python 3 standard library for `build.py` (it must also run on Python 3.9, the version on Andrew's Mac), PHP 8.2+ with PDO SQLite, GD and curl.
 5. Make the smallest change that solves the ticket. Match the existing dense code style. Do not reformat lines you are not changing.
-6. Before opening the pull request run `python3 build.py` and `php -l` on every changed PHP file. Say in the pull request what could only be tested locally. The remote session has no photos and no server database, so image tiles will look empty locally; that is expected.
+6. Before opening the pull request run `python3 build.py` and `php -l` on every changed PHP file. Say in the pull request what could only be tested locally. For admin and client area changes, run `bash dev/run.sh` (fake data, email goes to a log file, nothing is sent) and check the changed screens locally. Public photos are not in Git, so public image tiles look empty locally; that is expected.
 7. Do not touch payments, downloads, free codes, privacy wording or model release wording unless the ticket says so. If a ticket seems to require it, stop and ask Andrew.
 8. Gallery photo IDs and cover IDs are strings (`"153"`, `"001"`). New or rewritten gallery JSON is indented 4 spaces.
 9. Do not turn on GitHub branch protection that requires pull requests on `main`. The admin Publish page, the NAS watcher and Pages CMS commit gallery files straight to `main` through the GitHub API, and that must keep working.
 10. Never re-run an old GitHub Actions run (it republishes old content). Use Run workflow.
+11. Admin screens follow Section 3.7 (Admin design). Use the admin only at `www.everettallenphotography.com`; the `new.everettallenphotography.com` address has its own separate database.
 
 ---
 
@@ -38,10 +40,11 @@ A working, live, non-WordPress site:
 
 - **Public site (static).** `build.py` (zero-dependency Python) reads `content/` and writes `dist/`: home (portraits face), Portraits A to Z, Events (newest, by year, by series), series pages, tag pages, search, one page per gallery, one page per photo (for share previews), Services, Contact, About, Press and licensing, Photo removal, Privacy, 404, sitemap, robots, `.htaccess` (HTTPS redirect, hotlink protection, old WordPress redirects). 86 galleries (59 portrait, 27 event), 4,662 photos, 105 indexed pages plus 4,662 photo pages.
 - **Client area (PHP + SQLite)** in `static/client/`: private client galleries with favorites, comments, included picks and paid downloads; Stripe Checkout with a manual backup flow; public photo shop with multi-photo discount; named free-download codes; anonymous photo likes; cookie-free stats; new-client intake form with digital model release, PDF and Google Drive filing.
-- **Admin** at `/client/admin/`: Dashboard (new), Galleries (client galleries), Clients, Publish (browser upload), Library (originals), Codes, Stats, Settings.
+- **Admin** at `/client/admin/`: Dashboard (new), Galleries (client galleries), Clients, Publish (browser upload), Library (originals), Codes, Short links, Stats, Settings.
+- **Local testing:** `bash dev/run.sh` runs the site and admin on a Mac with a fake database (`dev/README.md`).
 - **Publishing:** Admin > Publish, or the NAS folder watcher (`nas/watcher.py`), or `scripts/eap-publish.py`. All three write photos to the server and the gallery JSON to GitHub.
 - **Content editing:** Pages CMS (`.pages.yml`) commits to `content/`.
-- **Deploy:** every push to `main` runs `.github/workflows/deploy.yml` (build, then rsync `dist/` over SSH; adds and updates only).
+- **Deploy:** every push to `main` runs `.github/workflows/deploy.yml` (build, then rsync `dist/` over SSH; adds and updates only) into the `new.everettallenphotography.com` folder, which is the folder the live domain serves. There is no staging copy: a merge is live in about two minutes.
 
 ## Important: where this plan differs from the standard template
 
@@ -72,6 +75,8 @@ The blueprint template assumes a flat-file PHP + JSON backend under `site/data/`
 8. **Performance:** fonts load from Google Fonts (third party, render blocking); the first home images and the Events lead tile are lazy-loaded even though they are the largest visible content. (T-09, T-10)
 9. **Contact form** messages are email only; they never reach the dashboard "New inquiries" tile, and there is no rate limit. (T-17)
 10. **Pages CMS is still required** for gallery details, series, pages and services. The roadmap decision is to replace it with the custom admin. (T-23 to T-30)
+11. **The admin is hard to use on a phone and is not organized around the work.** One row of top links with no current-page mark, no dark mode, wide tables that scroll sideways, a 600-line client gallery page with settings above the photos, and a shoot's details split between the client record and the client gallery. (T-20, T-37, T-38, T-41 to T-45)
+12. **Two databases.** `everettallenphotography.com` and `new.everettallenphotography.com` serve the same files, but the private folder is picked by host name, so the admin on `new.` shows a different, separate database. (T-46)
 
 ## Phased roadmap
 
@@ -79,13 +84,44 @@ H = something Andrew does by hand. T = a ticket prompt for a remote Claude sessi
 
 | Phase | Step | Type | Model | Size | What |
 |---|---|---|---|---|---|
-| 0. Setup | H-01 | Hand | | | Merge the `implementation-plan` pull request |
+| 0. Setup | H-01 | Hand | | | Merge the `implementation-plan` pull request (done) |
 | | H-02 | Hand | | | GitHub > Settings > General: turn on "Automatically delete head branches". Do not add branch protection (rule 9) |
-| | H-03 | Hand | | | GitHub > Settings > Secrets and variables > Actions > Variables: confirm `DEPLOY_DIR` is `everettallenphotography.com` |
+| | H-03 | Hand | | | Leave the `DEPLOY_DIR` variable as `new.everettallenphotography.com`. The live domain's web directory in the DreamHost panel is that folder, so changing it would deploy to a folder nobody sees |
 | 1. Foundations | T-01 | Task | Haiku | S | Add `CLAUDE.md` with the standing rules |
 | | T-02 | Task | Sonnet | S | Pull request check workflow (build, PHP lint, JSON, em dash scan) |
 | | T-03 | Task | Sonnet | M | Deploy cleans up stale gallery and photo pages |
-| 2. Front end fixes | T-04 | Task | Haiku | S | Fix sideways scroll at 320px |
+| | H-10 | Hand | | | Stripe dashboard > Webhooks: confirm the endpoint address starts with `https://www.everettallenphotography.com` (or the bare domain), not `new.` |
+| | T-46 | Task | Sonnet | S | Send the `new.` address to the main domain (needs OK; after H-10) |
+| 2. Safety first | T-14 | Task | Sonnet | M | Nightly database backup script |
+| | H-04 | Hand | | | DreamHost panel > Cron Jobs: add the nightly backup command from T-14 |
+| | T-15 | Task | Sonnet | M | Login throttling (admin and client galleries) |
+| | T-16 | Task | Sonnet | M | Database schema version |
+| 3. Admin shell | T-20 | Task | Sonnet | L | Admin shell and `admin.css` in the Clubhouse style (menu, light and dark, phone and tablet layouts) |
+| | T-37 | Task | Sonnet | L | Restyle the admin pages and remove inline styles |
+| | T-38 | Task | Sonnet | M | Settings in sections, hidden secret fields, change password (needs OK) |
+| | T-21 | Task | Sonnet | L | Admin and client pages: move inline scripts and handlers to files |
+| 4. Portfolio (replaces Pages CMS) | T-23 | Task | Sonnet | M | Shared "save content to GitHub" helper and gallery index |
+| | T-24 | Task | Sonnet | M | Public galleries list in the admin, with series chips |
+| | T-25 | Task | Sonnet | L | Gallery editor (details, cover picker, hide) |
+| | T-26 | Task | Sonnet | L | Reorder photos and remove photos for real |
+| | T-39 | Task | Sonnet | M | Publish page: drag and drop, series at upload, live check |
+| | T-40 | Task | Sonnet | M | NAS watcher status in the admin (needs OK) |
+| | H-11 | Hand | | | Copy the new `nas/watcher.py` to the NAS and restart the `eap-watcher` container |
+| | T-27 | Task | Sonnet | M | Event series editor |
+| | T-28 | Task | Sonnet | M | Pages and site settings editor |
+| | T-29 | Task | Sonnet | M | Services and rates editor |
+| | T-30 | Task | Haiku | S | Point the dashboard and docs at the new editors |
+| | H-05 | Hand | | | After a week without needing Pages CMS: remove the Pages CMS app from the repo (GitHub > Settings > Integrations) |
+| 5. Studio: sessions, clients, sales | T-41 | Task | Sonnet | M | Sessions: client galleries become sessions |
+| | T-42 | Task | Sonnet | L | Session page: tabs, share sheet and activity |
+| | T-43 | Task | Sonnet | M | Select several photos at once in a session |
+| | T-17 | Task | Sonnet | M | Contact form saves an inquiry and is rate limited |
+| | T-31 | Task | Sonnet | M | Client list: pipeline chips, search and filters |
+| | T-32 | Task | Sonnet | M | Client record: Overview cards and timeline |
+| | T-33 | Task | Sonnet | M | Sales: orders page with totals (approved by Andrew 2026-11-15) |
+| 6. Today and stats | T-44 | Task | Sonnet | M | Today: the admin home becomes a "Needs you" list |
+| | T-45 | Task | Sonnet | S | Stats page restyle |
+| 7. Public site fixes and CSP | T-04 | Task | Haiku | S | Fix sideways scroll at 320px |
 | | T-05 | Task | Haiku | S | Keyboard focus styles and reduced motion |
 | | T-06 | Task | Haiku | S | Photo page heading, copyright year, dead code |
 | | T-07 | Task | Sonnet | M | Lightbox accessibility |
@@ -95,35 +131,20 @@ H = something Andrew does by hand. T = a ticket prompt for a remote Claude sessi
 | | T-11 | Task | Haiku | S | Search page accessibility |
 | | T-12 | Task | Haiku | S | Structured data on the home page |
 | | T-13 | Task | Sonnet | S | Tap target sizes |
-| 3. Safety | T-14 | Task | Sonnet | M | Nightly database backup script |
-| | H-04 | Hand | | | DreamHost panel > Cron Jobs: add the nightly backup command from T-14 |
-| | T-15 | Task | Sonnet | M | Login throttling (admin and client galleries) |
-| | T-16 | Task | Sonnet | M | Database schema version |
-| | T-17 | Task | Sonnet | M | Contact form saves an inquiry and is rate limited |
 | | T-18 | Task | Sonnet | S | Security headers on the public site |
 | | T-19 | Task | Sonnet | M | Public pages: remove inline code, then enforce CSP |
-| | T-20 | Task | Sonnet | L | Admin: move inline styles to `admin.css` with cache-busting |
-| | T-21 | Task | Sonnet | L | Admin and client pages: move inline scripts and handlers to files |
 | | T-22 | Task | Sonnet | S | Enforce CSP on `/client/` |
-| 4. Galleries manager | T-23 | Task | Sonnet | M | Shared "save content to GitHub" helper and gallery index |
-| | T-24 | Task | Sonnet | M | Public galleries list in the admin |
-| | T-25 | Task | Sonnet | L | Gallery editor (details, cover picker, hide) |
-| | T-26 | Task | Sonnet | L | Reorder photos and remove photos for real |
-| | T-27 | Task | Sonnet | M | Event series editor |
-| | T-28 | Task | Sonnet | M | Pages and site settings editor |
-| | T-29 | Task | Sonnet | M | Services and rates editor |
-| | T-30 | Task | Haiku | S | Point the dashboard and docs at the new editors |
-| | H-05 | Hand | | | After a week without needing Pages CMS: remove the Pages CMS app from the repo (GitHub > Settings > Integrations) |
-| 5. Clients and orders | T-31 | Task | Sonnet | M | Client search and filters |
-| | T-32 | Task | Sonnet | M | Client timeline |
-| | T-33 | Task | Sonnet | M | Orders page with totals (approved by Andrew 2026-11-15) |
-| 6. Email clients | T-34 | Task | Sonnet | M | Outbox queue and sender |
+| 8. Email clients | T-34 | Task | Sonnet | M | Outbox queue and sender |
 | | H-06 | Hand | | | DreamHost panel > Cron Jobs: add the outbox command from T-34 |
 | | T-35 | Task | Sonnet | M | Email templates and "Email this client" |
-| 7. Portfolio polish | T-36 | Task | Sonnet | M | Portraits page: sharper tiles and a newest-first view |
+| 9. Portfolio polish | T-36 | Task | Sonnet | M | Portraits page: sharper tiles and a newest-first view |
 | Parked | H-07 | Hand | | | Lawyer review of release wording and of privacy wording for code and download tracking |
 | | H-08 | Hand | | | Decide the SES sender domain, limits, bounce and unsubscribe handling with the Leather Websites project |
-| | H-09 | Hand | | | Retire `new.everettallenphotography.com` in the DreamHost panel once nothing links to it |
+| | H-09 | Hand | | | Do not delete the `new.everettallenphotography.com` folder: it is the live web folder. Once T-46 has run for a month, the `new.` host name itself can be removed in the DreamHost panel only if the live domain's web directory is moved first |
+
+Why this order: safety items that protect clients and the removal promise come first; the admin shell comes before any new admin screen so every later ticket is built once in the new style; the public site fixes (Phase 7) do not depend on the admin work and can be done in between at any time.
+
+**Tickets marked "needs OK"** change login, the NAS key's permissions, or a host name. Do not start them until Andrew says yes in the session.
 
 **Parked, not ticketed yet (missing facts, do not start):** switching the outbox sender to the shared AWS SES setup (needs H-08), and a newsletter signup (depends on the shared email system's list and unsubscribe design). Write tickets for these once H-08 is decided.
 
@@ -175,7 +196,7 @@ The giant "EVERETT ALLEN / PHOTOGRAPHY" wordmark and the tagline ("There is art 
 - Footer says "Copyright 2026" as fixed text (T-06).
 - `site.js` carries dead code for a menu button and a slideshow that no longer exist (T-06).
 - `content/facebook-events.json` and `.csv` contain em dashes in imported Facebook text. `build.py` does not read these files, so nothing reaches the site. Leave them alone; T-02's scan skips them.
-- The deploy workflow's fallback folder is still the staging name `new.everettallenphotography.com`. It only matters if the `DEPLOY_DIR` variable is ever deleted (H-03 confirms it).
+- The deploy workflow's fallback folder is `new.everettallenphotography.com`. That is correct: it is the folder the live domain serves (H-03, corrected 2026-11-27).
 - Contact form errors return a bare text page (T-17).
 
 ---
@@ -218,6 +239,8 @@ static/                       Copied as-is into dist/
     admin/dashboard.php       Admin home
     admin/publish.php         Browser publish (also used by the NAS watcher)
     admin/library.php         Download originals
+    admin/links.php           Short links
+dev/                          Local test copy: run.sh, router.php, seed.php (fake data), README.md. Never deployed
 nas/                          NAS folder watcher (runs on the NAS from its own copy)
 scripts/                      eap-publish.py (Mac publish), sync-series.py, drive-release-receiver.gs, one-time import scripts
 .pages.yml                    Pages CMS configuration
@@ -225,12 +248,12 @@ scripts/                      eap-publish.py (Mac publish), sync-series.py, driv
 .github/workflows/sync-series.yml   Keeps the Series dropdown in .pages.yml in sync
 ```
 
-`dist/`, `photos/`, `__pycache__/` and `.env` are git-ignored.
+`dist/`, `photos/`, `__pycache__/`, `.env` and `dev/.local/` are git-ignored.
 
 ## 3.2 Server layout (DreamHost, user `dh_dbvmkc`)
 
 ```
-~/everettallenphotography.com/            Web root (the DEPLOY_DIR variable). Everything from dist/, plus:
+~/new.everettallenphotography.com/        Web root for the live domain (the DEPLOY_DIR variable). Everything from dist/, plus:
     photos/<slug>/<id>-t.jpg              400px thumbnail            (server only, never in Git)
     photos/<slug>/<id>-l.jpg              1000px with corner logo    (server only)
     assets/logo-white.png, icon.png       (server only)
@@ -244,6 +267,7 @@ scripts/                      eap-publish.py (Mac publish), sync-series.py, driv
         galleries/<id>/orig|display|thumb|web|sdisplay|sthumb/   Client gallery files
         releases/<clientId>.pdf, <clientId>-model.jpg, <clientId>-id.jpg, signatures
         backups/                          NEW in T-14
+    new.everettallenphotography.com/      Separate private folder used when the site is opened at the new. address. Leave it; T-46 stops it being used
     masters/_removed/<slug>/<id>.jpg      NEW in T-26
 ```
 
@@ -314,6 +338,8 @@ Planned additions (each owned by one ticket):
 | `outbox` | T-34 | `(id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER, to_email TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'queued', attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT DEFAULT '', created INTEGER NOT NULL, sent INTEGER)`; `status` = `queued`, `sent`, `failed` |
 | `email_templates` | T-35 | `(k TEXT PRIMARY KEY, name TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL)` |
 | `clients.source = 'contact'` | T-17 | New value in the existing column, no schema change |
+| `galleries.shoot_date`, `galleries.shoot_location` | T-41 | `TEXT DEFAULT ''`. Shoot date is YYYY-MM-DD. Empty means use the linked client's values |
+| `settings.nas_status` | T-40 | JSON text: `{t, version, folders:[{name, state, photos, error}]}` |
 
 ## 3.5 Roles and endpoints
 
@@ -321,7 +347,7 @@ Planned additions (each owned by one ticket):
 |---|---|---|
 | Public | Nothing | Read the static site; `likes.php`; `hit.php`; `shop.php`; `contact/send.php`; `client/new/` |
 | Client | 24-hex gallery token in the link, plus the gallery password if one is set (session flag) | View one gallery, favorite, comment, claim picks, request or buy, download what is unlocked |
-| NAS watcher | `X-EA-Token` header; its SHA-256 must equal `settings.nas_token_hash` | Only `pubfile` and `pubdone` |
+| NAS watcher | `X-EA-Token` header; its SHA-256 must equal `settings.nas_token_hash` | Only `pubfile` and `pubdone` (plus `nasstatus` after T-40) |
 | Admin (Andrew, the only admin) | Password checked against `settings.admin_hash`; session cookie `eapc` (path `/client`, HttpOnly, SameSite Lax, Secure) | Everything under `/client/admin/` |
 
 Every admin POST requires the CSRF token (`csrf` field or `X-CSRF` header, compared with `hash_equals`). There is one admin role; do not add users or roles.
@@ -345,8 +371,13 @@ Every admin POST requires the CSRF token (`csrf` field or `X-CSRF` header, compa
 | `orders`, `orderscsv` | GET | T-33 | Orders list with totals, CSV export |
 | `outbox`, `mailsend`, `mailretry` | GET, POST | T-34, T-35 | Queue, send and retry client email |
 | `templates`, `templatesave` | GET, POST | T-35 | Edit email templates |
+| `settings&tab=`, `pwchange` | GET, POST | T-38 | Settings tabs; change the admin password |
+| `nasstatus` | POST (NAS key) | T-40 | Watcher status report |
+| `sessions` | GET | T-41 | Sessions list (`list` redirects here) |
+| `gallery&id=&tab=` | GET | T-42 | Session page tabs: `photos`, `activity`, `settings` |
+| `bulkphotos` | POST | T-43 | Prices or delete for several photos. Fields: `id`, `images`, `do`, `price` |
 
-## 3.6 Target security headers (reached at the end of Phase 3)
+## 3.6 Target security headers (reached with T-22)
 
 Public site (`dist/.htaccess`, written by `build.py`):
 
@@ -361,6 +392,54 @@ Header always set Content-Security-Policy "default-src 'self'; script-src 'self'
 
 `/client/` (`static/client/.htaccess`): the same, and it keeps `X-Robots-Tag "noindex, nofollow, noarchive"`. Stripe Checkout is a full-page redirect, so it needs no CSP allowance.
 
+## 3.7 Admin design (Clubhouse style, photographer structure)
+
+Added 2026-11-27. The admin takes its look from the Clubhouse admin Andrew uses on his club sites (reference: `docs/clubhouse.html` and `public/admin/admin.css` in the private `community-admin` repo), but its structure is built around a photography business. The styles are **copied** into `static/client/admin/admin.css`, not shared: this repo never loads files from `community-admin`. The top of `admin.css` says which `community-admin` commit the tokens came from, so later Clubhouse changes can be copied over on purpose.
+
+**Menu (in this order).** Section labels are small grey capitals and are not links.
+
+| Label | Action | Built by |
+|---|---|---|
+| Today | `dashboard` | exists; reworked in T-44 |
+| *Studio* | | |
+| Clients | `clients` | exists; T-31, T-32 |
+| Sessions | `sessions` (client galleries) | T-41 (until then: "Client galleries", `list`) |
+| Sales | `orders` | T-33 |
+| Codes | `codes` | exists |
+| *Portfolio* | | |
+| Galleries | `pgalleries` | T-24 |
+| Publish | `publish` | exists; T-39, T-40 |
+| Event series | `series` | T-27 |
+| Library | `library` | exists |
+| *Website* | | |
+| Pages | `pages` | T-28 |
+| Services | `services` | T-29 |
+| Short links | `links` | exists |
+| Stats | `stats` | exists; T-45 |
+| Settings | `settings` | exists; T-38 |
+
+On phones the bottom tab bar shows Today, Clients, Sessions, Portfolio (opens Galleries) and More (the full menu).
+
+**Shell.** Sidebar (240px) at 1024px and wider. Below 1024px a one-row top bar with a Menu button (`aria-expanded`; when closed its links cannot be reached; Escape closes it). Under 640px also the bottom tab bar, with page content padded so nothing hides behind it. The top bar always shows "Everett Allen" and a View site link; Log out sits at the bottom of the menu. Landmarks `<header>`, `<nav>`, `<main>` and a skip link.
+
+**Color.** Every color is a CSS variable; no view sets its own colors. Light: warm grey page `#f2f2ef`, white panels, ink `#1c1d1c`, muted `#6e716d`, lines `#ebebe7`. Dark: near-black page `#0e0f0e`, panels `#1c1d1b`, ink `#f1f2f0`, muted `#9a9e98`, lines `#2a2c29`. Accent is EAP blue `#2b2bff` in light and a lighter blue (about `#8c8cff`, checked to 4.5:1 on the dark panel) in dark. Status colors (green paid or done, amber waiting, red failed or declined, blue information) each have a soft background tint. Behind photos use neutral grey, never a tinted color, so photos are judged correctly in both modes. Mode: Auto (device), Light or Dark, saved per browser (T-20).
+
+**Type and spacing.** System font stack (SF on Apple devices). 15px body, 13px small text, page titles 28px (22px on phones). 8px spacing scale; content max width 1120px; 28px side padding (14px on phones). Panels have 12px corners.
+
+**Page layout.** Back link (when inside a list), title, status tag, one main action on the right; then a message (only when there is one), tabs (only when the page has views), a toolbar (lists) or form sections, then content. Long forms end with a save bar that stays on screen.
+
+**Components.** Buttons (main, secondary, danger; at least 44px tall), fields with visible labels above, status tags with words (never color alone), chips for filters, cards, tables that become stacked cards under 640px, stat tiles, a "Needs you" list (row with count and arrow), photo tiles (fixed ratio box, lazy-loaded, marks for favorite, picked, comment, sold), confirm steps for anything that deletes, unlocks or emails.
+
+**Words.** Plain and short. Buttons say what happens ("Save settings", "Mark paid and send download"). Messages: "Saved.", "Couldn't save: <reason>." No em dashes. Dates like "Nov 27, 2026" and times like "3:05 pm", America/Chicago.
+
+**Phones and tablets.** Every tap target 44px or more with 8px between neighbors. No page scrolls sideways at 390px. Uploads accept the photo library on iPad and iPhone. Nothing depends on hover.
+
+**Accessibility.** WCAG 2.1 AA: text contrast 4.5:1, control edges 3:1, focus always visible, one `h1` per page, messages announced (`role="status"` or `role="alert"`), every field labeled, everything works by keyboard, motion respects reduced motion.
+
+**No inline code.** Nothing written for the admin from T-20 on uses `style=""`, `<style>`, inline `<script>` with code, or `on...=` handlers, so the strict CSP in T-22 can be turned on without rework.
+
+**Testing.** `bash dev/run.sh` runs the site and admin locally with fake data (see `dev/README.md`). Check each changed screen at 390px, 768px and 1280px, in light and dark, and with the keyboard alone, before opening the pull request.
+
 ---
 
 # Section 4: Self-Contained Execution Tickets
@@ -374,12 +453,12 @@ Header always set Content-Security-Policy "default-src 'self'; script-src 'self'
 * **The Problem / Goal:** Remote sessions start with no memory. A `CLAUDE.md` makes the rules load automatically so tickets cannot drift from them.
 * **Exact Instructions:**
   1. Create `CLAUDE.md` with a title line `# Everett Allen Photography site: rules for Claude sessions`.
-  2. Under a heading `## Standing rules`, copy the ten numbered rules from the "Standing rules" section of `IMPLEMENTATION-PLAN.md` word for word.
+  2. Under a heading `## Standing rules`, copy the eleven numbered rules from the "Standing rules" section of `IMPLEMENTATION-PLAN.md` word for word.
   3. Under a heading `## Where things are`, add exactly these lines: `- Full map, schemas and endpoints: IMPLEMENTATION-PLAN.md, Section 3.` / `- Public site: build.py reads content/ and writes dist/. Styles and scripts are in static/.` / `- Client area and admin: static/client/ (PHP + SQLite). Private data lives on the server outside the web root.` / `- Check before finishing: python3 build.py, and php -l on each changed PHP file.`
   4. Do not add anything else.
 * **Guardrails (Do Not Touch):** Every other file. `README.md` stays as is.
 * **Verification Checklist (Done Checks):**
-  - [ ] On GitHub mobile, `CLAUDE.md` shows at the repo root with ten rules and no em dashes.
+  - [ ] On GitHub mobile, `CLAUDE.md` shows at the repo root with eleven rules and no em dashes.
   - [ ] The live site is unchanged.
 * **Undo:** Revert the pull request.
 
@@ -420,7 +499,495 @@ Header always set Content-Security-Policy "default-src 'self'; script-src 'self'
   - [ ] Photos still show in a gallery (proves `photos/` was not touched).
 * **Undo:** Revert the pull request. Nothing deleted by this step is lost for good: the next build regenerates any page that should exist.
 
-## Phase 2: Front end fixes
+### Ticket #T-46: Send the new. address to the main domain
+* **Assigned Model:** Sonnet
+* **Size:** S
+* **Needs Andrew's OK before starting:** yes. First do H-10 (confirm the Stripe webhook address uses the main domain), because a redirect would break webhooks sent to `new.`.
+* **Target File(s):** `build.py` (the generated root `.htaccess`)
+* **The Problem / Goal:** `everettallenphotography.com` and `new.everettallenphotography.com` serve the same folder, but the private folder is chosen by host name (`host_key()` in `lib.php`), so the admin and client links on `new.` use a second, separate database. Logging in there shows different clients, galleries and settings.
+* **Exact Instructions:**
+  1. In the generated root `.htaccess`, before the existing HTTPS redirect, add a 301 redirect for any request whose host is `new.everettallenphotography.com` to the same path and query on `https://www.everettallenphotography.com`.
+  2. Do not change `host_key()`, `priv_dir()` or anything in `static/client/`.
+* **Guardrails (Do Not Touch):** The private folders on the server (the `new.everettallenphotography.com` private folder stays as it is), the HTTPS and old WordPress redirects, the deploy workflow.
+* **Verification Checklist (Done Checks):**
+  - [ ] `https://new.everettallenphotography.com/events/` lands on `https://www.everettallenphotography.com/events/`.
+  - [ ] `https://new.everettallenphotography.com/client/admin/` lands on the main domain admin.
+  - [ ] A Stripe test event (Stripe dashboard > Webhooks > Send test event) still shows a 200 response.
+* **Undo:** Revert the pull request.
+
+## Phase 2: Safety first
+
+### Ticket #T-14: Nightly database backup script
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Target File(s):** `static/client/cli/backup.php` (new), `static/client/cli/.htaccess` (new), `README.md`
+* **The Problem / Goal:** Orders, clients, signed release records, codes and settings live in one SQLite file with no backup.
+* **Exact Instructions:**
+  1. `cli/.htaccess`: `Require all denied`.
+  2. `backup.php`: first line of logic `if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }`. It takes the private folder path as its first argument (for example `/home/dh_dbvmkc/everettallen-private/everettallenphotography.com`); exit with a message if `data.sqlite` is not there. Do not `require lib.php` (it depends on web variables).
+  3. Open the database with PDO and run `VACUUM INTO '<private>/backups/data-YYYY-MM-DD.sqlite'` (create `backups/` with mode 0700; if today's file exists, delete it first). Set the file mode to 0600.
+  4. Keep the newest 30 daily files plus the first file of each month for 12 months; delete older ones. Only ever delete files matching `data-\d{4}-\d{2}-\d{2}\.sqlite` inside `backups/`.
+  5. Print one line: file name and size. Exit non-zero on failure.
+  6. README: add a "Backups" section with the cron command for H-04: `php8.3 /home/dh_dbvmkc/everettallenphotography.com/client/cli/backup.php /home/dh_dbvmkc/everettallen-private/everettallenphotography.com`, daily, and a note that the PHP binary name should be confirmed in the DreamHost panel.
+  7. Test locally with a throwaway SQLite file.
+* **Guardrails (Do Not Touch):** `lib.php`, the live database schema. Photos and originals are not part of this backup (they are large and already on the NAS).
+* **Verification Checklist (Done Checks):**
+  - [ ] Visiting `https://www.everettallenphotography.com/client/cli/backup.php` in a browser shows an error page, not output.
+  - [ ] After H-04, the next morning the cron email (or an SSH `ls` of `backups/`) shows a dated file.
+* **Undo:** Revert the pull request and delete the cron job in the DreamHost panel.
+
+### Ticket #T-15: Throttle password guessing (admin login and client gallery passwords)
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Target File(s):** `static/client/lib.php`, `static/client/admin/index.php`, `static/client/index.php`
+* **The Problem / Goal:** A wrong password only costs a one second delay; nothing stops unlimited guessing.
+* **Exact Instructions:**
+  1. `lib.php`: add table `login_fails (scope TEXT NOT NULL, h TEXT NOT NULL, t INTEGER NOT NULL)` with an index on `(scope, h, t)`. Add `throttle_blocked(string $scope): bool`, `throttle_fail(string $scope): void`, `throttle_clear(string $scope): void`. The visitor key `h` is `hash('sha256', 'thr|' . stats_salt . '|' . REMOTE_ADDR)` (never store the address).
+  2. Limits: blocked when the same visitor has 5 failures in the last 15 minutes for that scope, or when a scope has 30 failures from anyone in the last 15 minutes. Delete rows older than one day on each failure.
+  3. Admin login: scope `admin`. Check before `password_verify`; when blocked show "Too many tries. Wait 15 minutes and try again." and do not check the password. Clear on success. Apply the same to the first-time setup code form (scope `setup`).
+  4. Client gallery password: scope `g<id>`, same behavior, message "Too many tries. Please wait 15 minutes."
+  5. Keep the existing `usleep` delays.
+* **Guardrails (Do Not Touch):** The NAS token check, session and CSRF functions, `password_hash` storage, `shop_find_code` (it has its own limiter).
+* **Verification Checklist (Done Checks):**
+  - [ ] In a private browser window, enter a wrong admin password 5 times: the sixth try shows the "Too many tries" message.
+  - [ ] Your already signed-in browser still works. After 15 minutes the private window can log in with the right password.
+* **Undo:** Revert the pull request. If you are locked out before then, wait 15 minutes.
+
+### Ticket #T-16: Give the database a schema version
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Target File(s):** `static/client/lib.php`
+* **The Problem / Goal:** `db()` runs every `CREATE TABLE IF NOT EXISTS` and about 24 `PRAGMA table_info` checks on every request, including each like and page-view beacon.
+* **Exact Instructions:**
+  1. Add `const SCHEMA_VERSION = 1;` (use the next number if T-15 already merged; one number per schema change from now on).
+  2. In `db()`: after connecting, read `settings.schema_version` inside a try/catch (the table may not exist). If it equals `SCHEMA_VERSION`, skip all schema work. Otherwise run the existing create and add-column code unchanged, then store the version.
+  3. Add a comment (no em dashes) telling future tickets: add the table or column to the migration block and raise `SCHEMA_VERSION` by one.
+  4. Test locally: fresh database gets all tables; an existing database missing a column gains it once.
+* **Guardrails (Do Not Touch):** Table and column definitions, `PRAGMA foreign_keys = ON` (must still run on every connection).
+* **Verification Checklist (Done Checks):**
+  - [ ] Admin dashboard, Stats and a client gallery link all load.
+  - [ ] Liking a photo on a public gallery still works.
+* **Undo:** Revert the pull request (the stored version number is harmless).
+
+## Phase 3: Admin shell
+
+### Ticket #T-20: Admin shell and admin.css in the Clubhouse style
+* **Assigned Model:** Sonnet
+* **Size:** L
+* **Target File(s):** `static/client/admin/admin.css` (new), `static/client/admin/admin.js` (new), `static/client/admin/index.php` (`ahead()` and `afoot()` only), `static/client/admin/dashboard.php` (its `<style>` block only), `static/client/lib.php` (one helper)
+* **The Problem / Goal:** The admin borrows the public site's look (beige, uppercase Archivo), has a single row of top links with no current-page mark, no dark mode, and wraps badly on phones. This ticket builds the new frame every admin page sits in, following Section 3.7. Page contents stay as they are; T-37 restyles them.
+* **Exact Instructions:**
+  1. Create `admin.css` with the tokens, shell and components from Section 3.7 (colors as variables, light, dark and auto, EAP blue accent). Move the `<style>` block from `ahead()` and the one in `dashboard.php` into it, adjusted to use the variables.
+  2. Add `asset(string $path): string` to `lib.php`: the path plus `?v=` and the first 8 characters of `md5_file` for a file under the document root. Use it for every admin CSS and JS file.
+  3. Rewrite `ahead()` and `afoot()` to output the shell from Section 3.7: skip link, `<header>` top bar, `<nav>` menu with the exact menu from 3.7 (items whose ticket is not built yet are left out; the menu is one PHP array so later tickets add one line), `<main>`. Mark the current page with `aria-current="page"`. Keep the existing `<title>` format.
+  4. Sidebar at 1024px and wider; a menu button with `aria-expanded` that opens the same menu as a panel below 1024px; a bottom tab bar under 640px with Today, Clients, Sessions, Portfolio and More (More opens the full menu).
+  5. Appearance: Auto (follows the device), Light, Dark. Stored in `localStorage` key `eaTheme` and applied by `admin.js` from a `data-mode` attribute on `<html>`. With no JavaScript the page follows the device.
+  6. Move the `localStorage.setItem("eaSkip","1")` line from `ahead()` into `admin.js`. No inline script or style in anything this ticket writes.
+  7. System font stack inside the admin. Stop loading Google Fonts in `ahead()`. The login and setup screens use the same shell without the menu.
+* **Guardrails (Do Not Touch):** PHP logic, form field names, action names, the bodies of the views (T-37), `client.css` rules used by client pages, `publish.php` actions `pubfile` and `pubdone`.
+* **Verification Checklist (Done Checks):**
+  - [ ] Locally (`bash dev/run.sh`) every admin page opens in the new frame at 390px, 768px and 1280px wide, in light and dark, with no sideways scrolling.
+  - [ ] The menu opens and closes with the keyboard; Escape closes it; the current page is marked.
+  - [ ] On the live site: Dashboard, one client gallery, Clients, Publish and Settings open and work on a phone and a computer.
+* **Undo:** Revert the pull request.
+
+### Ticket #T-37: Restyle the admin pages and remove inline styles
+* **Assigned Model:** Sonnet
+* **Size:** L
+* **Depends on:** T-20
+* **Target File(s):** `static/client/admin/admin.css`, `static/client/admin/index.php`, `dashboard.php`, `publish.php`, `library.php`, `links.php`
+* **The Problem / Goal:** The admin has about 130 `style=""` attributes, which block a strict CSP, and the page bodies still use the old look. This is the rest of the old T-20 goal, done with the Section 3.7 components.
+* **Exact Instructions:**
+  1. Replace every `style=""` attribute in the listed files with classes from `admin.css`. Use the components in 3.7 (page header, cards, tags, toolbars, tables that become cards on phones, form sections, messages) and a few utility classes. Do not create one class per element.
+  2. Page header on every view: back link where the page sits inside a list, title, status tag where the thing has a status, one main action on the right.
+  3. "Saved." and error lines become the message component with `role="status"` or `role="alert"`.
+  4. Wide tables (client galleries, clients, orders, stats tables) become stacked cards under 640px.
+  5. Finish with a search: no `style="` and no `<style` left in `static/client/admin/`.
+* **Guardrails (Do Not Touch):** PHP logic, form field names, action names, inline scripts and handlers (T-21), the order of sections on each page (later tickets change those).
+* **Verification Checklist (Done Checks):**
+  - [ ] Locally, every admin page looks right at 390px, 768px and 1280px in light and dark, and keyboard focus is always visible.
+  - [ ] On the live site, saving a setting and creating a code still work.
+* **Undo:** Revert the pull request.
+
+### Ticket #T-38: Settings in sections, hidden secret fields, change password
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Depends on:** T-37
+* **Needs Andrew's OK before starting:** yes, because "Change password" touches the admin login.
+* **Target File(s):** `static/client/admin/index.php` (the `settings` view and one new POST action)
+* **The Problem / Goal:** Settings is one long page mixing Google Drive, GitHub, the NAS key, Stripe and shop prices. Secret fields are plain text boxes, so keys show on screen while typing. There is no way to change the admin password.
+* **Exact Instructions:**
+  1. Split the view into tabs through `?a=settings&tab=`: Payments (Stripe and manual payment text), Selling (shop prices and discount), Publishing (GitHub token and repo, NAS key), Google Drive, Account (change password, appearance). Default tab: Payments. The existing POST actions and field names stay the same; each form only moves to its tab.
+  2. Secret inputs (`stripe_secret_key`, `stripe_webhook_secret`, `github_token`, `drive_webhook_secret`) become `type="password"` with `autocomplete="off"` and a "Show" toggle in `admin.js`.
+  3. New POST `pwchange` on the Account tab: current password, new password (10 or more characters), new password again. Check the current password with `password_verify` (and the T-15 throttle if merged), then save with `password_hash`, call `session_regenerate_id(true)`, and show "Password changed."
+  4. The Appearance control (Auto, Light, Dark) from T-20 also shows on this tab.
+* **Guardrails (Do Not Touch):** Setting key names, how secrets are stored, the existing save actions' behavior, the NAS key format.
+* **Verification Checklist (Done Checks):**
+  - [ ] Locally: each tab saves; secrets show dots until "Show" is pressed; a wrong current password is refused; a good change logs in with the new password afterwards.
+  - [ ] Live: open each tab and confirm saved values are still there. Do not change the live password as a test unless you mean to.
+* **Undo:** Revert the pull request. A password changed with it stays changed.
+
+### Ticket #T-21: Admin and client pages: move inline scripts and handlers into files
+* **Assigned Model:** Sonnet
+* **Size:** L
+* **Depends on:** T-20
+* **Target File(s):** `static/client/admin/admin.js` (new), `static/client/admin/index.php`, `publish.php`, `static/client/index.php`, `static/client/new.php`, `static/client/new.js` (new), `static/client/client.js`
+* **The Problem / Goal:** Inline scripts and `onclick`/`onsubmit` handlers block a strict CSP on `/client/`.
+* **Exact Instructions:**
+  1. Admin: replace the 8 inline handlers (7 in `index.php`, 1 in `publish.php`) with data attributes handled in `admin.js`: `data-confirm="question"` on forms (uses `confirm()`), `data-copy="#id"` or `data-copy-text` on copy buttons, and a `submit` listener for the Publish form. Move the three inline `<script>` blocks in `index.php` and the one in `publish.php` into `admin.js` (or `publish.js` if clearer). Pass PHP values through `data-` attributes or a `<script type="application/json" id="...">` block, never through inline script.
+  2. The `localStorage.setItem("eaSkip","1")` line in `ahead()` moves into `admin.js`.
+  3. Client gallery page: replace `<script>window.EA=...</script>` with `<script type="application/json" id="ea-cfg">` and have `client.js` read it first thing.
+  4. `new.php`: move its inline script to `new.js` and its `<style>` block and 4 style attributes into `client.css`.
+  5. Load all scripts through the `asset()` helper from T-20 for cache-busting.
+  6. Finish with a search across `static/client/`: no inline `<script>` with code, no `on...=` attributes, no `style="`, no `<style`.
+* **Guardrails (Do Not Touch):** Endpoint names and parameters, CSRF handling, the signature pad behavior and release wording in `new.php`, payment and download logic, `nas/watcher.py`.
+* **Verification Checklist (Done Checks):**
+  - [ ] Admin: copy-link buttons copy; deleting a test photo asks for confirmation; Publish uploads a test photo to a test gallery.
+  - [ ] A client gallery link: favorite, comment and download a Free photo.
+  - [ ] `/client/new/`: the form loads, the signature box draws, and the release section toggles (do not submit a real release).
+* **Undo:** Revert the pull request.
+
+## Phase 4: Portfolio (replaces Pages CMS)
+
+### Ticket #T-23: Shared "save content to GitHub" helper and a gallery index
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Target File(s):** `static/client/admin/content.php` (new), `static/client/admin/publish.php`, `build.py`
+* **The Problem / Goal:** Every editor in this phase needs to read and save `content/` files through the GitHub API, and the admin needs a list of public galleries without calling GitHub 86 times.
+* **Exact Instructions:**
+  1. `content.php`: move `pub_gh()` here from `publish.php` (publish.php then requires it). Add `content_get(string $path): array` returning `[data, sha]` for a JSON file on `main`, and `content_put(string $path, array $data, string $sha, string $message): array` that writes pretty-printed JSON (4 spaces, unescaped unicode and slashes, trailing newline), retries once on a 409 or 422 by re-reading, and returns `[ok, errorSentence]`. Paths must match `^content/[a-z0-9/_-]+\.json$`.
+  2. Add `validate_gallery(array $g): array` returning a list of plain-sentence problems, enforcing the gallery table in Section 3.3.
+  3. `build.py`: write `dist/client/galleries-index.json`, a list of `{slug, title, date, year, category, series, cover, count, hidden}` for **all** galleries including hidden ones, newest first.
+  4. No user-visible change in this ticket.
+* **Guardrails (Do Not Touch):** `pubfile` and `pubdone` behavior and responses (the NAS watcher depends on them), the GitHub token setting names.
+* **Verification Checklist (Done Checks):**
+  - [ ] Admin > Publish still uploads and publishes a test photo.
+  - [ ] `https://www.everettallenphotography.com/client/galleries-index.json` loads and lists galleries.
+* **Undo:** Revert the pull request.
+
+### Ticket #T-24: Public galleries list in the admin
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Depends on:** T-23
+* **Target File(s):** `static/client/admin/pgalleries.php` (new), `static/client/admin/index.php` (one `require` line and one menu link)
+* **The Problem / Goal:** There is no place in the admin to see all public galleries.
+* **Exact Instructions:**
+  1. New view `?a=pgalleries`, required from `index.php` after the login check like `dashboard.php`.
+  2. Read `galleries-index.json` from the document root. Show a table (cards on phones): cover thumbnail (`/photos/<slug>/<cover>-t.jpg`, fixed 3:2 box), title, date, category, series short name, photo count, Shown or Hidden, links "Edit" (`?a=pgallery&slug=`, built in T-25) and "View".
+  3. Filters at the top as chips (Section 3.7): All, Portraits, Events, Hidden, Needs info (an event gallery with no series, or any gallery with no description), and one chip per event series using its short label; and a text filter box that narrows rows as you type (external script).
+  4. Add the Galleries line under Portfolio in the admin menu (Section 3.7).
+  5. Note at the top: "Changes take a minute or two to appear here after saving."
+* **Guardrails (Do Not Touch):** The existing `?a=list` view and its `#orders` anchor (the dashboard links to it).
+* **Verification Checklist (Done Checks):**
+  - [ ] Admin > Portfolio > Galleries lists 86 galleries with cover photos; the Events filter shows 27.
+  - [ ] Sessions (or Client galleries, before T-41) still opens the client gallery list.
+* **Undo:** Revert the pull request.
+
+### Ticket #T-25: Gallery editor (details, cover picker, hide)
+* **Assigned Model:** Sonnet
+* **Size:** L
+* **Depends on:** T-24
+* **Target File(s):** `static/client/admin/pgalleries.php`, `build.py`, `.pages.yml`
+* **The Problem / Goal:** Editing a gallery's title, date, series, tags, description and cover requires Pages CMS and typing a photo ID by hand.
+* **Exact Instructions:**
+  1. View `?a=pgallery&slug=`: load the file with `content_get`. Form fields: Title, Date, Year (pre-filled from the date, editable), Category (select), Series (select from `content/series.json` plus "None"), Tags (one per line), Description (textarea with a note that a blank line starts a new paragraph), Hidden (checkbox: "Hide this gallery from the site").
+  2. Cover picker: a grid of the gallery's thumbnails as radio buttons; the current cover is selected. Lazy-load the images.
+  3. POST `pgsave`: build the new gallery array from the loaded file (keep `images` untouched and keep any unknown fields), run `validate_gallery`, show problems above the form in plain sentences, otherwise `content_put` with message `Gallery details: <slug>`. Omit `series`, `tags` and `hidden` when empty or false.
+  4. After saving show: "Saved. The site updates in a minute or two."
+  5. `build.py`: change the filter to leave out galleries where `hidden` is true (they still go into `galleries-index.json`).
+  6. `.pages.yml`: add `{ name: hidden, label: Hide this gallery from the site, type: boolean }` to the galleries fields so Pages CMS does not drop the field.
+  7. State in the page help text: hiding removes the gallery's pages; the photo files stay on the server. To take a photo down for good use Remove (T-26).
+* **Guardrails (Do Not Touch):** `images` order and content in this ticket, slugs (never rename a file), `featured_portraits`.
+* **Verification Checklist (Done Checks):**
+  - [ ] Edit a test gallery's description and cover; within two minutes the public gallery and its Events or Portraits tile show the change.
+  - [ ] Tick Hidden on a test gallery: after the deploy it is gone from Events, Search and its own address (needs T-03). Untick: it returns.
+* **Undo:** Revert the pull request. To undo a content change, edit again or revert that single "Gallery details" commit on GitHub.
+
+### Ticket #T-26: Reorder photos and remove photos for real
+* **Assigned Model:** Sonnet
+* **Size:** L
+* **Depends on:** T-25, T-03
+* **Approved by Andrew (2026-11-15):** yes, as written. Web copies are deleted and the original is moved to the private removed folder, not deleted.
+* **Target File(s):** `static/client/admin/pgalleries.php`, `static/client/admin/pgalleries.js` (new)
+* **The Problem / Goal:** A removal request today leaves the photo page, both web copies and the original on the server. There is also no way to reorder photos.
+* **Exact Instructions:**
+  1. On the gallery editor add a "Photos" section: thumbnail grid with drag to reorder on computers and "Move earlier" / "Move later" buttons on every tile for phones and keyboards. "Save order" posts `pgorder`; the server rejects the request unless the id list is exactly the current set, then saves with `content_put` (message `Photo order: <slug>`).
+  2. Each tile has a checkbox. "Remove selected photos" opens a confirmation step that shows the count and requires typing `REMOVE`.
+  3. POST `pgremove`, for each id (validated `^\d{3,6}$`, slug validated, and the id must be in the gallery): delete `photos/<slug>/<id>-t.jpg` and `-l.jpg`; delete the folder `photo/<slug>/<id>/` in the document root (its `index.html`); move `masters/<slug>/<id>.jpg` to `masters/_removed/<slug>/<id>.jpg` (create folders 0700; overwrite if present); remove the id from `labels.json` under the existing lock file; `DELETE FROM photo_likes WHERE g = ? AND id = ?`.
+  4. Then save the gallery JSON without those images. If the cover was removed, set the cover to the first remaining image. If no images remain, set `hidden` to true and keep one-line help text explaining the gallery is now empty and hidden.
+  5. If the GitHub save fails after files were deleted, show: "The photo files are removed, but the gallery list could not be saved. Press Remove again." and make the action safe to repeat.
+  6. Resolve every path with `realpath` checks so nothing outside `photos/<slug>/`, `photo/<slug>/` or `masters/<slug>/` can be touched.
+  7. Help text on the page: "Removed photos disappear from the site right away. Copies already delivered to a buyer are not affected. The original is kept in a private removed folder in case it was a mistake."
+* **Guardrails (Do Not Touch):** Client galleries and order galleries (`galleries`, `images` tables and `~/everettallen-private/<host>/galleries/`), `pubfile`, `pubdone`, payment code, the Photo removal page wording.
+* **Verification Checklist (Done Checks):**
+  - [ ] Publish a throwaway test gallery with 3 photos. Remove one: immediately its `/photo/<slug>/<id>/` address and its `-l.jpg` address both show Not found.
+  - [ ] After the deploy the gallery shows 2 photos and the right count.
+  - [ ] Reorder the 2 photos and save: the public gallery shows the new order after the deploy.
+  - [ ] Admin > Library no longer offers the removed photo.
+* **Undo:** Revert the pull request to remove the feature. A removed photo can be restored by hand from `masters/_removed/` by publishing it again.
+
+### Ticket #T-39: Publish page: drag and drop, series at upload, live check
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Depends on:** T-23, T-37
+* **Target File(s):** `static/client/admin/publish.php`, `static/client/admin/publish.js` (new)
+* **The Problem / Goal:** Publishing uses a plain file picker, the series and tags have to be set afterwards in another tool, and "rebuilds in a minute or two" is a guess.
+* **Exact Instructions:**
+  1. Drop zone for files (drag and drop on computers; tapping it opens the picker, which offers the photo library on iPad and iPhone). Per-photo progress rows with a thumbnail, file name and status.
+  2. For a new gallery add Series (select from `content/series.json` through `content_get`, plus "None") and Tags (one per line). Send them as optional `series` and `tags` in the `pubdone` payload; `pubdone` stores them only when creating a new gallery file and validates them with `validate_gallery`. A payload without them must behave exactly as today (the NAS watcher sends none).
+  3. After a successful publish, `publish.js` checks `/gallery/<slug>/` every 15 seconds for up to 6 minutes and shows "Live now" with a link once it returns 200 and contains the new photo count, or "Still building. Check the gallery in a few minutes." when time runs out.
+  4. Move the page's inline script into `publish.js`.
+* **Guardrails (Do Not Touch):** `pubfile` request and response, the `pubdone` response, the NAS key check, image sizes, the corner logo.
+* **Verification Checklist (Done Checks):**
+  - [ ] Publish a throwaway test gallery with 2 photos and a series: the page reports "Live now" and the public gallery shows the series.
+  - [ ] The NAS watcher still publishes a test folder.
+* **Undo:** Revert the pull request.
+
+### Ticket #T-40: NAS watcher status in the admin
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Depends on:** T-39
+* **Needs Andrew's OK before starting:** yes, because it lets the NAS key use one more action.
+* **Target File(s):** `nas/watcher.py`, `static/client/admin/index.php` (key check), `static/client/admin/publish.php`, `README.md`
+* **The Problem / Goal:** The server cannot see the NAS, so nobody knows from the admin whether the watcher is running, what it is publishing, or why a folder failed.
+* **Exact Instructions:**
+  1. Allow the NAS key (`X-EA-Token`) to use one more POST action, `nasstatus`, and nothing else new.
+  2. `nasstatus` accepts JSON `{version, folders:[{name, state, photos, error}]}` where `state` is `ready`, `working`, `published` or `failed`, at most 50 folders, names and errors trimmed to 200 characters. Store it with the time in setting `nas_status`.
+  3. `watcher.py`: send `nasstatus` once a minute and right after each folder changes state. Failures to send are logged and never stop publishing.
+  4. Publish page: a "NAS folder watcher" card: last heard from (with "not heard from in over 10 minutes" in the warning style), folders working now, the last 5 published, and failed folders with their error.
+  5. README: one line saying to copy the new `watcher.py` to the NAS and restart the container (H-11).
+* **Guardrails (Do Not Touch):** `pubfile` and `pubdone`, folder renaming rules (`-READY`, `-PUBLISHED`, `-FAILED`), the `.env` format.
+* **Verification Checklist (Done Checks):**
+  - [ ] After H-11, the card shows "last heard from" within a minute.
+  - [ ] Rename a test folder to `-READY`: the card shows it working, then published.
+* **Undo:** Revert the pull request and put the previous `watcher.py` back on the NAS.
+
+### Ticket #T-27: Event series editor
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Depends on:** T-23
+* **Target File(s):** `static/client/admin/content-editors.php` (new), `static/client/admin/index.php` (require and menu)
+* **The Problem / Goal:** Adding or editing a recurring event series requires Pages CMS.
+* **Exact Instructions:**
+  1. View `?a=series`: list the series with Name, Short label, Description fields per row, "Move up" / "Move down", and an "Add a series" form (Name, Short label, Description; the slug is generated from the name and shown before saving).
+  2. POST `seriessave`: validate per Section 3.3. Slugs of existing series cannot be changed. A series cannot be deleted while any gallery in `galleries-index.json` uses it; say which galleries.
+  3. Save with `content_put` (message `Event series`). The existing `sync-series` workflow then updates `.pages.yml` on its own.
+* **Guardrails (Do Not Touch):** `scripts/sync-series.py`, `.github/workflows/sync-series.yml`, existing slugs.
+* **Verification Checklist (Done Checks):**
+  - [ ] Change one series description; after the deploy its series page shows the new text.
+  - [ ] Trying to delete a series that has galleries shows a clear refusal.
+* **Undo:** Revert the pull request; content changes are separate commits that can be reverted on GitHub.
+
+### Ticket #T-28: Pages and site settings editor
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Depends on:** T-27
+* **Target File(s):** `static/client/admin/content-editors.php`
+* **The Problem / Goal:** About, Press and licensing, Photo removal, Privacy and the site settings (tagline, links, featured portraits) require Pages CMS.
+* **Exact Instructions:**
+  1. View `?a=pages`: list the four page files. Editing one shows Title, Lede, Search description, Body (textarea) and a short formatting key: blank line for a new paragraph, `**bold**`, `*italic*`, `[text](/path/)`, numbered lines for a list.
+  2. Above the Privacy and Photo removal editors show: "This wording is a promise to visitors. Have changes to it reviewed before saving."
+  3. Same view, section "Site settings": Tagline, Home descriptor, Contact intro, Usage note, Facebook and Instagram addresses (must start with `https://`), and Featured portraits as an ordered list chosen from portrait galleries in `galleries-index.json` (add, remove, move up, move down).
+  4. POST `pagesave` and `sitesave`: validate per Section 3.3, keep unknown fields, save with `content_put`. `title` and `base_url` in `site.json` are shown read-only.
+  5. No creating or deleting pages (the footer links are fixed in `build.py`).
+* **Guardrails (Do Not Touch):** `base_url`, the wording of existing pages (this ticket builds the editor only), `content/services.json`.
+* **Verification Checklist (Done Checks):**
+  - [ ] Change the order of two featured portraits; after the deploy the home strip shows the new order.
+  - [ ] Edit and restore one word on the About page; both saves appear on the site.
+* **Undo:** Revert the pull request.
+
+### Ticket #T-29: Services and rates editor
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Depends on:** T-28
+* **Target File(s):** `static/client/admin/content-editors.php`
+* **The Problem / Goal:** Prices and service cards require Pages CMS.
+* **Exact Instructions:**
+  1. View `?a=services`: page text fields (Title, Lede, Delivery, Callout, Call to action), share discount percent and note, and one block per card: Title, Price (display text), Unit, Meta line, Badge, Included photos (number), Items (one per line). Cards can be added, removed and moved.
+  2. Model release fields (`release_*`) are shown in a separate, collapsed section with the warning: "Legal wording. People who already signed keep the version they signed. Changing anything here requires a new version label." The server refuses to save any change to a `release_*` field unless `release_version` also changed.
+  3. POST `servicessave`: validate per Section 3.3, keep unknown fields (including `wide`), save with `content_put` (message `Services and rates`).
+  4. Do not change any price, wording or release text as part of this ticket.
+* **Guardrails (Do Not Touch):** `share.json` and `services.json` generation in `build.py`, `new.php`, `lib.php` release functions.
+* **Verification Checklist (Done Checks):**
+  - [ ] Edit and restore one item line on a card; both saves appear on `/services/`.
+  - [ ] Changing release text without changing the version label is refused with a clear message.
+  - [ ] `/client/new/` still shows the services list.
+* **Undo:** Revert the pull request.
+
+### Ticket #T-30: Point the dashboard and docs at the new editors
+* **Assigned Model:** Haiku
+* **Size:** S
+* **Depends on:** T-29
+* **Target File(s):** `static/client/admin/dashboard.php`, `README.md`
+* **The Problem / Goal:** The dashboard still sends Andrew to Pages CMS for site content.
+* **Exact Instructions:**
+  0. The editors are also in the menu (Section 3.7). If T-44 has already replaced the "Jump to" section, put the four links in Today's shortcuts instead.
+  1. In `dashboard.php`, replace the one link whose `href` is `https://app.pagescms.org` with these four links in the same style: `?a=pgalleries` "Galleries" / small text "Titles, covers, photos"; `?a=series` "Event series" / "Names and descriptions"; `?a=pages` "Pages and settings" / "About, home page, links"; `?a=services` "Services and rates" / "Prices and cards". Use the existing `<?= $base ?>` prefix like the neighboring links.
+  2. In `README.md`, under "Admin and Pages CMS quick guide", add one paragraph: gallery details, series, pages and services are now edited in the admin; Pages CMS still works as a fallback until it is removed.
+  3. Leave `.pages.yml` in place.
+* **Guardrails (Do Not Touch):** The tiles, queries and other links in `dashboard.php`.
+* **Verification Checklist (Done Checks):**
+  - [ ] The dashboard "Jump to" section shows the four new links and each opens the right editor.
+* **Undo:** Revert the pull request.
+
+## Phase 5: Studio: sessions, clients, sales
+
+### Ticket #T-41: Sessions: client galleries become sessions
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Depends on:** T-37, T-16
+* **Target File(s):** `static/client/lib.php` (migration), `static/client/admin/index.php` (`list` view, `create` and `update` actions)
+* **The Problem / Goal:** A shoot's information is split between the client record and the client gallery. A session (one shoot) should be the hub: client, date, location, release, proofing gallery, picks and orders in one place. In the database a session is a client gallery (`galleries` where `kind` is not `'shop'`).
+* **Exact Instructions:**
+  1. Add `galleries.shoot_date TEXT DEFAULT ''` (YYYY-MM-DD) and `galleries.shoot_location TEXT DEFAULT ''` through the migration (raise `SCHEMA_VERSION`). When empty, show the linked client's `shoot_date` and `shoot_location` instead.
+  2. New view `?a=sessions`: cards with the first photo as a thumbnail, title, client, shoot date, status tag (Off, Proofing, Picks made, Delivered) and counts (photos, favorites, open requests, unread comments). Filters as chips: All, Upcoming, Proofing, Needs reply, Off. Search by title or client. "New session" is the main action.
+  3. `?a=list` redirects to `?a=sessions`, keeping `#orders` working until T-33 is merged.
+  4. The create and settings forms get Shoot date and Shoot location fields.
+  5. Order galleries (`kind = 'shop'`) are not sessions; they stay reachable from the orders list.
+* **Guardrails (Do Not Touch):** Tokens and client links, prices, picks, payments, downloads, the client gallery page.
+* **Verification Checklist (Done Checks):**
+  - [ ] Locally and live: Sessions lists every client gallery with the right counts; an old bookmark to `?a=list` still opens.
+  - [ ] Set a shoot date on a test session: it shows on the card.
+* **Undo:** Revert the pull request (the two columns are harmless if left).
+
+### Ticket #T-42: Session page: tabs, share sheet and activity
+* **Assigned Model:** Sonnet
+* **Size:** L
+* **Depends on:** T-41
+* **Target File(s):** `static/client/admin/index.php` (the `gallery` view), `static/client/admin/admin.js`
+* **The Problem / Goal:** The client gallery page is one long scroll with settings before photos, favorites shown as a list of file names, and orders, comments and settings mixed together.
+* **Exact Instructions:**
+  1. Page header: title, status tag, client name linking to the client record, shoot date and location, and a "Share" main action.
+  2. Share panel: the link with Copy, "Email the link" (the existing mailto text), "Preview as client", and whether a password is set.
+  3. Tabs through `?a=gallery&id=&tab=`: Photos (default), Activity, Settings. Photos: upload drop zone and the photo grid with favorite, picked, comment and download marks on each tile. Activity: favorites as thumbnails, picks used out of included, comments with reply, and the photo requests for this session. Settings: the existing settings form, the price form, Reset picks and Delete.
+  4. "Mark paid" in Activity asks for confirmation with `data-confirm` saying it unlocks the download and emails the client. No change to what it does.
+* **Guardrails (Do Not Touch):** Every POST action and field name, `mark_order_paid`, upload handling, prices, the client gallery page.
+* **Verification Checklist (Done Checks):**
+  - [ ] Locally: each tab works at 390px and 1280px; Copy copies the link; replying to a comment works.
+  - [ ] Live: open a real session, check the counts match before and after.
+* **Undo:** Revert the pull request.
+
+### Ticket #T-43: Select several photos at once in a session
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Depends on:** T-42
+* **Target File(s):** `static/client/admin/index.php` (one new POST action), `static/client/admin/admin.js`
+* **The Problem / Goal:** Setting prices or deleting photos means editing small boxes one photo at a time.
+* **Exact Instructions:**
+  1. On the Photos tab add "Select" mode: tapping tiles selects them (checkbox on each tile for keyboards), with Select all, Select favorites and Clear.
+  2. Actions bar for the selection: Set web price, Set full price (blank means gallery default, 0 means Free), and Delete (confirmation that states the count).
+  3. New POST `bulkphotos` with `id` (gallery), `images` (comma-separated ids, each must belong to that gallery), `do` (`webprice`, `fullprice`, `delete`), `price`. Delete removes the same files and rows as `delimg`.
+  4. The single-photo price boxes stay for one-off changes.
+* **Guardrails (Do Not Touch):** `delimg`, `price`, `priceall` behavior, picks, orders.
+* **Verification Checklist (Done Checks):**
+  - [ ] Locally: select 3 photos, set a web price, check the three tiles; delete 2, the count drops by 2.
+* **Undo:** Revert the pull request.
+
+### Ticket #T-17: Contact form saves an inquiry and is rate limited
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Target File(s):** `static/contact/send.php`, `build.py`, `static/js/contact.js` (new, small)
+* **The Problem / Goal:** Contact messages are email only: they never appear under "New inquiries" on the dashboard, a lost email is a lost lead, and the form has no rate limit.
+* **Exact Instructions:**
+  1. `send.php` requires `../client/lib.php` and uses its `OWNER_EMAIL`, `OWNER_BCC`, `MAIL_FROM` constants in place of the hard-coded addresses (same values).
+  2. Keep the honeypot. Add: at most 5 messages per visitor per hour using the same hashed key and `clients.ip_hash` approach as `new.php`; over the limit, redirect to `/thanks/` quietly.
+  3. On a valid message insert a `clients` row: `name` (first plus last), `email`, `message` (2,000 characters max), `status` `'new'`, `source` `'contact'`, `ip_hash`, `created`. Then send the same email as today.
+  4. Replace the bare 400 text with a redirect to `/contact/?e=1`; `build.py` adds a hidden paragraph the page shows when `?e=1` is present. Do this with a small external script file, not inline code.
+  5. Length limits: first and last 80 each, message 2,000.
+  6. In the pull request description, tell Andrew: the Privacy page says form messages are received and used only to reply; they will now also be stored in the admin. Ask him whether the Privacy wording needs a sentence. Do not edit `content/pages/privacy.json`.
+* **Guardrails (Do Not Touch):** `new.php`, the `clients` table definition, privacy wording, the form's field names in `build.py`.
+* **Verification Checklist (Done Checks):**
+  - [ ] Send a test message from `/contact/`: you land on Thanks, the email arrives, and the dashboard "New inquiries" count goes up by one with your test name.
+  - [ ] Submitting with an invalid email shows a friendly message on the contact page.
+* **Undo:** Revert the pull request. Rows already saved stay in Clients and can be deleted there.
+
+### Ticket #T-31: Client list: pipeline chips, search and filters
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Target File(s):** `static/client/admin/index.php` (the `clients` view)
+* **The Problem / Goal:** The client list has a basic search; finding people by source, release status or date needs scrolling.
+* **Exact Instructions:**
+  1. Keep the status filter and text search. Extend the search to also match phone and handle.
+  2. Add filters as plain links or selects: Source (Form, Contact, any other values present), Release (Signed, Not signed), and Sort (Newest, Oldest, Name).
+  3. Show a count line ("14 clients"). Keep archived clients hidden unless the Archived status is chosen.
+  4. All filters work through the query string so a filtered list can be bookmarked. Use prepared statements only.
+  5. On phones the table becomes stacked cards.
+  6. Show the statuses as chips in pipeline order (New, Contacted, Booked, Shot, Delivered, then Archived) with a count on each, using the Section 3.7 chip component.
+* **Guardrails (Do Not Touch):** The single-client view, release data, `CLIENT_STATUSES`.
+* **Verification Checklist (Done Checks):**
+  - [ ] Filtering by Contact shows only contact-form inquiries (after T-17); searching part of a name finds the client.
+* **Undo:** Revert the pull request.
+
+### Ticket #T-32: Client record: Overview cards and timeline
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Target File(s):** `static/client/admin/index.php` (the `client` view)
+* **The Problem / Goal:** A client's history is spread across the client record, their galleries and their orders.
+* **Exact Instructions:**
+  1. Add a "Timeline" section to the single-client view, newest first, built from existing data only: inquiry received (`clients.created`, with source), release signed (`release_at`), each linked gallery created, each order on those galleries (status and tier), each download on those galleries (grouped per day), and each email in `outbox` for this client once T-34 exists (check that the table exists before querying).
+  2. Each row: date and time in America/Chicago, one plain sentence, and a link where there is a page to open.
+  3. Read only. No new tables.
+  4. The client view opens on an Overview tab with cards in two columns (one on phones): Contact (email, phone, pronouns, handle, with Email and Call buttons), Release (signed or not, ID checked, Drive saved, View PDF), Sessions (from T-41, with "New session"), Notes, and the Timeline. The existing details form moves to a Details tab and the release update form to a Release tab, through `?a=client&id=&tab=`. Delete stays at the bottom of Details.
+* **Guardrails (Do Not Touch):** Release PDF and Drive actions, the notes and status form fields and actions.
+* **Verification Checklist (Done Checks):**
+  - [ ] Open a client who has a gallery: the timeline lists the inquiry, the gallery and any orders in date order.
+* **Undo:** Revert the pull request.
+
+### Ticket #T-33: Sales: orders page with totals
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Approved by Andrew (2026-11-15):** yes. Adding the price column and the two checkout lines is OK. Anything beyond that in payment code still needs a new OK.
+* **Target File(s):** `static/client/lib.php`, `static/client/api.php`, `static/client/shop.php`, `static/client/admin/orders.php` (new), `static/client/admin/index.php` (require and menu)
+* **The Problem / Goal:** There is no single orders page, and orders do not record the price charged, so totals cannot be shown.
+* **Exact Instructions:**
+  1. `lib.php`: add column `orders.price_cents INTEGER` through the migration block (raise `SCHEMA_VERSION` if T-16 is merged).
+  2. In the two `INSERT INTO orders` statements (`api.php` and `shop.php`), also store the price already computed at that point for that order. Change nothing else in those files. If the price variable at that point is not obvious, stop and ask.
+  3. View `?a=orders`: table of all orders, newest first: date, buyer email, gallery, photo label, size, status, price (or "not recorded" for older orders), and a link to the gallery. Filters: status, date range (this month, last month, this year, all).
+  4. Totals line for the filtered set: number of paid orders and the sum of recorded paid prices, with the note "Totals only include orders made after this page was added."
+  5. `?a=orderscsv`: the filtered set as CSV.
+  6. Change the dashboard "Orders needing action" tile to link to `?a=orders&status=requested`.
+  7. The menu label is "Sales" (Section 3.7). Use the 3.7 table component, which becomes cards on phones.
+* **Guardrails (Do Not Touch):** Stripe calls, the webhook, `mark_orders_paid`, download checks, prices and discounts.
+* **Verification Checklist (Done Checks):**
+  - [ ] Admin > Orders lists existing orders with "not recorded" prices.
+  - [ ] Make one small real or code-free test purchase: it appears with its price, and the total updates once paid.
+* **Undo:** Revert the pull request (the extra column is harmless if left).
+
+## Phase 6: Today and stats
+
+### Ticket #T-44: Today: the admin home becomes a "Needs you" list
+* **Assigned Model:** Sonnet
+* **Size:** M
+* **Depends on:** T-33, T-40, T-41
+* **Target File(s):** `static/client/admin/dashboard.php`
+* **The Problem / Goal:** The dashboard leads with numbers. A one-person studio needs to see what is waiting on them first.
+* **Exact Instructions:**
+  1. Rename the menu item and page title to "Today" (the action stays `dashboard`).
+  2. First card, "Needs you", one row per item with a count and a link: photo requests not yet paid, new inquiries, client comments with no reply, signed releases with no ID check, sessions with a shoot date in the next 14 days, public galleries with no series or no description (from `galleries-index.json`), failed NAS folders. Hide rows with nothing in them; when all are empty show "Nothing waiting. Nice."
+  3. Below: Upcoming sessions, Latest public galleries (cover thumbnails), Recent sales (from T-33), and the existing visitor, download and like tiles.
+  4. Keep the existing queries that still apply; add the new ones as prepared statements.
+* **Guardrails (Do Not Touch):** Data and actions; this ticket only reads.
+* **Verification Checklist (Done Checks):**
+  - [ ] Locally with fake data every row of "Needs you" appears and links to the right filtered page.
+  - [ ] Live: the counts match the Sessions, Clients and Sales pages.
+* **Undo:** Revert the pull request.
+
+### Ticket #T-45: Stats page restyle
+* **Assigned Model:** Sonnet
+* **Size:** S
+* **Depends on:** T-37
+* **Target File(s):** `static/client/admin/index.php` (the `stats` view), `static/client/admin/admin.css`
+* **The Problem / Goal:** The stats chart is built from inline-styled bars and does not suit dark mode or phones.
+* **Exact Instructions:**
+  1. Tiles at the top: page views, visitor-days and likes for the chosen range, with the range as chips (7, 30, 90, 365 days).
+  2. The daily chart as an inline SVG drawn with CSS variables so it works in light and dark, with an accessible table of the same numbers in a `<details>` below it.
+  3. Top pages, sources and devices as the 3.7 table component (cards on phones).
+* **Guardrails (Do Not Touch):** How stats are collected and stored.
+* **Verification Checklist (Done Checks):**
+  - [ ] Locally the chart and tables read well at 390px and 1280px in light and dark.
+* **Undo:** Revert the pull request.
+
+## Phase 7: Public site fixes and CSP
 
 ### Ticket #T-04: Fix sideways scrolling at 320px (Services and Events)
 * **Assigned Model:** Haiku
@@ -603,78 +1170,6 @@ Header always set Content-Security-Policy "default-src 'self'; script-src 'self'
   - [ ] Pages look the same at a glance; no sideways scrolling on home, Events, a gallery, Services.
 * **Undo:** Revert the pull request.
 
-## Phase 3: Safety
-
-### Ticket #T-14: Nightly database backup script
-* **Assigned Model:** Sonnet
-* **Size:** M
-* **Target File(s):** `static/client/cli/backup.php` (new), `static/client/cli/.htaccess` (new), `README.md`
-* **The Problem / Goal:** Orders, clients, signed release records, codes and settings live in one SQLite file with no backup.
-* **Exact Instructions:**
-  1. `cli/.htaccess`: `Require all denied`.
-  2. `backup.php`: first line of logic `if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }`. It takes the private folder path as its first argument (for example `/home/dh_dbvmkc/everettallen-private/everettallenphotography.com`); exit with a message if `data.sqlite` is not there. Do not `require lib.php` (it depends on web variables).
-  3. Open the database with PDO and run `VACUUM INTO '<private>/backups/data-YYYY-MM-DD.sqlite'` (create `backups/` with mode 0700; if today's file exists, delete it first). Set the file mode to 0600.
-  4. Keep the newest 30 daily files plus the first file of each month for 12 months; delete older ones. Only ever delete files matching `data-\d{4}-\d{2}-\d{2}\.sqlite` inside `backups/`.
-  5. Print one line: file name and size. Exit non-zero on failure.
-  6. README: add a "Backups" section with the cron command for H-04: `php8.3 /home/dh_dbvmkc/everettallenphotography.com/client/cli/backup.php /home/dh_dbvmkc/everettallen-private/everettallenphotography.com`, daily, and a note that the PHP binary name should be confirmed in the DreamHost panel.
-  7. Test locally with a throwaway SQLite file.
-* **Guardrails (Do Not Touch):** `lib.php`, the live database schema. Photos and originals are not part of this backup (they are large and already on the NAS).
-* **Verification Checklist (Done Checks):**
-  - [ ] Visiting `https://www.everettallenphotography.com/client/cli/backup.php` in a browser shows an error page, not output.
-  - [ ] After H-04, the next morning the cron email (or an SSH `ls` of `backups/`) shows a dated file.
-* **Undo:** Revert the pull request and delete the cron job in the DreamHost panel.
-
-### Ticket #T-15: Throttle password guessing (admin login and client gallery passwords)
-* **Assigned Model:** Sonnet
-* **Size:** M
-* **Target File(s):** `static/client/lib.php`, `static/client/admin/index.php`, `static/client/index.php`
-* **The Problem / Goal:** A wrong password only costs a one second delay; nothing stops unlimited guessing.
-* **Exact Instructions:**
-  1. `lib.php`: add table `login_fails (scope TEXT NOT NULL, h TEXT NOT NULL, t INTEGER NOT NULL)` with an index on `(scope, h, t)`. Add `throttle_blocked(string $scope): bool`, `throttle_fail(string $scope): void`, `throttle_clear(string $scope): void`. The visitor key `h` is `hash('sha256', 'thr|' . stats_salt . '|' . REMOTE_ADDR)` (never store the address).
-  2. Limits: blocked when the same visitor has 5 failures in the last 15 minutes for that scope, or when a scope has 30 failures from anyone in the last 15 minutes. Delete rows older than one day on each failure.
-  3. Admin login: scope `admin`. Check before `password_verify`; when blocked show "Too many tries. Wait 15 minutes and try again." and do not check the password. Clear on success. Apply the same to the first-time setup code form (scope `setup`).
-  4. Client gallery password: scope `g<id>`, same behavior, message "Too many tries. Please wait 15 minutes."
-  5. Keep the existing `usleep` delays.
-* **Guardrails (Do Not Touch):** The NAS token check, session and CSRF functions, `password_hash` storage, `shop_find_code` (it has its own limiter).
-* **Verification Checklist (Done Checks):**
-  - [ ] In a private browser window, enter a wrong admin password 5 times: the sixth try shows the "Too many tries" message.
-  - [ ] Your already signed-in browser still works. After 15 minutes the private window can log in with the right password.
-* **Undo:** Revert the pull request. If you are locked out before then, wait 15 minutes.
-
-### Ticket #T-16: Give the database a schema version
-* **Assigned Model:** Sonnet
-* **Size:** M
-* **Target File(s):** `static/client/lib.php`
-* **The Problem / Goal:** `db()` runs every `CREATE TABLE IF NOT EXISTS` and about 24 `PRAGMA table_info` checks on every request, including each like and page-view beacon.
-* **Exact Instructions:**
-  1. Add `const SCHEMA_VERSION = 1;` (use the next number if T-15 already merged; one number per schema change from now on).
-  2. In `db()`: after connecting, read `settings.schema_version` inside a try/catch (the table may not exist). If it equals `SCHEMA_VERSION`, skip all schema work. Otherwise run the existing create and add-column code unchanged, then store the version.
-  3. Add a comment (no em dashes) telling future tickets: add the table or column to the migration block and raise `SCHEMA_VERSION` by one.
-  4. Test locally: fresh database gets all tables; an existing database missing a column gains it once.
-* **Guardrails (Do Not Touch):** Table and column definitions, `PRAGMA foreign_keys = ON` (must still run on every connection).
-* **Verification Checklist (Done Checks):**
-  - [ ] Admin dashboard, Stats and a client gallery link all load.
-  - [ ] Liking a photo on a public gallery still works.
-* **Undo:** Revert the pull request (the stored version number is harmless).
-
-### Ticket #T-17: Contact form saves an inquiry and is rate limited
-* **Assigned Model:** Sonnet
-* **Size:** M
-* **Target File(s):** `static/contact/send.php`, `build.py`, `static/js/contact.js` (new, small)
-* **The Problem / Goal:** Contact messages are email only: they never appear under "New inquiries" on the dashboard, a lost email is a lost lead, and the form has no rate limit.
-* **Exact Instructions:**
-  1. `send.php` requires `../client/lib.php` and uses its `OWNER_EMAIL`, `OWNER_BCC`, `MAIL_FROM` constants in place of the hard-coded addresses (same values).
-  2. Keep the honeypot. Add: at most 5 messages per visitor per hour using the same hashed key and `clients.ip_hash` approach as `new.php`; over the limit, redirect to `/thanks/` quietly.
-  3. On a valid message insert a `clients` row: `name` (first plus last), `email`, `message` (2,000 characters max), `status` `'new'`, `source` `'contact'`, `ip_hash`, `created`. Then send the same email as today.
-  4. Replace the bare 400 text with a redirect to `/contact/?e=1`; `build.py` adds a hidden paragraph the page shows when `?e=1` is present. Do this with a small external script file, not inline code.
-  5. Length limits: first and last 80 each, message 2,000.
-  6. In the pull request description, tell Andrew: the Privacy page says form messages are received and used only to reply; they will now also be stored in the admin. Ask him whether the Privacy wording needs a sentence. Do not edit `content/pages/privacy.json`.
-* **Guardrails (Do Not Touch):** `new.php`, the `clients` table definition, privacy wording, the form's field names in `build.py`.
-* **Verification Checklist (Done Checks):**
-  - [ ] Send a test message from `/contact/`: you land on Thanks, the email arrives, and the dashboard "New inquiries" count goes up by one with your test name.
-  - [ ] Submitting with an invalid email shows a friendly message on the contact page.
-* **Undo:** Revert the pull request. Rows already saved stay in Clients and can be deleted there.
-
 ### Ticket #T-18: Security headers on the public site
 * **Assigned Model:** Sonnet
 * **Size:** S
@@ -713,43 +1208,6 @@ Header always set Content-Security-Policy "default-src 'self'; script-src 'self'
   - [ ] In a desktop browser console there are no "Content Security Policy" errors on those pages.
 * **Undo:** Revert the pull request.
 
-### Ticket #T-20: Admin: move inline styles into admin.css with cache-busting
-* **Assigned Model:** Sonnet
-* **Size:** L
-* **Target File(s):** `static/client/admin/admin.css` (new), `static/client/admin/index.php`, `dashboard.php`, `publish.php`, `library.php`, `static/client/lib.php` (one helper)
-* **The Problem / Goal:** The admin has 2 `<style>` blocks and about 130 `style=""` attributes, which blocks a strict CSP, and its CSS has no cache-busting.
-* **Exact Instructions:**
-  1. Create `admin.css` holding the `<style>` block from `ahead()` and the one in `dashboard.php`.
-  2. Replace every `style=""` attribute in the four admin files with classes in `admin.css`. Use a small set of utility classes for repeated patterns (for example `.row-flex`, `.w-auto`, `.h1-admin`, `.mut`) and do not create one class per element.
-  3. Add a helper in `lib.php`: `asset(string $path): string` returning the path plus `?v=` and the first 8 characters of `md5_file` for a file under the document root. Use it for `client.css` and `admin.css` in `ahead()`.
-  4. Pixel-level sameness is not required; layout and readability must be unchanged.
-  5. Finish with a search: no `style="` and no `<style` left in `static/client/admin/`.
-* **Guardrails (Do Not Touch):** PHP logic, form field names, action names, inline scripts and handlers (T-21 does those), `client.css` rules used by client pages.
-* **Verification Checklist (Done Checks):**
-  - [ ] Dashboard, Galleries, one client gallery, Clients, one client, Publish, Library, Codes, Stats and Settings all look right on a phone and a computer.
-  - [ ] Saving a setting and creating a code still work.
-* **Undo:** Revert the pull request.
-
-### Ticket #T-21: Admin and client pages: move inline scripts and handlers into files
-* **Assigned Model:** Sonnet
-* **Size:** L
-* **Depends on:** T-20
-* **Target File(s):** `static/client/admin/admin.js` (new), `static/client/admin/index.php`, `publish.php`, `static/client/index.php`, `static/client/new.php`, `static/client/new.js` (new), `static/client/client.js`
-* **The Problem / Goal:** Inline scripts and `onclick`/`onsubmit` handlers block a strict CSP on `/client/`.
-* **Exact Instructions:**
-  1. Admin: replace the 8 inline handlers (7 in `index.php`, 1 in `publish.php`) with data attributes handled in `admin.js`: `data-confirm="question"` on forms (uses `confirm()`), `data-copy="#id"` or `data-copy-text` on copy buttons, and a `submit` listener for the Publish form. Move the three inline `<script>` blocks in `index.php` and the one in `publish.php` into `admin.js` (or `publish.js` if clearer). Pass PHP values through `data-` attributes or a `<script type="application/json" id="...">` block, never through inline script.
-  2. The `localStorage.setItem("eaSkip","1")` line in `ahead()` moves into `admin.js`.
-  3. Client gallery page: replace `<script>window.EA=...</script>` with `<script type="application/json" id="ea-cfg">` and have `client.js` read it first thing.
-  4. `new.php`: move its inline script to `new.js` and its `<style>` block and 4 style attributes into `client.css`.
-  5. Load all scripts through the `asset()` helper from T-20 for cache-busting.
-  6. Finish with a search across `static/client/`: no inline `<script>` with code, no `on...=` attributes, no `style="`, no `<style`.
-* **Guardrails (Do Not Touch):** Endpoint names and parameters, CSRF handling, the signature pad behavior and release wording in `new.php`, payment and download logic, `nas/watcher.py`.
-* **Verification Checklist (Done Checks):**
-  - [ ] Admin: copy-link buttons copy; deleting a test photo asks for confirmation; Publish uploads a test photo to a test gallery.
-  - [ ] A client gallery link: favorite, comment and download a Free photo.
-  - [ ] `/client/new/`: the form loads, the signature box draws, and the release section toggles (do not submit a real release).
-* **Undo:** Revert the pull request.
-
 ### Ticket #T-22: Enforce the strict CSP on /client/
 * **Assigned Model:** Sonnet
 * **Size:** S
@@ -765,204 +1223,7 @@ Header always set Content-Security-Policy "default-src 'self'; script-src 'self'
   - [ ] A test purchase flow reaches the Stripe page and returns (use a Free code or cancel at Stripe).
 * **Undo:** Revert the pull request (this restores the relaxed policy).
 
-## Phase 4: Galleries manager (replaces Pages CMS)
-
-### Ticket #T-23: Shared "save content to GitHub" helper and a gallery index
-* **Assigned Model:** Sonnet
-* **Size:** M
-* **Target File(s):** `static/client/admin/content.php` (new), `static/client/admin/publish.php`, `build.py`
-* **The Problem / Goal:** Every editor in this phase needs to read and save `content/` files through the GitHub API, and the admin needs a list of public galleries without calling GitHub 86 times.
-* **Exact Instructions:**
-  1. `content.php`: move `pub_gh()` here from `publish.php` (publish.php then requires it). Add `content_get(string $path): array` returning `[data, sha]` for a JSON file on `main`, and `content_put(string $path, array $data, string $sha, string $message): array` that writes pretty-printed JSON (4 spaces, unescaped unicode and slashes, trailing newline), retries once on a 409 or 422 by re-reading, and returns `[ok, errorSentence]`. Paths must match `^content/[a-z0-9/_-]+\.json$`.
-  2. Add `validate_gallery(array $g): array` returning a list of plain-sentence problems, enforcing the gallery table in Section 3.3.
-  3. `build.py`: write `dist/client/galleries-index.json`, a list of `{slug, title, date, year, category, series, cover, count, hidden}` for **all** galleries including hidden ones, newest first.
-  4. No user-visible change in this ticket.
-* **Guardrails (Do Not Touch):** `pubfile` and `pubdone` behavior and responses (the NAS watcher depends on them), the GitHub token setting names.
-* **Verification Checklist (Done Checks):**
-  - [ ] Admin > Publish still uploads and publishes a test photo.
-  - [ ] `https://www.everettallenphotography.com/client/galleries-index.json` loads and lists galleries.
-* **Undo:** Revert the pull request.
-
-### Ticket #T-24: Public galleries list in the admin
-* **Assigned Model:** Sonnet
-* **Size:** M
-* **Depends on:** T-23
-* **Target File(s):** `static/client/admin/pgalleries.php` (new), `static/client/admin/index.php` (one `require` line and one menu link)
-* **The Problem / Goal:** There is no place in the admin to see all public galleries.
-* **Exact Instructions:**
-  1. New view `?a=pgalleries`, required from `index.php` after the login check like `dashboard.php`.
-  2. Read `galleries-index.json` from the document root. Show a table (cards on phones): cover thumbnail (`/photos/<slug>/<cover>-t.jpg`, fixed 3:2 box), title, date, category, series short name, photo count, Shown or Hidden, links "Edit" (`?a=pgallery&slug=`, built in T-25) and "View".
-  3. Filters at the top as plain links: All, Portraits, Events, Hidden; and a text filter box that narrows rows as you type (external script).
-  4. Add "Site galleries" to the admin menu after Dashboard. Rename the existing "Galleries" menu item to "Client galleries".
-  5. Note at the top: "Changes take a minute or two to appear here after saving."
-* **Guardrails (Do Not Touch):** The existing `?a=list` view and its `#orders` anchor (the dashboard links to it).
-* **Verification Checklist (Done Checks):**
-  - [ ] Admin > Site galleries lists 86 galleries with cover photos; the Events filter shows 27.
-  - [ ] Client galleries still opens the old list.
-* **Undo:** Revert the pull request.
-
-### Ticket #T-25: Gallery editor (details, cover picker, hide)
-* **Assigned Model:** Sonnet
-* **Size:** L
-* **Depends on:** T-24
-* **Target File(s):** `static/client/admin/pgalleries.php`, `build.py`, `.pages.yml`
-* **The Problem / Goal:** Editing a gallery's title, date, series, tags, description and cover requires Pages CMS and typing a photo ID by hand.
-* **Exact Instructions:**
-  1. View `?a=pgallery&slug=`: load the file with `content_get`. Form fields: Title, Date, Year (pre-filled from the date, editable), Category (select), Series (select from `content/series.json` plus "None"), Tags (one per line), Description (textarea with a note that a blank line starts a new paragraph), Hidden (checkbox: "Hide this gallery from the site").
-  2. Cover picker: a grid of the gallery's thumbnails as radio buttons; the current cover is selected. Lazy-load the images.
-  3. POST `pgsave`: build the new gallery array from the loaded file (keep `images` untouched and keep any unknown fields), run `validate_gallery`, show problems above the form in plain sentences, otherwise `content_put` with message `Gallery details: <slug>`. Omit `series`, `tags` and `hidden` when empty or false.
-  4. After saving show: "Saved. The site updates in a minute or two."
-  5. `build.py`: change the filter to leave out galleries where `hidden` is true (they still go into `galleries-index.json`).
-  6. `.pages.yml`: add `{ name: hidden, label: Hide this gallery from the site, type: boolean }` to the galleries fields so Pages CMS does not drop the field.
-  7. State in the page help text: hiding removes the gallery's pages; the photo files stay on the server. To take a photo down for good use Remove (T-26).
-* **Guardrails (Do Not Touch):** `images` order and content in this ticket, slugs (never rename a file), `featured_portraits`.
-* **Verification Checklist (Done Checks):**
-  - [ ] Edit a test gallery's description and cover; within two minutes the public gallery and its Events or Portraits tile show the change.
-  - [ ] Tick Hidden on a test gallery: after the deploy it is gone from Events, Search and its own address (needs T-03). Untick: it returns.
-* **Undo:** Revert the pull request. To undo a content change, edit again or revert that single "Gallery details" commit on GitHub.
-
-### Ticket #T-26: Reorder photos and remove photos for real
-* **Assigned Model:** Sonnet
-* **Size:** L
-* **Depends on:** T-25, T-03
-* **Approved by Andrew (2026-11-15):** yes, as written. Web copies are deleted and the original is moved to the private removed folder, not deleted.
-* **Target File(s):** `static/client/admin/pgalleries.php`, `static/client/admin/pgalleries.js` (new)
-* **The Problem / Goal:** A removal request today leaves the photo page, both web copies and the original on the server. There is also no way to reorder photos.
-* **Exact Instructions:**
-  1. On the gallery editor add a "Photos" section: thumbnail grid with drag to reorder on computers and "Move earlier" / "Move later" buttons on every tile for phones and keyboards. "Save order" posts `pgorder`; the server rejects the request unless the id list is exactly the current set, then saves with `content_put` (message `Photo order: <slug>`).
-  2. Each tile has a checkbox. "Remove selected photos" opens a confirmation step that shows the count and requires typing `REMOVE`.
-  3. POST `pgremove`, for each id (validated `^\d{3,6}$`, slug validated, and the id must be in the gallery): delete `photos/<slug>/<id>-t.jpg` and `-l.jpg`; delete the folder `photo/<slug>/<id>/` in the document root (its `index.html`); move `masters/<slug>/<id>.jpg` to `masters/_removed/<slug>/<id>.jpg` (create folders 0700; overwrite if present); remove the id from `labels.json` under the existing lock file; `DELETE FROM photo_likes WHERE g = ? AND id = ?`.
-  4. Then save the gallery JSON without those images. If the cover was removed, set the cover to the first remaining image. If no images remain, set `hidden` to true and keep one-line help text explaining the gallery is now empty and hidden.
-  5. If the GitHub save fails after files were deleted, show: "The photo files are removed, but the gallery list could not be saved. Press Remove again." and make the action safe to repeat.
-  6. Resolve every path with `realpath` checks so nothing outside `photos/<slug>/`, `photo/<slug>/` or `masters/<slug>/` can be touched.
-  7. Help text on the page: "Removed photos disappear from the site right away. Copies already delivered to a buyer are not affected. The original is kept in a private removed folder in case it was a mistake."
-* **Guardrails (Do Not Touch):** Client galleries and order galleries (`galleries`, `images` tables and `~/everettallen-private/<host>/galleries/`), `pubfile`, `pubdone`, payment code, the Photo removal page wording.
-* **Verification Checklist (Done Checks):**
-  - [ ] Publish a throwaway test gallery with 3 photos. Remove one: immediately its `/photo/<slug>/<id>/` address and its `-l.jpg` address both show Not found.
-  - [ ] After the deploy the gallery shows 2 photos and the right count.
-  - [ ] Reorder the 2 photos and save: the public gallery shows the new order after the deploy.
-  - [ ] Admin > Library no longer offers the removed photo.
-* **Undo:** Revert the pull request to remove the feature. A removed photo can be restored by hand from `masters/_removed/` by publishing it again.
-
-### Ticket #T-27: Event series editor
-* **Assigned Model:** Sonnet
-* **Size:** M
-* **Depends on:** T-23
-* **Target File(s):** `static/client/admin/content-editors.php` (new), `static/client/admin/index.php` (require and menu)
-* **The Problem / Goal:** Adding or editing a recurring event series requires Pages CMS.
-* **Exact Instructions:**
-  1. View `?a=series`: list the series with Name, Short label, Description fields per row, "Move up" / "Move down", and an "Add a series" form (Name, Short label, Description; the slug is generated from the name and shown before saving).
-  2. POST `seriessave`: validate per Section 3.3. Slugs of existing series cannot be changed. A series cannot be deleted while any gallery in `galleries-index.json` uses it; say which galleries.
-  3. Save with `content_put` (message `Event series`). The existing `sync-series` workflow then updates `.pages.yml` on its own.
-* **Guardrails (Do Not Touch):** `scripts/sync-series.py`, `.github/workflows/sync-series.yml`, existing slugs.
-* **Verification Checklist (Done Checks):**
-  - [ ] Change one series description; after the deploy its series page shows the new text.
-  - [ ] Trying to delete a series that has galleries shows a clear refusal.
-* **Undo:** Revert the pull request; content changes are separate commits that can be reverted on GitHub.
-
-### Ticket #T-28: Pages and site settings editor
-* **Assigned Model:** Sonnet
-* **Size:** M
-* **Depends on:** T-27
-* **Target File(s):** `static/client/admin/content-editors.php`
-* **The Problem / Goal:** About, Press and licensing, Photo removal, Privacy and the site settings (tagline, links, featured portraits) require Pages CMS.
-* **Exact Instructions:**
-  1. View `?a=pages`: list the four page files. Editing one shows Title, Lede, Search description, Body (textarea) and a short formatting key: blank line for a new paragraph, `**bold**`, `*italic*`, `[text](/path/)`, numbered lines for a list.
-  2. Above the Privacy and Photo removal editors show: "This wording is a promise to visitors. Have changes to it reviewed before saving."
-  3. Same view, section "Site settings": Tagline, Home descriptor, Contact intro, Usage note, Facebook and Instagram addresses (must start with `https://`), and Featured portraits as an ordered list chosen from portrait galleries in `galleries-index.json` (add, remove, move up, move down).
-  4. POST `pagesave` and `sitesave`: validate per Section 3.3, keep unknown fields, save with `content_put`. `title` and `base_url` in `site.json` are shown read-only.
-  5. No creating or deleting pages (the footer links are fixed in `build.py`).
-* **Guardrails (Do Not Touch):** `base_url`, the wording of existing pages (this ticket builds the editor only), `content/services.json`.
-* **Verification Checklist (Done Checks):**
-  - [ ] Change the order of two featured portraits; after the deploy the home strip shows the new order.
-  - [ ] Edit and restore one word on the About page; both saves appear on the site.
-* **Undo:** Revert the pull request.
-
-### Ticket #T-29: Services and rates editor
-* **Assigned Model:** Sonnet
-* **Size:** M
-* **Depends on:** T-28
-* **Target File(s):** `static/client/admin/content-editors.php`
-* **The Problem / Goal:** Prices and service cards require Pages CMS.
-* **Exact Instructions:**
-  1. View `?a=services`: page text fields (Title, Lede, Delivery, Callout, Call to action), share discount percent and note, and one block per card: Title, Price (display text), Unit, Meta line, Badge, Included photos (number), Items (one per line). Cards can be added, removed and moved.
-  2. Model release fields (`release_*`) are shown in a separate, collapsed section with the warning: "Legal wording. People who already signed keep the version they signed. Changing anything here requires a new version label." The server refuses to save any change to a `release_*` field unless `release_version` also changed.
-  3. POST `servicessave`: validate per Section 3.3, keep unknown fields (including `wide`), save with `content_put` (message `Services and rates`).
-  4. Do not change any price, wording or release text as part of this ticket.
-* **Guardrails (Do Not Touch):** `share.json` and `services.json` generation in `build.py`, `new.php`, `lib.php` release functions.
-* **Verification Checklist (Done Checks):**
-  - [ ] Edit and restore one item line on a card; both saves appear on `/services/`.
-  - [ ] Changing release text without changing the version label is refused with a clear message.
-  - [ ] `/client/new/` still shows the services list.
-* **Undo:** Revert the pull request.
-
-### Ticket #T-30: Point the dashboard and docs at the new editors
-* **Assigned Model:** Haiku
-* **Size:** S
-* **Depends on:** T-29
-* **Target File(s):** `static/client/admin/dashboard.php`, `README.md`
-* **The Problem / Goal:** The dashboard still sends Andrew to Pages CMS for site content.
-* **Exact Instructions:**
-  1. In `dashboard.php`, replace the one link whose `href` is `https://app.pagescms.org` with these four links in the same style: `?a=pgalleries` "Site galleries" / small text "Titles, covers, photos"; `?a=series` "Event series" / "Names and descriptions"; `?a=pages` "Pages and settings" / "About, home page, links"; `?a=services` "Services and rates" / "Prices and cards". Use the existing `<?= $base ?>` prefix like the neighboring links.
-  2. In `README.md`, under "Admin and Pages CMS quick guide", add one paragraph: gallery details, series, pages and services are now edited in the admin; Pages CMS still works as a fallback until it is removed.
-  3. Leave `.pages.yml` in place.
-* **Guardrails (Do Not Touch):** The tiles, queries and other links in `dashboard.php`.
-* **Verification Checklist (Done Checks):**
-  - [ ] The dashboard "Jump to" section shows the four new links and each opens the right editor.
-* **Undo:** Revert the pull request.
-
-## Phase 5: Clients and orders
-
-### Ticket #T-31: Client search and filters
-* **Assigned Model:** Sonnet
-* **Size:** M
-* **Target File(s):** `static/client/admin/index.php` (the `clients` view)
-* **The Problem / Goal:** The client list has a basic search; finding people by source, release status or date needs scrolling.
-* **Exact Instructions:**
-  1. Keep the status filter and text search. Extend the search to also match phone and handle.
-  2. Add filters as plain links or selects: Source (Form, Contact, any other values present), Release (Signed, Not signed), and Sort (Newest, Oldest, Name).
-  3. Show a count line ("14 clients"). Keep archived clients hidden unless the Archived status is chosen.
-  4. All filters work through the query string so a filtered list can be bookmarked. Use prepared statements only.
-  5. On phones the table becomes stacked cards.
-* **Guardrails (Do Not Touch):** The single-client view, release data, `CLIENT_STATUSES`.
-* **Verification Checklist (Done Checks):**
-  - [ ] Filtering by Contact shows only contact-form inquiries (after T-17); searching part of a name finds the client.
-* **Undo:** Revert the pull request.
-
-### Ticket #T-32: Client timeline
-* **Assigned Model:** Sonnet
-* **Size:** M
-* **Target File(s):** `static/client/admin/index.php` (the `client` view)
-* **The Problem / Goal:** A client's history is spread across the client record, their galleries and their orders.
-* **Exact Instructions:**
-  1. Add a "Timeline" section to the single-client view, newest first, built from existing data only: inquiry received (`clients.created`, with source), release signed (`release_at`), each linked gallery created, each order on those galleries (status and tier), each download on those galleries (grouped per day), and each email in `outbox` for this client once T-34 exists (check that the table exists before querying).
-  2. Each row: date and time in America/Chicago, one plain sentence, and a link where there is a page to open.
-  3. Read only. No new tables.
-* **Guardrails (Do Not Touch):** Release PDF and Drive actions, the notes and status form.
-* **Verification Checklist (Done Checks):**
-  - [ ] Open a client who has a gallery: the timeline lists the inquiry, the gallery and any orders in date order.
-* **Undo:** Revert the pull request.
-
-### Ticket #T-33: Orders page with totals
-* **Assigned Model:** Sonnet
-* **Size:** M
-* **Approved by Andrew (2026-11-15):** yes. Adding the price column and the two checkout lines is OK. Anything beyond that in payment code still needs a new OK.
-* **Target File(s):** `static/client/lib.php`, `static/client/api.php`, `static/client/shop.php`, `static/client/admin/orders.php` (new), `static/client/admin/index.php` (require and menu)
-* **The Problem / Goal:** There is no single orders page, and orders do not record the price charged, so totals cannot be shown.
-* **Exact Instructions:**
-  1. `lib.php`: add column `orders.price_cents INTEGER` through the migration block (raise `SCHEMA_VERSION` if T-16 is merged).
-  2. In the two `INSERT INTO orders` statements (`api.php` and `shop.php`), also store the price already computed at that point for that order. Change nothing else in those files. If the price variable at that point is not obvious, stop and ask.
-  3. View `?a=orders`: table of all orders, newest first: date, buyer email, gallery, photo label, size, status, price (or "not recorded" for older orders), and a link to the gallery. Filters: status, date range (this month, last month, this year, all).
-  4. Totals line for the filtered set: number of paid orders and the sum of recorded paid prices, with the note "Totals only include orders made after this page was added."
-  5. `?a=orderscsv`: the filtered set as CSV.
-  6. Change the dashboard "Orders needing action" tile to link to `?a=orders&status=requested`.
-* **Guardrails (Do Not Touch):** Stripe calls, the webhook, `mark_orders_paid`, download checks, prices and discounts.
-* **Verification Checklist (Done Checks):**
-  - [ ] Admin > Orders lists existing orders with "not recorded" prices.
-  - [ ] Make one small real or code-free test purchase: it appears with its price, and the total updates once paid.
-* **Undo:** Revert the pull request (the extra column is harmless if left).
-
-## Phase 6: Email clients
+## Phase 8: Email clients
 
 ### Ticket #T-34: Outbox queue and sender
 * **Assigned Model:** Sonnet
@@ -1000,7 +1261,7 @@ Header always set Content-Security-Policy "default-src 'self'; script-src 'self'
   - [ ] A template still containing the draft marker cannot be queued.
 * **Undo:** Revert the pull request.
 
-## Phase 7: Portfolio polish
+## Phase 9: Portfolio polish
 
 ### Ticket #T-36: Portraits page: sharper tiles and a newest-first view
 * **Assigned Model:** Sonnet
