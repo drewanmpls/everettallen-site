@@ -129,6 +129,29 @@
       n.addEventListener('input', f); if (n.value) f();
     });
 
+    // Site settings, featured portraits: Up / Down / Remove, and Add from the portrait list
+    var fl = document.getElementById('fplist');
+    if (fl) {
+      var said2 = document.getElementById('fpmoved');
+      fl.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-fp]'); if (!b) return;
+        var li = b.closest('li'), d = +b.getAttribute('data-fp'), name = li.querySelector('span').textContent;
+        if (d === 0) { var nx = li.nextElementSibling || li.previousElementSibling; li.remove(); said2.textContent = name + ' removed.'; if (nx) nx.querySelector('button').focus(); return; }
+        var to = d < 0 ? li.previousElementSibling : li.nextElementSibling; if (!to) return;
+        if (d < 0) fl.insertBefore(li, to); else fl.insertBefore(to, li);
+        b.focus(); said2.textContent = name + ' is now number ' + ([].indexOf.call(fl.children, li) + 1) + ' of ' + fl.children.length + '.';
+      });
+      document.getElementById('fpaddbtn').addEventListener('click', function () {
+        var sel = document.getElementById('fpadd'), v = sel.value; if (!v) return;
+        if (fl.querySelector('input[value="' + v.replace(/"/g, '') + '"]')) { said2.textContent = 'That gallery is already in the list.'; return; }
+        var li = document.createElement('li'), inp = document.createElement('input'), sp = document.createElement('span'), acts = document.createElement('span');
+        inp.type = 'hidden'; inp.name = 'featured[]'; inp.value = v; sp.textContent = sel.options[sel.selectedIndex].text; acts.className = 'acts';
+        [['-1', 'Up'], ['1', 'Down'], ['0', 'Remove']].forEach(function (x) { var bb = document.createElement('button'); bb.type = 'button'; bb.className = 'btn sm alt'; bb.setAttribute('data-fp', x[0]); bb.textContent = x[1]; acts.appendChild(bb); });
+        li.appendChild(inp); li.appendChild(sp); li.appendChild(acts); fl.appendChild(li); sel.value = '';
+        said2.textContent = sp.textContent + ' added at the end.';
+      });
+    }
+
     // Client gallery: per-photo prices save as you change them; the upload box sends photos one at a time
     var files = document.getElementById('files');
     if (files) {
