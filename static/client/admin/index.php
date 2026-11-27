@@ -514,7 +514,7 @@ if ($a === 'client') {
 <div class="ph"><div><p class="back"><a href="?a=clients">&larr; All clients</a></p><h1><?= h($c['name']) ?></h1><span class="tag"><?= h(CLIENT_STATUSES[$c['status']] ?? $c['status']) ?></span></div>
 <?php if ($c['email']): ?><div class="act"><a class="btn alt" href="mailto:<?= h($c['email']) ?>">Email <?= h($c['name']) ?></a></div><?php endif; ?></div>
 <?php if (!empty($_GET['saved'])): ?><p class="msg good" role="status">Saved.</p><?php endif; ?>
-<p class="kicker"><?= h(CLIENT_STATUSES[$c['status']] ?? '') ?> / <?= $c['source'] === 'admin' ? 'added by you' : 'sent the form' ?> on <?= date('M j, Y', (int)$c['created']) ?></p>
+<p class="kicker"><?= h(CLIENT_STATUSES[$c['status']] ?? '') ?> / <?= $c['source'] === 'admin' ? 'added by you' : ($c['source'] === 'contact' ? 'sent a contact message' : 'sent the form') ?> on <?= date('M j, Y', (int)$c['created']) ?></p>
 
 <h2>Galleries</h2>
 <?php if (!$gals): ?><p>No galleries yet.</p><?php else: ?><table class="stack"><tr><th>Gallery</th><th>Photos</th><th>Package</th><th>Link</th></tr>

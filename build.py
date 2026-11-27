@@ -5,7 +5,7 @@ R=os.path.dirname(os.path.abspath(__file__)); os.chdir(R)
 site=json.load(open('content/site.json'))
 e=html.escape
 def ver(path): return hashlib.md5(open(path,'rb').read()).hexdigest()[:8]  # cache-busting stamp so browsers never mix old CSS with new JS
-VCSS,VSITE,VSHOP,VSEARCH,VLIKES=[ver('static/'+x) for x in ('css/style.css','js/site.js','js/shop.js','js/search.js','js/likes.js')]
+VCSS,VSITE,VSHOP,VSEARCH,VLIKES,VCONTACT=[ver('static/'+x) for x in ('css/style.css','js/site.js','js/shop.js','js/search.js','js/likes.js','js/contact.js')]
 cats={'portraits':'Portraits','events':'Events'}
 G=[]
 for f in glob.glob('content/galleries/*.json'):
@@ -125,7 +125,7 @@ for g in G:
         html=page(title,body,f'/photo/{s}/{pid}/',sec,f'{g["title"]}, photo {k+1}, by Everett Allen Photography',f'/photos/{s}/{pid}-l.jpg')
         w(f'/photo/{s}/{pid}/',html.replace('<meta name="description"','<meta name="robots" content="noindex,follow"><meta name="description"',1))
 # ---- Contact etc.
-w('/contact/',page('Contact',f'<div class="wrap narrow"><h1 class="h1">Let\'s connect</h1><p class="lede2">{e(site["contact_intro"])}</p><form class="contact" method="post" action="/contact/send.php"><div class="row2"><label>First name<input name="first" required autocomplete="given-name"></label><label>Last name<input name="last" autocomplete="family-name"></label></div><label>Email<input type="email" name="email" required autocomplete="email"></label><label>Message<textarea name="message" rows="6" required></textarea></label><input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn" type="submit">Send</button></form></div>','/contact/','Contact','Contact Everett Allen Photography'))
+w('/contact/',page('Contact',f'<div class="wrap narrow"><h1 class="h1">Let\'s connect</h1><p class="lede2">{e(site["contact_intro"])}</p><p class="ferr" id="cerr" role="alert" hidden>Your message was not sent. Please fill in your first name, a valid email address and a message, then send again.</p><form class="contact" method="post" action="/contact/send.php"><div class="row2"><label>First name<input name="first" required maxlength="80" autocomplete="given-name"></label><label>Last name<input name="last" maxlength="80" autocomplete="family-name"></label></div><label>Email<input type="email" name="email" required autocomplete="email"></label><label>Message<textarea name="message" rows="6" required maxlength="2000"></textarea></label><input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn" type="submit">Send</button></form></div><script src="/js/contact.js?v={VCONTACT}" defer></script>','/contact/','Contact','Contact Everett Allen Photography'))
 
 def md_inline(t):
     t=e(t)
