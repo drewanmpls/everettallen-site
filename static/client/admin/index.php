@@ -73,7 +73,7 @@ if ($hash === '') {
     ahead('Set up'); ?>
 <div class="narrow"><h1>Set up</h1><p>Choose an admin password. The setup code is in the file <code>setup-code.txt</code> inside this site's private folder on the server.</p>
 <form method="post"><input type="hidden" name="csrf" value="<?= h(csrf()) ?>"><label>Setup code<input name="code" required></label><label>New password (10+ characters)<input type="password" name="password" required></label>
-<?php if ($err): ?><p class="err"><?= h($err) ?></p><?php endif; ?><button class="btn">Save password</button></form></div>
+<?php if ($err): ?><p class="msg bad" role="alert"><?= h($err) ?></p><?php endif; ?><button class="btn">Save password</button></form></div>
 <?php afoot(); exit;
 }
 if ($a === 'logout') { $_SESSION = []; session_destroy(); go($base); }
@@ -92,7 +92,7 @@ if (empty($_SESSION['admin']) && !$apiAuth) {
     }
     ahead('Log in'); ?>
 <div class="narrow"><h1>Log in</h1><form method="post"><input type="hidden" name="csrf" value="<?= h(csrf()) ?>"><label>Password<input type="password" name="password" autofocus required></label>
-<?php if ($err): ?><p class="err"><?= h($err) ?></p><?php endif; ?><button class="btn">Log in</button></form></div>
+<?php if ($err): ?><p class="msg bad" role="alert"><?= h($err) ?></p><?php endif; ?><button class="btn">Log in</button></form></div>
 <?php afoot(); exit;
 }
 
@@ -321,40 +321,41 @@ if ($a === 'gallery') {
     $imgs = $q->fetchAll();
     $nfav = count(array_filter($imgs, fn($i) => $i['fav'] > 0));
     ahead($g['title']); $tok = csrf(); ?>
-<h1 style="font-size:clamp(32px,5vw,64px)"><?= h($g['title']) ?></h1>
-<?php if (!empty($_GET['saved'])): ?><p class="ok">Saved.</p><?php endif; ?>
-<?php if ($g['client_id']): ?><p><a href="?a=client&id=<?= (int)$g['client_id'] ?>">&larr; Back to this client's record</a></p><?php endif; ?>
+<div class="ph"><div><p class="back"><?php if ($g['client_id']): ?><a href="?a=client&id=<?= (int)$g['client_id'] ?>">&larr; Back to this client's record</a><?php else: ?><a href="?a=list">&larr; All client galleries</a><?php endif; ?></p>
+<h1><?= h($g['title']) ?></h1><?= $g['active'] ? '<span class="tag good">On</span>' : '<span class="tag wait">Off</span>' ?><?= $g['password_hash'] ? ' <span class="tag">Password</span>' : '' ?></div>
+<div class="act"><a class="btn alt" target="_blank" href="/client/g/<?= h($g['token']) ?>/">Preview as client</a></div></div>
+<?php if (!empty($_GET['saved'])): ?><p class="msg good" role="status">Saved.</p><?php endif; ?>
 <p class="kicker">Client link (send this to <?= h($g['client_name'] ?: 'your client') ?>)<?= $g['password_hash'] ? ', password protected' : '' ?><?= $g['active'] ? '' : ' / currently turned OFF' ?></p>
 <code class="link" id="lnk"><?= h(link_for($g)) ?></code>
-<p><button class="btn sm alt" onclick="navigator.clipboard.writeText(document.getElementById('lnk').textContent).then(()=>this.textContent='Copied')">Copy link</button> <a class="btn sm alt" target="_blank" href="/client/g/<?= h($g['token']) ?>/">Preview as client</a></p>
+<p><button class="btn sm alt" onclick="navigator.clipboard.writeText(document.getElementById('lnk').textContent).then(()=>this.textContent='Copied')">Copy link</button></p>
 
 <h2>Upload photos</h2>
-<div class="drop"><input type="file" id="files" accept="image/jpeg" multiple style="max-width:420px"><p id="prog" class="kicker">JPEGs only. Originals are stored privately; the client sees watermarked copies. Photos upload one at a time in filename order.</p></div>
+<div class="drop"><input type="file" id="files" accept="image/jpeg" multiple><p id="prog" class="kicker">JPEGs only. Originals are stored privately; the client sees watermarked copies. Photos upload one at a time in filename order.</p></div>
 
 <h2>Gallery settings</h2>
 <form method="post" class="cols"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="update"><input type="hidden" name="id" value="<?= $gid ?>">
 <label>Title<input name="title" value="<?= h($g['title']) ?>" required></label>
 <label>Client name<input name="client_name" value="<?= h($g['client_name']) ?>"></label>
 <label>Client email<input name="client_email" type="email" value="<?= h($g['client_email']) ?>"></label>
-<label>Client record<select name="client_id" style="width:100%;padding:10px;margin-top:4px"><option value="">None</option><?php foreach (db()->query('SELECT id, name, service FROM clients ORDER BY name') as $cr): ?><option value="<?= $cr['id'] ?>" <?= (int)$g['client_id'] === (int)$cr['id'] ? 'selected' : '' ?>><?= h($cr['name'] . ($cr['service'] ? ' (' . $cr['service'] . ')' : '')) ?></option><?php endforeach; ?></select></label>
+<label>Client record<select name="client_id"><option value="">None</option><?php foreach (db()->query('SELECT id, name, service FROM clients ORDER BY name') as $cr): ?><option value="<?= $cr['id'] ?>" <?= (int)$g['client_id'] === (int)$cr['id'] ? 'selected' : '' ?>><?= h($cr['name'] . ($cr['service'] ? ' (' . $cr['service'] . ')' : '')) ?></option><?php endforeach; ?></select></label>
 <label>Included photos (free picks, 0 = none)<input name="included" type="number" min="0" value="<?= (int)$g['included_count'] ?>"></label>
 <label>Extra photo, web size ($, 0 = Free)<input name="price_web" value="<?= h(number_format($g['default_web_cents'] / 100, 2)) ?>"></label>
 <label>Extra photo, full resolution ($, 0 = Free)<input name="price" value="<?= h(number_format($g['default_price_cents'] / 100, 2)) ?>"></label>
 <label>New password (leave blank to keep)<input name="password" type="text" autocomplete="off"></label>
-<label>Remove password<br><input type="checkbox" name="clear_pw" value="1" style="width:auto"> Anyone with the link can open it</label>
-<label style="grid-column:1/-1">Note shown to client<textarea name="note" rows="3"><?= h($g['note']) ?></textarea></label>
-<label>Status<br><input type="checkbox" name="active" value="1" style="width:auto" <?= $g['active'] ? 'checked' : '' ?>> Gallery is on (uncheck to hide it)</label>
-<div style="grid-column:1/-1"><button class="btn">Save settings</button></div></form>
+<label class="check"><input type="checkbox" name="clear_pw" value="1"> Remove password: anyone with the link can open it</label>
+<label class="full">Note shown to client<textarea name="note" rows="3"><?= h($g['note']) ?></textarea></label>
+<label class="check"><input type="checkbox" name="active" value="1" <?= $g['active'] ? 'checked' : '' ?>> Gallery is on (uncheck to hide it)</label>
+<div class="full"><button class="btn">Save settings</button></div></form>
 
 <h2>Prices</h2>
 <p><b>Web size</b> is a 2048 px copy for social sharing. <b>Full resolution</b> is the original file for printing. Photos in the client's included package get both for free. Each photo uses the gallery default unless you type its own price (0 = Free, blank = default).</p>
-<form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="priceall"><input type="hidden" name="id" value="<?= $gid ?>">
-<label style="margin:0">Set all photos<br><select name="tier" style="padding:10px"><option value="web">web size</option><option value="full">full resolution</option></select></label>
-<label style="margin:0">to ($)<input name="price" placeholder="blank = default" style="width:150px"></label>
-<label style="margin:0"><input type="checkbox" name="only_fav" value="1" style="width:auto"> only favorites (<?= $nfav ?>)</label><button class="btn sm">Apply</button></form>
+<form method="post" class="row"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="priceall"><input type="hidden" name="id" value="<?= $gid ?>">
+<label>Set all photos<select name="tier"><option value="web">web size</option><option value="full">full resolution</option></select></label>
+<label>to ($)<input name="price" placeholder="blank = default"></label>
+<label class="check"><input type="checkbox" name="only_fav" value="1"> only favorites (<?= $nfav ?>)</label><button class="btn sm">Apply</button></form>
 <?php $used = claims_used($gid); if ($g['included_count'] > 0): ?>
-<p style="margin-top:16px"><b>Package:</b> <?= $used ?> of <?= (int)$g['included_count'] ?> included photos used.
-<form method="post" onsubmit="return confirm('Clear all of this client\'s package picks?')" style="display:inline"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="resetclaims"><input type="hidden" name="id" value="<?= $gid ?>"><button class="btn sm alt">Reset picks</button></form></p>
+<p class="mt"><b>Package:</b> <?= $used ?> of <?= (int)$g['included_count'] ?> included photos used.
+<form method="post" onsubmit="return confirm('Clear all of this client\'s package picks?')" class="acts"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="resetclaims"><input type="hidden" name="id" value="<?= $gid ?>"><button class="btn sm alt">Reset picks</button></form></p>
 <?php endif; ?>
 
 <h2><?= count($imgs) ?> photos</h2>
@@ -362,9 +363,9 @@ if ($a === 'gallery') {
 <?php foreach ($imgs as $i): ?>
 <div class="cd"><img loading="lazy" src="<?= $base ?>?a=thumb&id=<?= $i['id'] ?>" alt="">
 <small><?= h($i['label']) ?></small>
-<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 6px;align-items:center;margin:4px 0;font-size:12px"><span>Web $</span><input value="<?= ($i['price_web_cents'] ?? null) === null ? '' : h(number_format($i['price_web_cents'] / 100, 2)) ?>" placeholder="<?= h(number_format($g['default_web_cents'] / 100, 2)) ?>" data-img="<?= $i['id'] ?>" data-tier="web" class="pr"><span>Full $</span><input value="<?= $i['price_cents'] === null ? '' : h(number_format($i['price_cents'] / 100, 2)) ?>" placeholder="<?= h(number_format($g['default_price_cents'] / 100, 2)) ?>" data-img="<?= $i['id'] ?>" data-tier="full" class="pr"></div>
+<div class="prices"><span>Web $</span><input value="<?= ($i['price_web_cents'] ?? null) === null ? '' : h(number_format($i['price_web_cents'] / 100, 2)) ?>" placeholder="<?= h(number_format($g['default_web_cents'] / 100, 2)) ?>" data-img="<?= $i['id'] ?>" data-tier="web" class="pr"><span>Full $</span><input value="<?= $i['price_cents'] === null ? '' : h(number_format($i['price_cents'] / 100, 2)) ?>" placeholder="<?= h(number_format($g['default_price_cents'] / 100, 2)) ?>" data-img="<?= $i['id'] ?>" data-tier="full" class="pr"></div>
 <small><?= $i['fav'] ? '&#9829; favorite ' : '' ?><?= $i['claimed'] ? '[in package] ' : '' ?><?= $i['ncom'] ? $i['ncom'] . ' comments ' : '' ?><?= $i['dls'] ? $i['dls'] . ' downloads' : '' ?></small>
-<form method="post" onsubmit="return confirm('Delete this photo and its original?')"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="delimg"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="image" value="<?= $i['id'] ?>"><button class="btn sm alt" style="padding:3px 8px;font-size:12px">Delete</button></form></div>
+<form method="post" onsubmit="return confirm('Delete this photo and its original?')"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="delimg"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="image" value="<?= $i['id'] ?>"><button class="btn xs alt">Delete</button></form></div>
 <?php endforeach; ?></div>
 
 <?php
@@ -373,21 +374,21 @@ $c = db()->prepare('SELECT c.*, i.label, i.id AS iid FROM comments c JOIN images
 $fv = db()->prepare('SELECT i.label FROM favorites f JOIN images i ON i.id = f.image_id WHERE i.gallery_id = ? ORDER BY i.sort'); $fv->execute([$gid]); $favs = $fv->fetchAll(PDO::FETCH_COLUMN);
 ?>
 <h2 id="orders">Photo requests</h2>
-<?php if (!$orders): ?><p>None yet.</p><?php else: ?><table><tr><th>Photo</th><th>Size</th><th>Email</th><th>Status</th><th></th></tr>
-<?php foreach ($orders as $r): ?><tr><td><?= h($r['label']) ?></td><td><?= $r['tier'] === 'web' ? 'Web' : 'Full' ?></td><td><?= h($r['email']) ?></td><td><span class="pill"><?= h($r['status']) ?></span></td><td>
-<form method="post" style="display:flex;gap:6px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="order"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="order" value="<?= $r['id'] ?>">
+<?php if (!$orders): ?><p>None yet.</p><?php else: ?><table class="stack"><tr><th>Photo</th><th>Size</th><th>Email</th><th>Status</th><th></th></tr>
+<?php foreach ($orders as $r): ?><tr><td data-label="Photo"><?= h($r['label']) ?></td><td data-label="Size"><?= $r['tier'] === 'web' ? 'Web' : 'Full' ?></td><td data-label="Email"><?= h($r['email']) ?></td><td data-label="Status"><span class="tag <?= ['requested' => 'wait', 'paid' => 'good', 'declined' => 'bad'][$r['status']] ?? '' ?>"><?= h($r['status']) ?></span></td><td>
+<form method="post" class="acts"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="order"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="order" value="<?= $r['id'] ?>">
 <button name="status" value="paid" class="btn sm">Mark paid (unlocks download)</button><button name="status" value="declined" class="btn sm alt">Decline</button></form></td></tr><?php endforeach; ?></table><?php endif; ?>
 
 <h2>Favorites (<?= count($favs) ?>)</h2>
 <p><?= $favs ? h(implode(', ', $favs)) : 'None yet.' ?></p>
 
 <h2 id="comments">Comments</h2>
-<?php if (!$coms): ?><p>None yet.</p><?php else: ?><table><tr><th>Photo</th><th>Who</th><th>Comment</th><th>Reply</th></tr>
-<?php foreach ($coms as $r): ?><tr><td><?= h($r['label']) ?></td><td><?= h($r['from_owner'] ? 'You' : $r['author']) ?><br><small><?= date('M j, g:ia', (int)$r['created']) ?></small></td><td><?= nl2br(h($r['body'])) ?></td><td>
-<?php if (!$r['from_owner']): ?><form method="post" style="display:flex;gap:6px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="reply"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="image" value="<?= $r['iid'] ?>"><input name="body" placeholder="Reply" required><button class="btn sm">Send</button></form><?php endif; ?></td></tr><?php endforeach; ?></table><?php endif; ?>
+<?php if (!$coms): ?><p>None yet.</p><?php else: ?><table class="stack"><tr><th>Photo</th><th>Who</th><th>Comment</th><th>Reply</th></tr>
+<?php foreach ($coms as $r): ?><tr><td data-label="Photo"><?= h($r['label']) ?></td><td data-label="Who"><?= h($r['from_owner'] ? 'You' : $r['author']) ?><br><small><?= date('M j, g:ia', (int)$r['created']) ?></small></td><td data-label="Comment"><?= nl2br(h($r['body'])) ?></td><td>
+<?php if (!$r['from_owner']): ?><form method="post" class="row"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="reply"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="image" value="<?= $r['iid'] ?>"><input name="body" placeholder="Reply" required><button class="btn sm">Send</button></form><?php endif; ?></td></tr><?php endforeach; ?></table><?php endif; ?>
 
 <h2>Delete gallery</h2>
-<form method="post" onsubmit="return confirm('This permanently deletes the gallery and all its photos. Continue?')" style="display:flex;gap:8px;max-width:420px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="delgallery"><input type="hidden" name="id" value="<?= $gid ?>"><input name="confirm" placeholder="Type DELETE"><button class="btn sm alt">Delete</button></form>
+<form method="post" onsubmit="return confirm('This permanently deletes the gallery and all its photos. Continue?')" class="row narrow"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="delgallery"><input type="hidden" name="id" value="<?= $gid ?>"><input name="confirm" placeholder="Type DELETE"><button class="btn sm alt">Delete</button></form>
 
 <script>
 var CSRF=<?= json_encode($tok) ?>,GID=<?= $gid ?>,BASE=<?= json_encode($base) ?>;
@@ -418,22 +419,22 @@ if ($a === 'clients') {
     $stmt = db()->prepare($sql . ' ORDER BY c.created DESC'); $stmt->execute($args); $rows = $stmt->fetchAll();
     $counts = db()->query('SELECT status, COUNT(*) n FROM clients GROUP BY status')->fetchAll(PDO::FETCH_KEY_PAIR);
     ahead('Clients'); $tok = csrf(); $intake = 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/client/new/'; ?>
-<h1 style="font-size:clamp(32px,5vw,64px)">Clients</h1>
+<div class="ph"><div><h1>Clients</h1></div><div class="act"><a class="btn" href="#add">Add a client</a></div></div>
 <p class="kicker">New-client form to send people</p>
 <code class="link" id="ilnk"><?= h($intake) ?></code>
 <p><button class="btn sm alt" onclick="navigator.clipboard.writeText(document.getElementById('ilnk').textContent).then(()=>this.textContent='Copied')">Copy link</button> <a class="btn sm alt" target="_blank" href="/client/new/">Open the form</a></p>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin:20px 0"><a class="tab <?= $stf === '' ? 'on' : '' ?>" style="text-decoration:none" href="?a=clients">Active</a>
-<?php foreach (CLIENT_STATUSES as $k => $lab): ?><a class="tab <?= $stf === $k ? 'on' : '' ?>" style="text-decoration:none" href="?a=clients&status=<?= $k ?>"><?= h($lab) ?> <?= (int)($counts[$k] ?? 0) ?></a><?php endforeach; ?></div>
-<form method="get" style="display:flex;gap:8px;max-width:420px"><input type="hidden" name="a" value="clients"><input name="q" value="<?= h($q) ?>" placeholder="Search name, email or service"><button class="btn sm">Search</button></form>
-<?php if (!$rows): ?><p style="margin-top:16px">No clients here yet.</p><?php else: ?>
-<table><tr><th>Name</th><th>Service</th><th>Status</th><th>Timeframe</th><th>Galleries</th><th>Received</th></tr>
-<?php foreach ($rows as $r): ?><tr><td><a href="?a=client&id=<?= $r['id'] ?>"><b><?= h($r['name']) ?></b></a><br><small><?= h($r['email']) ?></small></td><td><?= h($r['service']) ?></td><td><span class="pill"><?= h(CLIENT_STATUSES[$r['status']] ?? $r['status']) ?></span><?= $r['release_at'] ? ' <span class="pill" style="background:var(--good)">release</span>' : '' ?></td><td><?= h($r['timeframe']) ?></td><td><?= (int)$r['ng'] ?></td><td><?= date('M j, Y', (int)$r['created']) ?><?= $r['source'] === 'admin' ? ' (added by you)' : '' ?></td></tr><?php endforeach; ?></table><?php endif; ?>
-<h2>Add a client yourself</h2>
+<div class="chips mt"><a class="tab <?= $stf === '' ? 'on' : '' ?>"<?= $stf === '' ? ' aria-current="page"' : '' ?> href="?a=clients">Active</a>
+<?php foreach (CLIENT_STATUSES as $k => $lab): ?><a class="tab <?= $stf === $k ? 'on' : '' ?>"<?= $stf === $k ? ' aria-current="page"' : '' ?> href="?a=clients&status=<?= $k ?>"><?= h($lab) ?> <?= (int)($counts[$k] ?? 0) ?></a><?php endforeach; ?></div>
+<form method="get" class="row narrow" role="search"><input type="hidden" name="a" value="clients"><input name="q" value="<?= h($q) ?>" placeholder="Search name, email or service" aria-label="Search clients"><button class="btn sm">Search</button></form>
+<?php if (!$rows): ?><p>No clients here yet.</p><?php else: ?>
+<table class="stack"><tr><th>Name</th><th>Service</th><th>Status</th><th>Timeframe</th><th>Galleries</th><th>Received</th></tr>
+<?php foreach ($rows as $r): ?><tr><td><a href="?a=client&id=<?= $r['id'] ?>"><b><?= h($r['name']) ?></b></a><br><small><?= h($r['email']) ?></small></td><td data-label="Service"><?= h($r['service']) ?></td><td data-label="Status"><span class="tag"><?= h(CLIENT_STATUSES[$r['status']] ?? $r['status']) ?></span><?= $r['release_at'] ? ' <span class="tag good">release</span>' : '' ?></td><td data-label="Timeframe"><?= h($r['timeframe']) ?></td><td data-label="Galleries"><?= (int)$r['ng'] ?></td><td data-label="Received"><?= date('M j, Y', (int)$r['created']) ?><?= $r['source'] === 'admin' ? ' (added by you)' : '' ?></td></tr><?php endforeach; ?></table><?php endif; ?>
+<h2 id="add">Add a client yourself</h2>
 <form method="post" action="?a=clientsave" class="cols"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="clientsave"><input type="hidden" name="id" value="0">
 <label>Name<input name="name" required></label><label>Email<input name="email" type="email"></label><label>Phone<input name="phone"></label>
-<label>Service<select name="service" style="width:100%;padding:10px;margin-top:4px"><option value="">Choose</option><?php foreach (services_list() as $sv): ?><option><?= h($sv['title']) ?></option><?php endforeach; ?><option>Not sure yet</option><option>Something else</option></select></label>
+<label>Service<select name="service"><option value="">Choose</option><?php foreach (services_list() as $sv): ?><option><?= h($sv['title']) ?></option><?php endforeach; ?><option>Not sure yet</option><option>Something else</option></select></label>
 <label>Timeframe<input name="timeframe"></label><label>Notes (private)<input name="notes"></label>
-<div style="grid-column:1/-1"><button class="btn">Add client</button></div></form>
+<div class="full"><button class="btn">Add client</button></div></form>
 <?php afoot(); exit;
 }
 
@@ -444,44 +445,43 @@ if ($a === 'client') {
     $free = db()->query('SELECT id, title FROM galleries WHERE client_id IS NULL ORDER BY id DESC')->fetchAll();
     $inc = 0; foreach (services_list() as $sv) if ($sv['title'] === $c['service']) $inc = (int)$sv['included'];
     ahead($c['name']); $tok = csrf(); ?>
-<p><a href="?a=clients">&larr; All clients</a></p>
-<h1 style="font-size:clamp(32px,5vw,64px)"><?= h($c['name']) ?></h1>
-<?php if (!empty($_GET['saved'])): ?><p class="ok">Saved.</p><?php endif; ?>
+<div class="ph"><div><p class="back"><a href="?a=clients">&larr; All clients</a></p><h1><?= h($c['name']) ?></h1><span class="tag"><?= h(CLIENT_STATUSES[$c['status']] ?? $c['status']) ?></span></div>
+<?php if ($c['email']): ?><div class="act"><a class="btn alt" href="mailto:<?= h($c['email']) ?>">Email <?= h($c['name']) ?></a></div><?php endif; ?></div>
+<?php if (!empty($_GET['saved'])): ?><p class="msg good" role="status">Saved.</p><?php endif; ?>
 <p class="kicker"><?= h(CLIENT_STATUSES[$c['status']] ?? '') ?> / <?= $c['source'] === 'admin' ? 'added by you' : 'sent the form' ?> on <?= date('M j, Y', (int)$c['created']) ?></p>
-<?php if ($c['email']): ?><p><a class="btn sm alt" href="mailto:<?= h($c['email']) ?>">Email <?= h($c['name']) ?></a></p><?php endif; ?>
 
 <h2>Galleries</h2>
-<?php if (!$gals): ?><p>No galleries yet.</p><?php else: ?><table><tr><th>Gallery</th><th>Photos</th><th>Package</th><th>Link</th></tr>
-<?php foreach ($gals as $g): $url = link_for($g); ?><tr><td><a href="?a=gallery&id=<?= $g['id'] ?>"><b><?= h($g['title']) ?></b></a><?= $g['active'] ? '' : ' <span class="pill">off</span>' ?></td><td><?= (int)$g['n'] ?></td><td><?= (int)$g['included_count'] ?> included</td>
+<?php if (!$gals): ?><p>No galleries yet.</p><?php else: ?><table class="stack"><tr><th>Gallery</th><th>Photos</th><th>Package</th><th>Link</th></tr>
+<?php foreach ($gals as $g): $url = link_for($g); ?><tr><td><a href="?a=gallery&id=<?= $g['id'] ?>"><b><?= h($g['title']) ?></b></a><?= $g['active'] ? '' : ' <span class="tag wait">off</span>' ?></td><td data-label="Photos"><?= (int)$g['n'] ?></td><td data-label="Package"><?= (int)$g['included_count'] ?> included</td>
 <td><a href="mailto:<?= h($c['email']) ?>?subject=<?= rawurlencode('Your photos from Everett Allen Photography') ?>&body=<?= rawurlencode("Hi " . $c['name'] . ",\n\nYour private gallery is ready:\n" . $url . ($g['password_hash'] ? "\n\n(I'll send the password separately.)" : '') . "\n\nTap the heart on your favorites, and leave a comment on any photo.\n\nAndrew") ?>">Email link to client</a></td></tr><?php endforeach; ?></table><?php endif; ?>
-<form method="post" style="display:inline-block;margin-right:12px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="makegallery"><input type="hidden" name="id" value="<?= $c['id'] ?>"><button class="btn sm">Create gallery for <?= h($c['name']) ?><?= $inc ? " ($inc photos included)" : '' ?></button></form>
-<?php if ($free): ?><form method="post" style="display:inline-flex;gap:8px;align-items:center"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="linkgallery"><input type="hidden" name="client_id" value="<?= $c['id'] ?>">
-<select name="gallery" style="padding:8px"><?php foreach ($free as $f): ?><option value="<?= $f['id'] ?>"><?= h($f['title']) ?></option><?php endforeach; ?></select><button class="btn sm alt">Link existing gallery</button></form><?php endif; ?>
+<div class="row"><form method="post"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="makegallery"><input type="hidden" name="id" value="<?= $c['id'] ?>"><button class="btn sm">Create gallery for <?= h($c['name']) ?><?= $inc ? " ($inc photos included)" : '' ?></button></form>
+<?php if ($free): ?><form method="post" class="row"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="linkgallery"><input type="hidden" name="client_id" value="<?= $c['id'] ?>">
+<select name="gallery" aria-label="Gallery to link"><?php foreach ($free as $f): ?><option value="<?= $f['id'] ?>"><?= h($f['title']) ?></option><?php endforeach; ?></select><button class="btn sm alt">Link existing gallery</button></form><?php endif; ?></div>
 
 <?php if ($c['release_at']): $ds = (string)$c['drive_status']; ?><h2>Photo release on file</h2>
-<div style="background:var(--sunk);border-left:4px solid <?= $c['id_verified'] !== '' ? 'var(--good)' : 'var(--wait)' ?>;padding:12px 16px;max-width:75ch">
+<div class="panel <?= $c['id_verified'] !== '' ? 'good' : 'wait' ?>">
 <b>Signed by <?= h($c['release_name']) ?></b><?= $c['release_stage'] ? ' (' . h($c['release_stage']) . ')' : '' ?> on <?= date('M j, Y g:ia', (int)$c['release_at']) ?><?= $c['discount_percent'] ? ', ' . (int)$c['discount_percent'] . '% session discount' : '' ?>. Gallery displays: <b><?= h($c['release_gallery'] ?: 'n/a') ?></b>. Born <?= h($c['release_dob']) ?>.<br>
-<b>ID checked in person:</b> <?= $c['id_verified'] !== '' ? h($c['id_verified']) : '<span style="color:var(--wait)">not yet. Check ID at the session, then record it below.</span>' ?><br>
-<b>Google Drive:</b> <?= $ds === 'saved' ? '<span class="ok">saved</span>' . ($c['drive_url'] ? ' (<a href="' . h($c['drive_url']) . '" target="_blank" rel="noopener">open</a>)' : '') : ($ds === '' ? 'not sent' : '<span style="color:var(--bad)">' . h($ds) . '</span>') ?>
-<p style="margin:10px 0 0"><a class="btn sm" href="?a=releasepdf&id=<?= $c['id'] ?>" target="_blank">View / download PDF</a></p>
-<details style="margin-top:10px"><summary>Exact wording they agreed to</summary><p style="white-space:pre-line"><?= h($c['release_text']) ?></p></details></div>
-<form method="post" enctype="multipart/form-data" class="cols" style="margin-top:12px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="releasesave"><input type="hidden" name="id" value="<?= $c['id'] ?>">
+<b>ID checked in person:</b> <?= $c['id_verified'] !== '' ? h($c['id_verified']) : '<span class="tag wait">not yet</span> Check ID at the session, then record it below.' ?><br>
+<b>Google Drive:</b> <?= $ds === 'saved' ? '<span class="tag good">saved</span>' . ($c['drive_url'] ? ' (<a href="' . h($c['drive_url']) . '" target="_blank" rel="noopener">open</a>)' : '') : ($ds === '' ? 'not sent' : '<span class="tag bad">' . h($ds) . '</span>') ?>
+<p class="mt"><a class="btn sm" href="?a=releasepdf&id=<?= $c['id'] ?>" target="_blank">View / download PDF</a></p>
+<details class="mt"><summary>Exact wording they agreed to</summary><p class="pre"><?= h($c['release_text']) ?></p></details></div>
+<form method="post" enctype="multipart/form-data" class="cols mt"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="releasesave"><input type="hidden" name="id" value="<?= $c['id'] ?>">
 <label>Shoot date<input name="shoot_date" value="<?= h($c['shoot_date']) ?>" placeholder="11/15/2026"></label>
 <label>Shoot location<input name="shoot_location" value="<?= h($c['shoot_location']) ?>" placeholder="Studio, Minneapolis MN"></label>
 <label>ID checked in person (date, or leave blank)<input name="id_verified" value="<?= h($c['id_verified']) ?>" placeholder="11/15/2026"></label>
 <div><label>Model photo (adds to the PDF)<input type="file" name="photo" accept="image/*"></label>
-<button type="button" class="btn sm alt" data-cam="photo" style="margin-top:6px">Use camera</button> <span class="camnote" data-note="photo" style="font-size:13px"></span>
-<?php if ($c['photo_path'] !== '' && is_file($c['photo_path'])): ?><div style="margin-top:6px"><img src="?a=releasephoto&k=model&id=<?= $c['id'] ?>" alt="" style="max-width:140px;max-height:140px;display:block"><label style="font-size:13px"><input type="checkbox" name="remove_photo" value="1" style="width:auto"> Remove this photo</label></div><?php endif; ?></div>
+<button type="button" class="btn sm alt" data-cam="photo">Use camera</button> <span class="camnote" data-note="photo" role="status"></span>
+<?php if ($c['photo_path'] !== '' && is_file($c['photo_path'])): ?><div><img class="prev" src="?a=releasephoto&k=model&id=<?= $c['id'] ?>" alt="Model photo on file"><label class="check"><input type="checkbox" name="remove_photo" value="1"> Remove this photo</label></div><?php endif; ?></div>
 <div><label>ID photo (adds to the PDF, then keep it private)<input type="file" name="idphoto" accept="image/*"></label>
-<button type="button" class="btn sm alt" data-cam="idphoto" style="margin-top:6px">Use camera</button> <span class="camnote" data-note="idphoto" style="font-size:13px"></span>
-<?php if ($c['idphoto_path'] !== '' && is_file($c['idphoto_path'])): ?><div style="margin-top:6px"><img src="?a=releasephoto&k=id&id=<?= $c['id'] ?>" alt="" style="max-width:200px;max-height:140px;display:block"><label style="font-size:13px"><input type="checkbox" name="remove_idphoto" value="1" style="width:auto"> Remove this photo</label></div><?php endif; ?></div>
-<label style="align-self:end"><input type="checkbox" name="to_drive" value="1" style="width:auto" checked> Also save the updated PDF to Google Drive</label>
-<div style="grid-column:1/-1"><button class="btn sm">Update release PDF</button></div></form>
-<dialog id="camdlg" style="max-height:94vh;overflow:auto;border:2px solid var(--ink);background:var(--card);padding:14px;max-width:640px;width:92vw">
-<p id="camtitle" style="margin:0 0 8px;font-weight:700"></p>
-<video id="camvid" autoplay playsinline muted style="width:100%;background:#000;max-height:50vh;object-fit:contain"></video>
-<p id="camerr" style="color:var(--bad);margin:8px 0 0"></p>
-<p style="margin:10px 0 0;display:flex;gap:8px"><button type="button" class="btn sm" id="camsnap">Take photo</button><button type="button" class="btn sm alt" id="camcancel">Cancel</button></p>
+<button type="button" class="btn sm alt" data-cam="idphoto">Use camera</button> <span class="camnote" data-note="idphoto" role="status"></span>
+<?php if ($c['idphoto_path'] !== '' && is_file($c['idphoto_path'])): ?><div><img class="prev" src="?a=releasephoto&k=id&id=<?= $c['id'] ?>" alt="ID photo on file"><label class="check"><input type="checkbox" name="remove_idphoto" value="1"> Remove this photo</label></div><?php endif; ?></div>
+<label class="check"><input type="checkbox" name="to_drive" value="1" checked> Also save the updated PDF to Google Drive</label>
+<div class="full"><button class="btn sm">Update release PDF</button></div></form>
+<dialog id="camdlg" class="cam" aria-labelledby="camtitle">
+<p id="camtitle" class="t"></p>
+<video id="camvid" autoplay playsinline muted></video>
+<p id="camerr" class="err" role="alert"></p>
+<p class="row"><button type="button" class="btn sm" id="camsnap">Take photo</button><button type="button" class="btn sm alt" id="camcancel">Cancel</button></p>
 </dialog>
 <script>
 (function(){
@@ -512,25 +512,25 @@ if ($a === 'client') {
   });
 })();
 </script>
-<?php if ($ds !== 'saved'): ?><form method="post" style="margin-top:8px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="driveretry"><input type="hidden" name="id" value="<?= $c['id'] ?>"><button class="btn sm alt">Save to Google Drive now</button></form><?php endif; ?>
+<?php if ($ds !== 'saved'): ?><form method="post" class="mt"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="driveretry"><input type="hidden" name="id" value="<?= $c['id'] ?>"><button class="btn sm alt">Save to Google Drive now</button></form><?php endif; ?>
 <?php elseif ($c['share_pref']): ?><p class="kicker">Sharing preference: <?= h($c['share_pref']) ?> (no signed release on file)</p><?php endif; ?>
 <h2>Details</h2>
 <form method="post" class="cols"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="clientsave"><input type="hidden" name="id" value="<?= $c['id'] ?>">
 <label>Name<input name="name" value="<?= h($c['name']) ?>" required></label><label>Pronouns<input name="pronouns" value="<?= h($c['pronouns']) ?>"></label>
 <label>Email<input name="email" type="email" value="<?= h($c['email']) ?>"></label><label>Phone<input name="phone" value="<?= h($c['phone']) ?>"></label>
 <label>Service<input name="service" value="<?= h($c['service']) ?>" list="svl"><datalist id="svl"><?php foreach (services_list() as $sv): ?><option value="<?= h($sv['title']) ?>"><?php endforeach; ?></datalist></label>
-<label>Status<select name="status" style="width:100%;padding:10px;margin-top:4px"><?php foreach (CLIENT_STATUSES as $k => $lab): ?><option value="<?= $k ?>" <?= $c['status'] === $k ? 'selected' : '' ?>><?= h($lab) ?></option><?php endforeach; ?></select></label>
+<label>Status<select name="status"><?php foreach (CLIENT_STATUSES as $k => $lab): ?><option value="<?= $k ?>" <?= $c['status'] === $k ? 'selected' : '' ?>><?= h($lab) ?></option><?php endforeach; ?></select></label>
 <label>Timeframe<input name="timeframe" value="<?= h($c['timeframe']) ?>"></label><label>Location ideas<input name="location" value="<?= h($c['location']) ?>"></label>
 <label>Instagram or website<input name="handle" value="<?= h($c['handle']) ?>"></label><label>Heard about me from<input name="referral" value="<?= h($c['referral']) ?>"></label>
 <label>May share photos publicly?<input name="share_pref" value="<?= h($c['share_pref']) ?>" list="spl"><datalist id="spl"><option value="Yes"><option value="Ask first"><option value="Private"></datalist></label>
 <label>Session discount (%)<input name="discount_percent" type="number" min="0" max="100" value="<?= (int)$c['discount_percent'] ?>"></label>
-<label style="grid-column:1/-1">What they wrote<textarea name="message" rows="4"><?= h($c['message']) ?></textarea></label>
-<label style="grid-column:1/-1">Your private notes (clients never see these)<textarea name="notes" rows="4"><?= h($c['notes']) ?></textarea></label>
-<div style="grid-column:1/-1"><button class="btn">Save</button></div></form>
+<label class="full">What they wrote<textarea name="message" rows="4"><?= h($c['message']) ?></textarea></label>
+<label class="full">Your private notes (clients never see these)<textarea name="notes" rows="4"><?= h($c['notes']) ?></textarea></label>
+<div class="full"><button class="btn">Save</button></div></form>
 
 <h2>Delete client</h2>
 <p>Removes this record only. Their galleries stay and become unlinked.</p>
-<form method="post" onsubmit="return confirm('Delete this client record?')" style="display:flex;gap:8px;max-width:420px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="clientdel"><input type="hidden" name="id" value="<?= $c['id'] ?>"><input name="confirm" placeholder="Type DELETE"><button class="btn sm alt">Delete</button></form>
+<form method="post" onsubmit="return confirm('Delete this client record?')" class="row narrow"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="clientdel"><input type="hidden" name="id" value="<?= $c['id'] ?>"><input name="confirm" placeholder="Type DELETE"><button class="btn sm alt">Delete</button></form>
 <?php afoot(); exit;
 }
 
@@ -545,16 +545,16 @@ if ($a === 'stats') {
     for ($i = 0; $i < $days; $i++) { $d = $dt->format('Y-m-d'); $r = $byday[$d] ?? ['hits' => 0, 'visitors' => 0]; $series[] = [$d, (int)$r['hits'], (int)$r['visitors']]; $maxv = max($maxv, (int)$r['hits']); $th += (int)$r['hits']; $tv += (int)$r['visitors']; $dt->modify('+1 day'); }
     $top = function (string $col, string $where = '', int $lim = 15) use ($from) { $s = db()->prepare("SELECT $col AS k, SUM(hits) AS n FROM stat_hits WHERE day >= ? $where GROUP BY $col ORDER BY n DESC LIMIT $lim"); $s->execute([$from]); return $s->fetchAll(); };
     $pages = $top('path', '', 20); $refs = $top('ref', "AND ref <> ''", 15); $devs = $top('dev', '', 5);
-    $tbl = function (array $rows, string $head) { echo '<table style="width:100%;max-width:640px;border-collapse:collapse"><tr><th style="text-align:left">' . h($head) . '</th><th style="text-align:right">Views</th></tr>'; foreach ($rows as $r) echo '<tr><td style="padding:4px 0;border-top:1px solid var(--line)">' . h($r['k']) . '</td><td style="text-align:right;border-top:1px solid var(--line)">' . (int)$r['n'] . '</td></tr>'; if (!$rows) echo '<tr><td colspan="2" style="padding:6px 0">Nothing yet.</td></tr>'; echo '</table>'; };
+    $tbl = function (array $rows, string $head) { echo '<table class="form"><tr><th>' . h($head) . '</th><th class="num">Views</th></tr>'; foreach ($rows as $r) echo '<tr><td class="brk">' . h($r['k']) . '</td><td class="num">' . (int)$r['n'] . '</td></tr>'; if (!$rows) echo '<tr><td colspan="2">Nothing yet.</td></tr>'; echo '</table>'; };
     ?>
-<h1 style="font-size:clamp(32px,5vw,64px)">Stats</h1>
-<p>Page views and daily visitors for the public site. No cookies, no IP addresses or browser details are stored, and your own visits are not counted in this browser.
-<?php foreach ([7, 30, 90, 365] as $d): ?> <a href="?a=stats&days=<?= $d ?>"<?= $d === $days ? ' style="font-weight:800"' : '' ?>><?= $d ?> days</a><?php endforeach; ?></p>
-<p style="font-size:20px"><b><?= $th ?></b> page views, <b><?= $tv ?></b> visitor-days (a person who visits on 3 different days counts 3 times)</p>
-<div style="display:flex;align-items:flex-end;gap:2px;height:140px;max-width:900px;border-bottom:2px solid var(--ink)">
-<?php foreach ($series as [$d, $hv, $vv]): ?><div title="<?= h($d) ?>: <?= $hv ?> views, <?= $vv ?> visitors" style="flex:1;background:var(--acc);height:<?= max(1, (int)round(130 * $hv / $maxv)) ?>px;min-width:1px;<?= $hv ? '' : 'opacity:.25' ?>"></div><?php endforeach; ?>
-</div>
-<p style="font-size:13px;max-width:900px;display:flex;justify-content:space-between"><span><?= h($series[0][0]) ?></span><span><?= h(end($series)[0]) ?></span></p>
+<div class="ph"><div><h1>Stats</h1></div></div>
+<p>Page views and daily visitors for the public site. No cookies, no IP addresses or browser details are stored, and your own visits are not counted in this browser.</p>
+<div class="chips"><?php foreach ([7, 30, 90, 365] as $d): ?><a class="tab<?= $d === $days ? ' on" aria-current="page' : '' ?>" href="?a=stats&days=<?= $d ?>"><?= $d ?> days</a><?php endforeach; ?></div>
+<p class="lead"><b><?= $th ?></b> page views, <b><?= $tv ?></b> visitor-days (a person who visits on 3 different days counts 3 times)</p>
+<svg class="chart" viewBox="0 0 <?= $days * 10 ?> 140" preserveAspectRatio="none" role="img" aria-label="Page views per day">
+<?php foreach ($series as $k => [$d, $hv, $vv]): $bh = max(1, (int)round(130 * $hv / $maxv)); ?><rect x="<?= $k * 10 + 1 ?>" y="<?= 140 - $bh ?>" width="8" height="<?= $bh ?>"<?= $hv ? '' : ' class="z"' ?>><title><?= h($d) ?>: <?= $hv ?> views, <?= $vv ?> visitors</title></rect><?php endforeach; ?>
+</svg>
+<p class="axis"><span><?= h($series[0][0]) ?></span><span><?= h(end($series)[0]) ?></span></p>
 <h2>Top pages</h2><?php $tbl($pages, 'Page'); ?>
 <h2>Where visitors came from</h2><p>Sites that sent people here. "direct" means typed the address, used a bookmark, or came from an app that hides it.</p><?php $tbl($refs, 'Source'); ?>
 <h2>Devices</h2><?php $tbl($devs, 'Device'); ?>
@@ -563,8 +563,8 @@ if ($a === 'stats') {
     $gt = is_file(dirname(__DIR__) . '/gallery-titles.json') ? (json_decode((string)file_get_contents(dirname(__DIR__) . '/gallery-titles.json'), true) ?: []) : []; ?>
 <h2>Photo likes</h2>
 <p><?= $tl ?> like<?= $tl === 1 ? '' : 's' ?> in total.</p>
-<?php if ($top): ?><table><tr><th>Photo</th><th>Gallery</th><th>Likes</th></tr>
-<?php foreach ($top as $r): ?><tr><td><a href="/photo/<?= h($r['g']) ?>/<?= h($r['id']) ?>/" target="_blank"><img src="/photos/<?= h($r['g']) ?>/<?= h($r['id']) ?>-t.jpg" alt="" style="height:54px;vertical-align:middle"> <?= h($r['id']) ?></a></td><td><?= h($gt[$r['g']] ?? $r['g']) ?></td><td><?= (int)$r['n'] ?></td></tr><?php endforeach; ?></table><?php endif; ?>
+<?php if ($top): ?><table class="stack"><tr><th>Photo</th><th>Gallery</th><th>Likes</th></tr>
+<?php foreach ($top as $r): ?><tr><td><a href="/photo/<?= h($r['g']) ?>/<?= h($r['id']) ?>/" target="_blank"><img class="thumb" src="/photos/<?= h($r['g']) ?>/<?= h($r['id']) ?>-t.jpg" alt=""> <?= h($r['id']) ?></a></td><td data-label="Gallery"><?= h($gt[$r['g']] ?? $r['g']) ?></td><td data-label="Likes"><?= (int)$r['n'] ?></td></tr><?php endforeach; ?></table><?php endif; ?>
 <?php
 afoot(); exit;
 }
@@ -579,73 +579,73 @@ if ($a === 'codescsv') {
 if ($a === 'codes') {
     ahead('Codes'); $tok = csrf();
     $rows = db()->query('SELECT * FROM codes ORDER BY id DESC')->fetchAll(); ?>
-<h1 style="font-size:clamp(32px,5vw,64px)">Free download codes</h1>
+<div class="ph"><div><h1>Free download codes</h1></div></div>
 <p>Give someone a code and they can get photos from the public galleries with no payment: add photos to the order, open the cart, click "Have a code?". Each code is logged with who used it, which photos, and whether they downloaded them. Turn a code off any time without affecting the others.</p>
-<?php if (!empty($_GET['saved'])): ?><p class="ok">Saved.</p><?php endif; ?>
-<?php $errs = ['name' => 'Give the code a name.', 'code' => 'A code needs 6 or more letters, numbers or dashes.', 'dup' => 'That code already exists.']; if (!empty($errs[$_GET['err'] ?? ''])): ?><p class="err"><?= h($errs[$_GET['err']]) ?></p><?php endif; ?>
-<form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codenew">
+<?php if (!empty($_GET['saved'])): ?><p class="msg good" role="status">Saved.</p><?php endif; ?>
+<?php $errs = ['name' => 'Give the code a name.', 'code' => 'A code needs 6 or more letters, numbers or dashes.', 'dup' => 'That code already exists.']; if (!empty($errs[$_GET['err'] ?? ''])): ?><p class="msg bad" role="alert"><?= h($errs[$_GET['err']]) ?></p><?php endif; ?>
+<form method="post" class="form"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codenew">
 <div class="cols"><label>Who it is for (example: Q Minnesota)<input name="name" required></label>
 <label>Code (leave blank to make one)<input name="code" autocomplete="off" placeholder="made for you"></label>
 <label>Stops working after (optional)<input name="expires" type="date"></label></div>
 <button class="btn">Add code</button></form>
-<?php if ($rows): ?><p style="font-size:14px">The link opens the Events page with the code applied. To land on a specific gallery instead, put <code>?code=...</code> on the end of that gallery's address.</p><h2>Codes</h2><p><a href="?a=codescsv">Download everything as a spreadsheet (CSV)</a></p><?php endif; ?>
+<?php if ($rows): ?><p class="hint mt">The link opens the Events page with the code applied. To land on a specific gallery instead, put <code>?code=...</code> on the end of that gallery's address.</p><h2>Codes</h2><p><a href="?a=codescsv">Download everything as a spreadsheet (CSV)</a></p><?php endif; ?>
 <?php foreach ($rows as $c):
     $u = db()->prepare("SELECT g.id, g.created, g.client_email, g.title, (SELECT COUNT(*) FROM images i WHERE i.gallery_id = g.id) n, (SELECT COUNT(DISTINCT d.image_id) FROM downloads d JOIN images i ON i.id = d.image_id WHERE i.gallery_id = g.id) dl, (SELECT GROUP_CONCAT(i.label, ', ') FROM images i WHERE i.gallery_id = g.id) labels FROM galleries g WHERE g.code_id = ? ORDER BY g.created DESC");
     $u->execute([$c['id']]); $uses = $u->fetchAll();
     $np = array_sum(array_column($uses, 'n')); $nd = array_sum(array_column($uses, 'dl'));
     $exp = ($c['expires'] ?? '') !== '' && $c['expires'] < date('Y-m-d'); ?>
-<h3 style="margin:28px 0 4px"><?= h($c['name']) ?> <span class="pill"><?= $c['active'] ? ($exp ? 'expired' : 'on') : 'off' ?></span></h3>
-<p style="margin:0 0 6px">Code: <span class="link" style="display:inline;padding:3px 8px"><?= h($c['code']) ?></span><?= ($c['expires'] ?? '') !== '' ? ' &nbsp; until ' . h($c['expires']) : '' ?> &nbsp;
+<section class="panel"><h3><?= h($c['name']) ?> <span class="tag <?= $c['active'] ? ($exp ? 'wait' : 'good') : '' ?>"><?= $c['active'] ? ($exp ? 'expired' : 'on') : 'off' ?></span></h3>
+<p>Code: <span class="link inl"><?= h($c['code']) ?></span><?= ($c['expires'] ?? '') !== '' ? ' &nbsp; until ' . h($c['expires']) : '' ?> &nbsp;
 <?= count($uses) ?> use<?= count($uses) === 1 ? '' : 's' ?>, <?= (int)$np ?> photo<?= $np === 1 ? '' : 's' ?>, <?= (int)$nd ?> downloaded</p>
 <?php $lh = preg_replace('/^new\./', 'www.', (string)($_SERVER['HTTP_HOST'] ?? '')); $link = 'https://' . $lh . '/events/?code=' . rawurlencode($c['code']); ?>
-<p style="margin:0 0 8px">Link to send: <span class="link" style="display:inline;padding:3px 8px"><?= h($link) ?></span> <button type="button" class="btn" style="padding:4px 12px" onclick="navigator.clipboard.writeText(this.dataset.l).then(()=>{this.textContent='Copied'})" data-l="<?= h($link) ?>">Copy link</button></p>
-<form method="post" style="display:inline"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codetoggle"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><button class="btn" style="background:var(--card);color:var(--ink)"><?= $c['active'] ? 'Turn off' : 'Turn on' ?></button></form>
-<details style="margin:8px 0"><summary style="cursor:pointer">Change name, code or end date</summary>
-<form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codeedit"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>">
+<p>Link to send: <span class="link inl"><?= h($link) ?></span> <button type="button" class="btn sm" onclick="navigator.clipboard.writeText(this.dataset.l).then(()=>{this.textContent='Copied'})" data-l="<?= h($link) ?>">Copy link</button></p>
+<form method="post"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codetoggle"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><button class="btn sm alt"><?= $c['active'] ? 'Turn off' : 'Turn on' ?></button></form>
+<details class="mt"><summary>Change name, code or end date</summary>
+<form method="post" class="form mt"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codeedit"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>">
 <div class="cols"><label>Name<input name="name" value="<?= h($c['name']) ?>" required></label><label>Code<input name="code" value="<?= h($c['code']) ?>" autocomplete="off" required></label><label>Stops working after<input name="expires" type="date" value="<?= h((string)$c['expires']) ?>"></label></div>
 <button class="btn">Save changes</button></form></details>
-<?php if ($uses): ?><table><tr><th>When</th><th>Email</th><th>Photos</th><th>Downloaded</th></tr>
-<?php foreach ($uses as $r): ?><tr><td><?= h(date('M j, Y g:ia', (int)$r['created'])) ?></td><td><?= h($r['client_email']) ?></td><td><?= (int)$r['n'] ?>: <?= h(mb_strimwidth((string)$r['labels'], 0, 90, '...')) ?></td><td><?= (int)$r['dl'] ?> of <?= (int)$r['n'] ?></td></tr><?php endforeach; ?></table><?php endif; ?>
+<?php if ($uses): ?><table class="stack mt"><tr><th>When</th><th>Email</th><th>Photos</th><th>Downloaded</th></tr>
+<?php foreach ($uses as $r): ?><tr><td data-label="When"><?= h(date('M j, Y g:ia', (int)$r['created'])) ?></td><td data-label="Email"><?= h($r['client_email']) ?></td><td data-label="Photos"><?= (int)$r['n'] ?>: <?= h(mb_strimwidth((string)$r['labels'], 0, 90, '...')) ?></td><td data-label="Downloaded"><?= (int)$r['dl'] ?> of <?= (int)$r['n'] ?></td></tr><?php endforeach; ?></table><?php endif; ?></section>
 <?php endforeach; ?>
 <?php afoot(); exit;
 }
 
 if ($a === 'settings') {
     ahead('Settings'); $tok = csrf(); ?>
-<h1 style="font-size:clamp(32px,5vw,64px)">Settings</h1>
-<?php if (!empty($_GET['saved'])): ?><p class="ok">Saved.</p><?php endif; ?>
+<div class="ph"><div><h1>Settings</h1></div></div>
+<?php if (!empty($_GET['saved'])): ?><p class="msg good" role="status">Saved.</p><?php endif; ?>
 <h2>Save signed releases to Google Drive</h2>
 <p>Paste the web app address from your Google Apps Script, and the secret word you put in that script. Releases are then filed into your Drive folder automatically when a client signs.</p>
-<form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="settingssave">
+<form method="post" class="form"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="settingssave">
 <label>Web app address<input name="drive_webhook_url" value="<?= h((string)setting('drive_webhook_url', '')) ?>" placeholder="https://script.google.com/macros/s/.../exec"></label>
 <label>Secret word <?= setting('drive_webhook_secret', '') ? '(already saved, type a new one to replace it)' : '' ?><input name="drive_webhook_secret" type="text" autocomplete="off"></label>
 <button class="btn">Save</button></form>
 <h2 id="github">Publishing from the browser (GitHub)</h2>
 <p>The <a href="?a=publish">Publish</a> page saves each new gallery to your GitHub repository so the site rebuilds. Paste a fine-grained GitHub token here that can only edit the contents of that one repository.</p>
-<form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="githubsave">
+<form method="post" class="form"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="githubsave">
 <label>GitHub token <?= setting('github_token', '') ? '(saved; type a new one to replace it)' : '(starts with github_pat_)' ?><input name="github_token" type="text" autocomplete="off"></label>
 <label>Repository<input name="github_repo" value="<?= h((string)setting('github_repo', '') ?: 'drewanmpls/everettallen-site') ?>"></label>
-<?php if (setting('github_token', '')): ?><label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="github_clear" value="1" style="width:auto"> Remove the saved token</label><?php endif; ?>
+<?php if (setting('github_token', '')): ?><label class="check"><input type="checkbox" name="github_clear" value="1"> Remove the saved token</label><?php endif; ?>
 <button class="btn">Save</button></form>
 <h2 id="nas">Folder watcher key (NAS)</h2>
 <p>A small program on your NAS uses this key to publish photos to the site. Making a new key replaces the old one. Copy it right away, it is only shown once.</p>
-<?php if (!empty($_SESSION['new_nas_token'])): ?><p class="ok">Your new key (copy it now):</p><span class="link"><?= h($_SESSION['new_nas_token']) ?></span><?php unset($_SESSION['new_nas_token']); endif; ?>
-<form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="nastoken">
+<?php if (!empty($_SESSION['new_nas_token'])): ?><p class="msg good" role="status">Your new key (copy it now):</p><span class="link"><?= h($_SESSION['new_nas_token']) ?></span><?php unset($_SESSION['new_nas_token']); endif; ?>
+<form method="post" class="form"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="nastoken">
 <p><?= setting('nas_token_hash', '') ? 'A key is active.' : 'No key yet.' ?></p>
 <button class="btn"><?= setting('nas_token_hash', '') ? 'Make a new key' : 'Make a key' ?></button>
-<?php if (setting('nas_token_hash', '')): ?> <button class="btn" name="revoke" value="1" style="background:var(--card);color:var(--ink)">Turn the key off</button><?php endif; ?></form>
+<?php if (setting('nas_token_hash', '')): ?> <button class="btn alt" name="revoke" value="1">Turn the key off</button><?php endif; ?></form>
 <h2>Payments</h2>
 <p>Clients pay with Stripe on a secure Stripe page. If Stripe is switched off, not set up, or has a problem, the site automatically uses the manual flow instead: you get an email, the client gets your payment instructions, and you click "Mark paid" in the gallery.</p>
 <?php $sk = (string)setting('stripe_secret_key', ''); ?>
-<form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="paysave">
-<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="stripe_enabled" value="1" style="width:auto" <?= setting('stripe_enabled', '') === '1' ? 'checked' : '' ?>> Use Stripe checkout (uncheck to pause it and use the manual flow)</label>
+<form method="post" class="form"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="paysave">
+<label class="check"><input type="checkbox" name="stripe_enabled" value="1" <?= setting('stripe_enabled', '') === '1' ? 'checked' : '' ?>> Use Stripe checkout (uncheck to pause it and use the manual flow)</label>
 <label>Stripe secret key <?= $sk !== '' ? '(saved: ' . h(substr($sk, 0, 8)) . '..., ' . (strpos($sk, '_test_') !== false ? 'TEST mode' : 'live mode') . '; type a new one to replace it)' : '(starts with sk_live_ or sk_test_, or rk_ for a restricted key)' ?><input name="stripe_secret_key" type="text" autocomplete="off"></label>
 <label>Stripe webhook signing secret <?= setting('stripe_webhook_secret', '') ? '(saved; type a new one to replace it)' : '(starts with whsec_)' ?><input name="stripe_webhook_secret" type="text" autocomplete="off"></label>
-<p style="font-size:14px">In Stripe, add a webhook endpoint with this address, listening for <b>checkout.session.completed</b>:<br><code>https://<?= h($_SERVER['HTTP_HOST'] ?? '') ?>/client/stripe-webhook.php</code></p>
+<p class="hint">In Stripe, add a webhook endpoint with this address, listening for <b>checkout.session.completed</b>:<br><code>https://<?= h($_SERVER['HTTP_HOST'] ?? '') ?>/client/stripe-webhook.php</code></p>
 <label>How to pay manually (emailed to clients when they send a request without Stripe)<textarea name="manual_pay_text" rows="4" placeholder="Venmo @yourname, or Zelle to you@example.com. Please put your gallery name in the note."><?= h((string)setting('manual_pay_text', '')) ?></textarea></label>
 <h2>Selling from public galleries</h2>
 <p>Lets visitors buy photos from any public gallery (single photos or a cart). Needs the full-size originals uploaded with the publish script. Prices are per photo.</p>
-<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="shop_enabled" value="1" style="width:auto" <?= setting('shop_enabled', '') === '1' ? 'checked' : '' ?>> Show "Buy" on public gallery photos</label>
+<label class="check"><input type="checkbox" name="shop_enabled" value="1" <?= setting('shop_enabled', '') === '1' ? 'checked' : '' ?>> Show "Buy" on public gallery photos</label>
 <label>Web size price (2048px, for social media)<input name="shop_price_web" value="<?= h(((int)setting('shop_price_web_cents', '0')) > 0 ? number_format(((int)setting('shop_price_web_cents', '0')) / 100, 2, '.', '') : '') ?>" placeholder="5.00" inputmode="decimal"></label>
 <label>Full size price (original, for printing)<input name="shop_price_full" value="<?= h(((int)setting('shop_price_full_cents', '0')) > 0 ? number_format(((int)setting('shop_price_full_cents', '0')) / 100, 2, '.', '') : '') ?>" placeholder="25.00" inputmode="decimal"></label>
 <label>Multi-photo discount: starts at this many photos (leave 0 for no discount)<input name="shop_discount_min" value="<?= h((string)(int)setting('shop_discount_min', '0')) ?>" inputmode="numeric" placeholder="5"></label>
@@ -657,16 +657,16 @@ if ($a === 'settings') {
 // list
 $rows = db()->query('SELECT g.*, (SELECT COUNT(*) FROM images i WHERE i.gallery_id=g.id) AS n, (SELECT COUNT(*) FROM favorites f JOIN images i ON i.id=f.image_id WHERE i.gallery_id=g.id) AS fav, (SELECT COUNT(*) FROM comments c JOIN images i ON i.id=c.image_id WHERE i.gallery_id=g.id AND c.from_owner=0) AS com, (SELECT COUNT(*) FROM orders o WHERE o.gallery_id=g.id AND o.status=\'requested\') AS req FROM galleries g WHERE g.kind <> \'shop\' ORDER BY g.id DESC')->fetchAll();
 ahead('Galleries'); $tok = csrf(); ?>
-<h1 style="font-size:clamp(32px,5vw,64px)">Client galleries</h1>
+<div class="ph"><div><h1>Client galleries</h1></div><div class="act"><a class="btn" href="#new">New gallery</a></div></div>
 <?php if (!$rows): ?><p>No galleries yet. Create your first below.</p><?php else: ?>
-<table><tr><th>Gallery</th><th>Client</th><th>Photos</th><th>Favorites</th><th>Comments</th><th>Open requests</th><th></th></tr>
-<?php foreach ($rows as $r): ?><tr><td><a href="?a=gallery&id=<?= $r['id'] ?>"><b><?= h($r['title']) ?></b></a><?= $r['active'] ? '' : ' <span class="pill">off</span>' ?></td><td><?= h($r['client_name']) ?></td><td><?= $r['n'] ?></td><td><?= $r['fav'] ?></td><td><?= $r['com'] ?></td><td><?= $r['req'] ?></td><td><a href="?a=gallery&id=<?= $r['id'] ?>">Manage</a></td></tr><?php endforeach; ?></table><?php endif; ?>
+<table class="stack"><tr><th>Gallery</th><th>Client</th><th>Photos</th><th>Favorites</th><th>Comments</th><th>Open requests</th><th></th></tr>
+<?php foreach ($rows as $r): ?><tr><td><a href="?a=gallery&id=<?= $r['id'] ?>"><b><?= h($r['title']) ?></b></a><?= $r['active'] ? '' : ' <span class="tag wait">off</span>' ?></td><td data-label="Client"><?= h($r['client_name']) ?></td><td data-label="Photos"><?= $r['n'] ?></td><td data-label="Favorites"><?= $r['fav'] ?></td><td data-label="Comments"><?= $r['com'] ?></td><td data-label="Open requests"><?= $r['req'] ? '<span class="tag wait">' . $r['req'] . '</span>' : '0' ?></td><td><a href="?a=gallery&id=<?= $r['id'] ?>">Manage</a></td></tr><?php endforeach; ?></table><?php endif; ?>
 <?php $shop = db()->query("SELECT g.*, (SELECT COUNT(*) FROM images i WHERE i.gallery_id=g.id) AS n, (SELECT COUNT(*) FROM orders o WHERE o.gallery_id=g.id AND o.status='paid') AS paid FROM galleries g WHERE g.kind = 'shop' ORDER BY g.id DESC LIMIT 100")->fetchAll(); if ($shop): ?>
 <h2>Photo orders from the public galleries</h2>
-<table><tr><th>Buyer</th><th>Photos</th><th>Paid</th><th>Placed</th><th></th></tr>
-<?php foreach ($shop as $r): ?><tr><td><?= h($r['client_email']) ?></td><td><?= (int)$r['n'] ?></td><td><?= $r['paid'] ? '<span class="pill" style="background:var(--good)">paid</span>' : 'not yet' ?></td><td><?= date('M j, Y g:ia', (int)$r['created']) ?></td><td><a href="?a=gallery&id=<?= $r['id'] ?>">Manage</a></td></tr><?php endforeach; ?></table>
+<table class="stack"><tr><th>Buyer</th><th>Photos</th><th>Paid</th><th>Placed</th><th></th></tr>
+<?php foreach ($shop as $r): ?><tr><td><?= h($r['client_email']) ?></td><td data-label="Photos"><?= (int)$r['n'] ?></td><td data-label="Paid"><?= $r['paid'] ? '<span class="tag good">paid</span>' : '<span class="tag wait">not yet</span>' ?></td><td data-label="Placed"><?= date('M j, Y g:ia', (int)$r['created']) ?></td><td><a href="?a=gallery&id=<?= $r['id'] ?>">Manage</a></td></tr><?php endforeach; ?></table>
 <?php endif; ?>
-<h2>New gallery</h2>
+<h2 id="new">New gallery</h2>
 <form method="post" class="cols"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="create">
 <label>Title<input name="title" required placeholder="Jordan and Sam, spring session"></label>
 <label>Client name<input name="client_name"></label>
@@ -675,6 +675,6 @@ ahead('Galleries'); $tok = csrf(); ?>
 <label>Extra photo, web size ($, 0 = Free)<input name="price_web" value="0"></label>
 <label>Extra photo, full resolution ($, 0 = Free)<input name="price" value="0"></label>
 <label>Password (optional)<input name="password" autocomplete="off"></label>
-<label style="grid-column:1/-1">Note shown to client<textarea name="note" rows="2"></textarea></label>
-<div style="grid-column:1/-1"><button class="btn">Create gallery</button></div></form>
+<label class="full">Note shown to client<textarea name="note" rows="2"></textarea></label>
+<div class="full"><button class="btn">Create gallery</button></div></form>
 <?php afoot();
