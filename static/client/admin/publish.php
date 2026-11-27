@@ -116,11 +116,12 @@ if ($a === 'pubdone') {   // save the gallery file to GitHub
             $sr = is_string($d['series'] ?? null) ? trim($d['series']) : ''; if ($sr !== '') $g['series'] = $sr;
             $tg = []; foreach ((is_array($d['tags'] ?? null) ? $d['tags'] : []) as $t) if (is_string($t) && ($t = trim($t)) !== '' && !in_array($t, $tg, true)) $tg[] = $t;
             if ($tg) $g['tags'] = $tg;
+            $vn = is_string($d['venue'] ?? null) ? trim(preg_replace('/\s+/', ' ', $d['venue'])) : ''; if ($vn !== '' && $g['category'] === 'events') $g['venue'] = $vn;   // events only
         }
         $have = []; foreach ($g['images'] as $k => $im) $have[(string)$im['id']] = $k;
         foreach ($new as $id => $ratio) { $id = (string)$id; if (isset($have[$id])) $g['images'][$have[$id]]['ratio'] = $ratio; else $g['images'][] = ['id' => $id, 'ratio' => $ratio]; }
         if (empty($g['cover']) || !in_array($g['cover'], array_map(fn($i) => (string)$i['id'], $g['images']), true)) $g['cover'] = (string)$g['images'][0]['id'];
-        if ($code !== 200 && (isset($g['series']) || isset($g['tags']))) { $pv = validate_gallery($g, array_keys(pub_series())); if ($pv) json_out(['error' => implode(' ', $pv)], 400); }
+        if ($code !== 200 && (isset($g['series']) || isset($g['tags']) || isset($g['venue']))) { $pv = validate_gallery($g, array_keys(pub_series())); if ($pv) json_out(['error' => implode(' ', $pv)], 400); }
         $body = ['message' => 'Gallery: ' . $slug . ' (' . count($g['images']) . ' photos)', 'branch' => 'main',
                  'content' => base64_encode(json_encode($g, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n")];
         if ($sha) $body['sha'] = $sha;
@@ -164,6 +165,7 @@ $series = pub_series();
 <div class="cols"><label>Date<input id="pdate" type="date"></label>
 <label>Section<select id="pcat"><option value="events">Events</option><option value="portraits">Portraits</option></select></label></div>
 <label>Web address (made from the date and title; you can edit it)<input id="pslug" autocomplete="off"></label>
+<label id="pvenuebox">Venue (events only; shown on the gallery page)<input id="pvenue" maxlength="120" placeholder="Minneapolis Eagle, Minneapolis" autocomplete="off"></label>
 <div class="cols"><label>Event series<select id="pser"><option value="">None</option><?php foreach ($series as $k => $n): ?><option value="<?= h($k) ?>"><?= h($n) ?></option><?php endforeach; ?></select></label>
 <label>Tags (optional, one per line)<textarea id="ptags" rows="3"></textarea></label></div>
 </div>

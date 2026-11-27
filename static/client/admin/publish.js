@@ -7,6 +7,7 @@ pf.addEventListener('submit',function(e){e.preventDefault()});   // the button d
 $('pdate').value=new Date().toISOString().slice(0,10);
 function slugify(t){return t.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}
 var slugEdited=false;function auto(){if(slugEdited)return;var t=slugify($('ptitle').value),d=$('pdate').value,y=d.slice(0,4);if(t.indexOf(y+'-')===0)t=t.slice(5);$('pslug').value=slugify(d+' '+t)}
+$('pcat').addEventListener('change',function(){$('pvenuebox').hidden=$('pcat').value!=='events'});   // venue: events only
 $('ptitle').oninput=auto;$('pdate').oninput=auto;$('pslug').oninput=function(){slugEdited=true};
 document.querySelectorAll('input[name=mode]').forEach(function(r){r.onchange=function(){var o=document.querySelector('input[name=mode]:checked').value==='old';$('newbox').hidden=o;if($('oldbox'))$('oldbox').hidden=!o}});
 
@@ -62,7 +63,7 @@ $('pgo').onclick=async function(){
  if(!done.length){$('pstat').textContent='Nothing was uploaded.';$('pgo').disabled=false;return}
  $('pstat').textContent='Saving the gallery...';
  var payload={slug:slug,title:title,date:$('pdate').value,category:$('pcat').value,images:done};
- if(!old){var sr=$('pser').value,tg=$('ptags').value.split(/\n/).map(function(x){return x.trim()}).filter(Boolean);if(sr)payload.series=sr;if(tg.length)payload.tags=tg}
+ if(!old){var sr=$('pser').value,tg=$('ptags').value.split(/\n/).map(function(x){return x.trim()}).filter(Boolean);if(sr)payload.series=sr;if(tg.length)payload.tags=tg;var vn=$('pvenue').value.trim();if(vn&&$('pcat').value==='events')payload.venue=vn}
  var fd=new FormData();fd.append('a','pubdone');fd.append('csrf',CSRF);fd.append('payload',JSON.stringify(payload));
  var r=await post(fd);
  if(r&&r.ok){$('pstat').textContent='Published '+done.length+' photo'+(done.length>1?'s':'')+(bad?' ('+bad+' skipped).':'.')+(r.created?' Add a description any time under Galleries.':'');watch(r.url,r.count)}

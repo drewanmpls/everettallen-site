@@ -6,7 +6,7 @@
   function render(){
     var stop={at:1,and:1,the:1,of:1,in:1,a:1,'&':1},words=norm(q.value).split(/\s+/).filter(function(w){return w&&!stop[w]}),out=[];
     data.forEach(function(d){
-      var hay=norm([d.t,d.y,d.c,d.s,d.g.join(' '),d.k].join(' '));
+      var hay=norm([d.t,d.y,d.c,d.s,d.g.join(' '),d.k,d.v||''].join(' '));
       var hw=hay.split(/[^a-z0-9]+/); if(words.every(function(w){return hw.some(function(h){return h.indexOf(w)===0})})) out.push(d);
     });
     rc.textContent=words.length?(out.length+' galler'+(out.length===1?'y':'ies')+' found'):(data.length+' galleries, newest first');
