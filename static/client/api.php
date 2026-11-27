@@ -72,7 +72,7 @@ if ($a === 'request') {
     if (can_download($img, $g, $tier)) json_out(['error' => 'This size is already available: just download it.'], 400);
     $price = $tier === 'web' ? image_price_web($img, $g) : image_price($img, $g);
     $label = $tier === 'web' ? 'web size (social)' : 'full resolution (print)';
-    db()->prepare("INSERT INTO orders (gallery_id, image_id, email, status, tier, created) VALUES (?, ?, ?, 'requested', ?, ?)")->execute([$g['id'], $img['id'], $email, $tier, time()]);
+    db()->prepare("INSERT INTO orders (gallery_id, image_id, email, status, tier, price_cents, created) VALUES (?, ?, ?, 'requested', ?, ?, ?)")->execute([$g['id'], $img['id'], $email, $tier, $price, time()]);
     $orderId = (int)db()->lastInsertId();
     if (payments_enabled()) {
         $url = create_checkout(['id' => $orderId, 'email' => $email, 'tier' => $tier, 'price_cents' => $price], $img, $g);

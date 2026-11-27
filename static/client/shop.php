@@ -102,7 +102,7 @@ foreach ($picked as $p) {
     db()->prepare('INSERT INTO images (gallery_id, file, label, sort, w, h, created) VALUES (?,?,?,?,?,?,?)')
         ->execute([$gid, $name, $p['label'], ++$n, (int)round($sz[0] * $sc), (int)round($sz[1] * $sc), time()]);
     $iid = (int)db()->lastInsertId();
-    db()->prepare("INSERT INTO orders (gallery_id, image_id, email, status, tier, created) VALUES (?, ?, ?, 'requested', ?, ?)")->execute([$gid, $iid, $email, $tier, time()]);
+    db()->prepare("INSERT INTO orders (gallery_id, image_id, email, status, tier, price_cents, created) VALUES (?, ?, ?, 'requested', ?, ?, ?)")->execute([$gid, $iid, $email, $tier, $free ? 0 : $price, time()]);
     $orders[] = ['id' => (int)db()->lastInsertId(), 'email' => $email, 'tier' => $tier, 'price_cents' => $price, 'label' => $p['label']];
 }
 

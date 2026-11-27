@@ -15,7 +15,7 @@ function go(string $to): void { header('Location: ' . $to); exit; }
 // Later tickets add one line here when their page exists (Sessions, Sales, Galleries, Event series, Pages, Services).
 const ADMIN_MENU = [
     '' => [['Dashboard', 'dashboard', []]],
-    'Studio' => [['Clients', 'clients', ['client']], ['Sessions', 'sessions', ['gallery', 'list']], ['Codes', 'codes', []]],
+    'Studio' => [['Clients', 'clients', ['client']], ['Sessions', 'sessions', ['gallery', 'list']], ['Sales', 'orders', []], ['Codes', 'codes', []]],
     'Portfolio' => [['Galleries', 'pgalleries', ['pgallery']], ['Publish', 'publish', []], ['Event series', 'series', []], ['Library', 'library', []]],
     'Website' => [['Pages', 'pages', []], ['Services', 'services', []], ['Short links', 'links', []], ['Stats', 'stats', []], ['Settings', 'settings', []]],
 ];
@@ -141,6 +141,7 @@ if (in_array($a, ['publish', 'pubfile', 'pubdone', 'nasstatus'], true)) require 
 if (in_array($a, ['library', 'libfile', 'libzip'], true)) require __DIR__ . '/library.php';
 if ($a === 'dashboard') require __DIR__ . '/dashboard.php';
 if ($a === 'sessions') require __DIR__ . '/sessions.php';
+if ($a === 'orders' || $a === 'orderscsv') require __DIR__ . '/orders.php';
 if ($a === 'pgsuggest') require __DIR__ . '/ai.php';
 if (in_array($a, ['pgalleries', 'pgallery', 'pgsave', 'pgorder', 'pgremove'], true)) require __DIR__ . '/pgalleries.php';
 if (in_array($a, ['series', 'seriessave', 'pages', 'pagesave', 'sitesave', 'services', 'servicessave'], true)) require __DIR__ . '/content-editors.php';

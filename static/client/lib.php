@@ -27,7 +27,7 @@ function masters_dir(): string {
 
 // Database layout version. To add a table or column: put it in the migration block in db() (CREATE TABLE IF NOT EXISTS,
 // or a row in the add-column list) and raise SCHEMA_VERSION by one. The block then runs once per database, not on every request.
-const SCHEMA_VERSION = 3;   // 3: galleries.shoot_date and shoot_location (T-41 Sessions)
+const SCHEMA_VERSION = 4;   // 3: galleries.shoot_date and shoot_location (T-41 Sessions); 4: orders.price_cents (T-33 Sales)
 
 function db(): PDO {
     static $pdo = null;
@@ -78,7 +78,7 @@ function db(): PDO {
     CREATE INDEX IF NOT EXISTS login_fails_i ON login_fails (scope, h, t);
     ");
     foreach ([['galleries', 'included_count', 'INTEGER NOT NULL DEFAULT 0'], ['galleries', 'default_web_cents', 'INTEGER NOT NULL DEFAULT 0'],
-              ['images', 'price_web_cents', 'INTEGER'], ['galleries', 'shoot_date', "TEXT DEFAULT ''"], ['galleries', 'shoot_location', "TEXT DEFAULT ''"], ['galleries', 'client_id', 'INTEGER'], ['galleries', 'code_id', 'INTEGER'], ['clients', 'release_text', "TEXT DEFAULT ''"], ['clients', 'release_stage', "TEXT DEFAULT ''"], ['clients', 'release_dob', "TEXT DEFAULT ''"], ['clients', 'release_gallery', "TEXT DEFAULT ''"], ['clients', 'release_version', "TEXT DEFAULT ''"], ['clients', 'release_pdf', "TEXT DEFAULT ''"], ['clients', 'release_sig', "TEXT DEFAULT ''"], ['clients', 'drive_status', "TEXT DEFAULT ''"], ['clients', 'drive_url', "TEXT DEFAULT ''"], ['clients', 'shoot_date', "TEXT DEFAULT ''"], ['clients', 'shoot_location', "TEXT DEFAULT ''"], ['clients', 'id_verified', "TEXT DEFAULT ''"], ['clients', 'release_name', "TEXT DEFAULT ''"], ['clients', 'release_at', 'INTEGER'], ['clients', 'photo_path', "TEXT DEFAULT ''"], ['clients', 'idphoto_path', "TEXT DEFAULT ''"], ['clients', 'discount_percent', 'INTEGER NOT NULL DEFAULT 0'], ['orders', 'tier', "TEXT NOT NULL DEFAULT 'full'"], ['galleries', 'kind', "TEXT NOT NULL DEFAULT ''"]] as [$t, $c, $def]) {
+              ['images', 'price_web_cents', 'INTEGER'], ['galleries', 'shoot_date', "TEXT DEFAULT ''"], ['galleries', 'shoot_location', "TEXT DEFAULT ''"], ['galleries', 'client_id', 'INTEGER'], ['galleries', 'code_id', 'INTEGER'], ['clients', 'release_text', "TEXT DEFAULT ''"], ['clients', 'release_stage', "TEXT DEFAULT ''"], ['clients', 'release_dob', "TEXT DEFAULT ''"], ['clients', 'release_gallery', "TEXT DEFAULT ''"], ['clients', 'release_version', "TEXT DEFAULT ''"], ['clients', 'release_pdf', "TEXT DEFAULT ''"], ['clients', 'release_sig', "TEXT DEFAULT ''"], ['clients', 'drive_status', "TEXT DEFAULT ''"], ['clients', 'drive_url', "TEXT DEFAULT ''"], ['clients', 'shoot_date', "TEXT DEFAULT ''"], ['clients', 'shoot_location', "TEXT DEFAULT ''"], ['clients', 'id_verified', "TEXT DEFAULT ''"], ['clients', 'release_name', "TEXT DEFAULT ''"], ['clients', 'release_at', 'INTEGER'], ['clients', 'photo_path', "TEXT DEFAULT ''"], ['clients', 'idphoto_path', "TEXT DEFAULT ''"], ['clients', 'discount_percent', 'INTEGER NOT NULL DEFAULT 0'], ['orders', 'tier', "TEXT NOT NULL DEFAULT 'full'"], ['orders', 'price_cents', 'INTEGER'], ['galleries', 'kind', "TEXT NOT NULL DEFAULT ''"]] as [$t, $c, $def]) {
         $has = false;
         foreach ($pdo->query("PRAGMA table_info($t)") as $col) if ($col['name'] === $c) $has = true;
         if (!$has) $pdo->exec("ALTER TABLE $t ADD COLUMN $c $def");

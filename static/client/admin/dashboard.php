@@ -25,7 +25,7 @@ if ($a === 'dashboard') {
 ?>
 <div class="ph"><div><h1>Dashboard</h1></div></div>
 <div class="tiles">
-<a class="tile <?= $pending ? 'hot' : '' ?>" href="<?= $base ?>?a=sessions#orders"><b><?= $n($pending) ?></b><span>Orders needing action</span></a>
+<a class="tile <?= $pending ? 'hot' : '' ?>" href="<?= $base ?>?a=orders&amp;status=requested"><b><?= $n($pending) ?></b><span>Orders needing action</span></a>
 <a class="tile <?= $newcN ? 'hot' : '' ?>" href="<?= $base ?>?a=clients"><b><?= $n($newcN) ?></b><span>New inquiries</span></a>
 <div class="tile"><b><?= $n($d1['v']) ?></b><span>Visitors today</span></div>
 <div class="tile"><b><?= $n($d7['v']) ?></b><span>Visitors, 7 days</span></div>
