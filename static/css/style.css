@@ -168,3 +168,4 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,
 .fcard:focus-visible{outline-offset:-3px}
 .band:focus-visible,.lb button:focus-visible,.lb a:focus-visible,.cartbar a:focus-visible,.cartbar button:focus-visible{outline-color:#fff;outline-offset:-5px}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important;animation:none!important}}
+.ptitle{margin:8px 0 0;font:500 15px/1.5 "Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em}
