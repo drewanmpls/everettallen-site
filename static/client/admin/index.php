@@ -243,7 +243,7 @@ if ($post) {
         if ($id > 0) {
             db()->prepare('UPDATE clients SET name=?, email=?, phone=?, pronouns=?, service=?, timeframe=?, location=?, handle=?, referral=?, share_pref=?, message=?, notes=?, status=?, discount_percent=? WHERE id=?')
                 ->execute([$f['name'], $f['email'], $f['phone'], $f['pronouns'], $f['service'], $f['timeframe'], $f['location'], $f['handle'], $f['referral'], $f['share_pref'], $f['message'], $f['notes'], $st, max(0, min(100, (int)($_POST['discount_percent'] ?? 0))), $id]);
-            go($base . '?a=client&id=' . $id . '&saved=1');
+            go($base . '?a=client&id=' . $id . '&tab=details&saved=1');
         }
         db()->prepare("INSERT INTO clients (name, email, phone, pronouns, service, timeframe, location, handle, referral, share_pref, message, notes, status, source, created) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'admin', ?)")
             ->execute([$f['name'], $f['email'], $f['phone'], $f['pronouns'], $f['service'], $f['timeframe'], $f['location'], $f['handle'], $f['referral'], $f['share_pref'], $f['message'], $f['notes'], $st, time()]);
@@ -262,12 +262,12 @@ if ($post) {
             save_release_pdf($id);
             if (!empty($_POST['to_drive'])) drive_upload($id);
         }
-        go($base . '?a=client&id=' . $id . '&saved=1');
+        go($base . '?a=client&id=' . $id . '&tab=release&saved=1');
     }
     if ($a === 'driveretry') {
         $c0 = db()->prepare('SELECT release_at FROM clients WHERE id = ?'); $c0->execute([$id]);
         if ($c0->fetchColumn()) { save_release_pdf($id); drive_upload($id); }
-        go($base . '?a=client&id=' . $id . '&saved=1');
+        go($base . '?a=client&id=' . $id . '&tab=release&saved=1');
     }
     if ($a === 'settingssave') {
         set_setting('drive_webhook_url', trim((string)($_POST['drive_webhook_url'] ?? '')));
@@ -526,21 +526,61 @@ if ($a === 'client') {
     $gs = db()->prepare('SELECT g.*, (SELECT COUNT(*) FROM images i WHERE i.gallery_id = g.id) AS n FROM galleries g WHERE g.client_id = ? ORDER BY g.id DESC'); $gs->execute([$c['id']]); $gals = $gs->fetchAll();
     $free = db()->query('SELECT id, title FROM galleries WHERE client_id IS NULL ORDER BY id DESC')->fetchAll();
     $inc = 0; foreach (services_list() as $sv) if ($sv['title'] === $c['service']) $inc = (int)$sv['included'];
+    $tab = in_array($_GET['tab'] ?? '', ['details', 'release'], true) ? $_GET['tab'] : 'overview';
+    $ds = (string)$c['drive_status']; $tel = preg_replace('/[^0-9+]/', '', (string)$c['phone']);
+    $tz = new DateTimeZone('America/Chicago'); $fmt = fn(int $t) => (new DateTime('@' . $t))->setTimezone($tz)->format('M j, Y g:ia');
+    $tl = [];   // Timeline (T-32): read only, built from existing rows. Each entry: [unix time, sentence, link or '']
+    if ($tab === 'overview') {
+        $tl[] = [(int)$c['created'], $c['source'] === 'admin' ? 'You added this client.' : ($c['source'] === 'contact' ? 'Sent a message through the contact form.' : 'Sent the new client form.'), ''];
+        if ($c['release_at']) $tl[] = [(int)$c['release_at'], 'Signed the photo release as ' . $c['release_name'] . '.', '?a=releasepdf&id=' . (int)$c['id']];
+        foreach ($gals as $g) $tl[] = [(int)$g['created'], 'Session "' . $g['title'] . '" created.', '?a=gallery&id=' . (int)$g['id']];
+        $os = db()->prepare('SELECT o.created, o.status, o.tier, o.gallery_id, g.title, i.label FROM orders o JOIN galleries g ON g.id = o.gallery_id LEFT JOIN images i ON i.id = o.image_id WHERE g.client_id = ?'); $os->execute([$c['id']]);
+        foreach ($os->fetchAll() as $o) $tl[] = [(int)$o['created'], ($o['tier'] === 'web' ? 'Web size' : 'Full size') . ' order for photo ' . ($o['label'] ?? '?') . ' in "' . $o['title'] . '": ' . $o['status'] . '.', '?a=gallery&id=' . (int)$o['gallery_id'] . '&tab=activity#orders'];
+        $dls = db()->prepare('SELECT d.created, g.id AS gid, g.title FROM downloads d JOIN images i ON i.id = d.image_id JOIN galleries g ON g.id = i.gallery_id WHERE g.client_id = ? ORDER BY d.created'); $dls->execute([$c['id']]);
+        $days = []; foreach ($dls->fetchAll() as $d) { $k = $d['gid'] . '|' . (new DateTime('@' . $d['created']))->setTimezone($tz)->format('Y-m-d'); $days[$k] = $days[$k] ?? [(int)$d['created'], 0, $d['title'], (int)$d['gid']]; $days[$k][1]++; }
+        foreach ($days as [$t, $n, $ti, $gid]) $tl[] = [$t, $n . ($n === 1 ? ' download' : ' downloads') . ' from "' . $ti . '".', '?a=gallery&id=' . $gid . '&tab=activity'];
+        if (db()->query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'outbox'")->fetchColumn()) {   // outbox arrives with T-34
+            $ob = db()->prepare('SELECT created, sent, subject, status FROM outbox WHERE client_id = ?'); $ob->execute([$c['id']]);
+            foreach ($ob->fetchAll() as $m) $tl[] = [(int)($m['sent'] ?: $m['created']), 'Email "' . $m['subject'] . '": ' . $m['status'] . '.', ''];
+        }
+        usort($tl, fn($x, $y) => $y[0] <=> $x[0]);   // newest first
+    }
     ahead($c['name']); $tok = csrf(); ?>
 <div class="ph"><div><p class="back"><a href="?a=clients">&larr; All clients</a></p><h1><?= h($c['name']) ?></h1><span class="tag"><?= h(CLIENT_STATUSES[$c['status']] ?? $c['status']) ?></span></div>
 <?php if ($c['email']): ?><div class="act"><a class="btn alt" href="mailto:<?= h($c['email']) ?>">Email <?= h($c['name']) ?></a></div><?php endif; ?></div>
 <?php if (!empty($_GET['saved'])): ?><p class="msg good" role="status">Saved.</p><?php endif; ?>
 <p class="kicker"><?= h(CLIENT_STATUSES[$c['status']] ?? '') ?> / <?= $c['source'] === 'admin' ? 'added by you' : ($c['source'] === 'contact' ? 'sent a contact message' : 'sent the form') ?> on <?= date('M j, Y', (int)$c['created']) ?></p>
-
-<h2>Galleries</h2>
-<?php if (!$gals): ?><p>No galleries yet.</p><?php else: ?><table class="stack"><tr><th>Gallery</th><th>Photos</th><th>Package</th><th>Link</th></tr>
+<nav class="chips" aria-label="Client sections"><?php foreach (['overview' => 'Overview', 'details' => 'Details', 'release' => 'Release'] as $k => $lab): ?><a class="tab<?= $k === $tab ? ' on" aria-current="page' : '' ?>" href="?a=client&amp;id=<?= (int)$c['id'] ?>&amp;tab=<?= $k ?>"><?= $lab ?></a><?php endforeach; ?></nav>
+<?php if ($tab === 'overview'): ?>
+<div class="ovg">
+<section class="panel"><h2 class="mt0">Contact</h2>
+<dl class="kv"><dt>Email</dt><dd><?= $c['email'] !== '' ? h($c['email']) : '<span class="hint">none</span>' ?></dd><dt>Phone</dt><dd><?= $c['phone'] !== '' ? h($c['phone']) : '<span class="hint">none</span>' ?></dd>
+<?php if ($c['pronouns'] !== ''): ?><dt>Pronouns</dt><dd><?= h($c['pronouns']) ?></dd><?php endif; ?><?php if ($c['handle'] !== ''): ?><dt>Social</dt><dd><?= h($c['handle']) ?></dd><?php endif; ?></dl>
+<div class="acts mt"><?php if ($c['email'] !== ''): ?><a class="btn sm" href="mailto:<?= h($c['email']) ?>">Email</a><?php endif; ?><?php if ($tel !== ''): ?><a class="btn sm alt" href="tel:<?= h($tel) ?>">Call</a><?php endif; ?><a class="btn sm alt" href="?a=client&amp;id=<?= (int)$c['id'] ?>&amp;tab=details">Edit</a></div></section>
+<section class="panel <?= $c['release_at'] ? ($c['id_verified'] !== '' ? 'good' : 'wait') : '' ?>"><h2 class="mt0">Release</h2>
+<?php if ($c['release_at']): ?><dl class="kv"><dt>Signed</dt><dd><?= h($c['release_name']) ?>, <?= h($fmt((int)$c['release_at'])) ?></dd>
+<dt>ID checked</dt><dd><?= $c['id_verified'] !== '' ? h($c['id_verified']) : '<span class="tag wait">not yet</span>' ?></dd>
+<dt>Google Drive</dt><dd><?= $ds === 'saved' ? '<span class="tag good">saved</span>' : ($ds === '' ? 'not sent' : '<span class="tag bad">' . h($ds) . '</span>') ?></dd></dl>
+<div class="acts mt"><a class="btn sm" href="?a=releasepdf&amp;id=<?= (int)$c['id'] ?>" target="_blank">View PDF</a><a class="btn sm alt" href="?a=client&amp;id=<?= (int)$c['id'] ?>&amp;tab=release">Release details</a></div>
+<?php else: ?><p><span class="tag">not signed</span><?= $c['share_pref'] ? ' Sharing preference: ' . h($c['share_pref']) . '.' : '' ?></p><?php endif; ?></section>
+<section class="panel full"><h2 class="mt0">Sessions</h2>
+<?php if (!$gals): ?><p>No sessions yet.</p><?php else: ?><table class="stack"><tr><th>Session</th><th>Photos</th><th>Package</th><th>Link</th></tr>
 <?php foreach ($gals as $g): $url = link_for($g); ?><tr><td><a href="?a=gallery&id=<?= $g['id'] ?>"><b><?= h($g['title']) ?></b></a><?= $g['active'] ? '' : ' <span class="tag wait">off</span>' ?></td><td data-label="Photos"><?= (int)$g['n'] ?></td><td data-label="Package"><?= (int)$g['included_count'] ?> included</td>
-<td><a href="mailto:<?= h($c['email']) ?>?subject=<?= rawurlencode('Your photos from Everett Allen Photography') ?>&body=<?= rawurlencode("Hi " . $c['name'] . ",\n\nYour private gallery is ready:\n" . $url . ($g['password_hash'] ? "\n\n(I'll send the password separately.)" : '') . "\n\nTap the heart on your favorites, and leave a comment on any photo.\n\nAndrew") ?>">Email link to client</a></td></tr><?php endforeach; ?></table><?php endif; ?>
-<div class="row"><form method="post"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="makegallery"><input type="hidden" name="id" value="<?= $c['id'] ?>"><button class="btn sm">Create gallery for <?= h($c['name']) ?><?= $inc ? " ($inc photos included)" : '' ?></button></form>
+<td><a href="mailto:<?= h($c['email']) ?>?subject=<?= rawurlencode('Your photos from Everett Allen Photography') ?>&body=<?= rawurlencode("Hi " . $c['name'] . ",\n\nYour private gallery is ready:\n" . $url . ($g['password_hash'] ? "\n\n(I'll send the password separately.)" : '') . "\n\nTap the heart on your favorites, and leave a comment on any photo.\n\nAndrew") ?>">Email link</a></td></tr><?php endforeach; ?></table><?php endif; ?>
+<div class="row"><form method="post"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="makegallery"><input type="hidden" name="id" value="<?= $c['id'] ?>"><button class="btn sm">New session<?= $inc ? " ($inc photos included)" : '' ?></button></form>
 <?php if ($free): ?><form method="post" class="row"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="linkgallery"><input type="hidden" name="client_id" value="<?= $c['id'] ?>">
 <select name="gallery" aria-label="Gallery to link"><?php foreach ($free as $f): ?><option value="<?= $f['id'] ?>"><?= h($f['title']) ?></option><?php endforeach; ?></select><button class="btn sm alt">Link existing gallery</button></form><?php endif; ?></div>
 
-<?php if ($c['release_at']): $ds = (string)$c['drive_status']; ?><h2>Photo release on file</h2>
+</section>
+<section class="panel full"><h2 class="mt0">Notes</h2>
+<?php if ($c['message'] !== ''): ?><p class="kicker">What they wrote</p><p class="pre"><?= h($c['message']) ?></p><?php endif; ?>
+<p class="kicker">Your private notes</p><?= $c['notes'] !== '' ? '<p class="pre">' . h($c['notes']) . '</p>' : '<p class="hint">No notes yet.</p>' ?>
+<p><a class="btn sm alt" href="?a=client&amp;id=<?= (int)$c['id'] ?>&amp;tab=details">Edit notes</a></p></section>
+<section class="panel full"><h2 class="mt0">Timeline</h2>
+<?php if (!$tl): ?><p class="hint">Nothing yet.</p><?php else: ?><ol class="tl"><?php foreach ($tl as [$t, $txt, $href]): ?><li><time datetime="<?= h(date('c', $t)) ?>"><?= h($fmt($t)) ?></time> <?= $href !== '' ? '<a href="' . h($href) . '">' . h($txt) . '</a>' : h($txt) ?></li><?php endforeach; ?></ol><?php endif; ?></section>
+</div>
+<?php elseif ($tab === 'release'): ?>
+<?php if ($c['release_at']): ?><h2>Photo release on file</h2>
 <div class="panel <?= $c['id_verified'] !== '' ? 'good' : 'wait' ?>">
 <b>Signed by <?= h($c['release_name']) ?></b><?= $c['release_stage'] ? ' (' . h($c['release_stage']) . ')' : '' ?> on <?= date('M j, Y g:ia', (int)$c['release_at']) ?><?= $c['discount_percent'] ? ', ' . (int)$c['discount_percent'] . '% session discount' : '' ?>. Gallery displays: <b><?= h($c['release_gallery'] ?: 'n/a') ?></b>. Born <?= h($c['release_dob']) ?>.<br>
 <b>ID checked in person:</b> <?= $c['id_verified'] !== '' ? h($c['id_verified']) : '<span class="tag wait">not yet</span> Check ID at the session, then record it below.' ?><br>
@@ -566,7 +606,8 @@ if ($a === 'client') {
 <p class="row"><button type="button" class="btn sm" id="camsnap">Take photo</button><button type="button" class="btn sm alt" id="camcancel">Cancel</button></p>
 </dialog>
 <?php if ($ds !== 'saved'): ?><form method="post" class="mt"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="driveretry"><input type="hidden" name="id" value="<?= $c['id'] ?>"><button class="btn sm alt">Save to Google Drive now</button></form><?php endif; ?>
-<?php elseif ($c['share_pref']): ?><p class="kicker">Sharing preference: <?= h($c['share_pref']) ?> (no signed release on file)</p><?php endif; ?>
+<?php else: ?><p>No signed release on file.<?= $c['share_pref'] ? ' Sharing preference: ' . h($c['share_pref']) . '.' : '' ?></p><?php endif; ?>
+<?php else: ?>
 <h2>Details</h2>
 <form method="post" class="cols"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="clientsave"><input type="hidden" name="id" value="<?= $c['id'] ?>">
 <label>Name<input name="name" value="<?= h($c['name']) ?>" required></label><label>Pronouns<input name="pronouns" value="<?= h($c['pronouns']) ?>"></label>
@@ -584,6 +625,7 @@ if ($a === 'client') {
 <h2>Delete client</h2>
 <p>Removes this record only. Their galleries stay and become unlinked.</p>
 <form method="post" data-confirm="Delete this client record?" class="row narrow"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="clientdel"><input type="hidden" name="id" value="<?= $c['id'] ?>"><input name="confirm" placeholder="Type DELETE"><button class="btn sm alt">Delete</button></form>
+<?php endif; ?>
 <?php afoot(); exit;
 }
 
