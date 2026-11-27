@@ -15,20 +15,7 @@ function pub_titles(): array {
     return is_array($j) ? $j : [];
 }
 
-// ---------- GitHub (saves the gallery file; the site rebuilds on every commit) ----------
-function pub_gh(string $method, string $path, ?array $body = null): array {
-    $tok = trim((string)setting('github_token', ''));
-    $repo = trim((string)setting('github_repo', '')) ?: 'drewanmpls/everettallen-site';
-    if ($tok === '') return [0, ['message' => 'No GitHub token saved yet (Settings).']];
-    $ch = curl_init((getenv('EA_GITHUB_API') ?: 'https://api.github.com') . '/repos/' . $repo . '/' . ltrim($path, '/'));
-    $opt = [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 25, CURLOPT_CUSTOMREQUEST => $method,
-        CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $tok, 'Accept: application/vnd.github+json', 'User-Agent: everettallen-site-admin', 'X-GitHub-Api-Version: 2022-11-28', 'Content-Type: application/json']];
-    if ($body !== null) $opt[CURLOPT_POSTFIELDS] = json_encode($body);
-    curl_setopt_array($ch, $opt);
-    $res = curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
-    $j = is_string($res) ? json_decode($res, true) : null;
-    return [$code, is_array($j) ? $j : []];
-}
+require_once __DIR__ . '/content.php';   // pub_gh() and the content helpers
 
 // ---------- images ----------
 function pub_logo_mark($im): void {   // small logo, bottom-right, soft shadow (same look as the Mac script)
