@@ -528,7 +528,7 @@ On phones the bottom tab bar shows Today, Clients, Sessions, Portfolio (opens Ga
   3. Open the database with PDO and run `VACUUM INTO '<private>/backups/data-YYYY-MM-DD.sqlite'` (create `backups/` with mode 0700; if today's file exists, delete it first). Set the file mode to 0600.
   4. Keep the newest 30 daily files plus the first file of each month for 12 months; delete older ones. Only ever delete files matching `data-\d{4}-\d{2}-\d{2}\.sqlite` inside `backups/`.
   5. Print one line: file name and size. Exit non-zero on failure.
-  6. README: add a "Backups" section with the cron command for H-04: `php8.3 /home/dh_dbvmkc/everettallenphotography.com/client/cli/backup.php /home/dh_dbvmkc/everettallen-private/everettallenphotography.com`, daily, and a note that the PHP binary name should be confirmed in the DreamHost panel.
+  6. README: add a "Backups" section with the cron command for H-04: `php8.3 /home/dh_dbvmkc/new.everettallenphotography.com/client/cli/backup.php /home/dh_dbvmkc/everettallen-private/everettallenphotography.com`, daily, and a note that the PHP binary name should be confirmed in the DreamHost panel.
   7. Test locally with a throwaway SQLite file.
 * **Guardrails (Do Not Touch):** `lib.php`, the live database schema. Photos and originals are not part of this backup (they are large and already on the NAS).
 * **Verification Checklist (Done Checks):**
