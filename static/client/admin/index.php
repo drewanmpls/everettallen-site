@@ -5,7 +5,7 @@ require dirname(__DIR__) . '/lib.php';
 noindex();
 header('Cache-Control: private, no-store');
 start_session();
-$a = (string)($_REQUEST['a'] ?? 'list');
+$a = (string)($_REQUEST['a'] ?? 'dashboard');
 $post = $_SERVER['REQUEST_METHOD'] === 'POST';
 $base = '/client/admin/';
 $flash = '';
@@ -22,7 +22,7 @@ function ahead(string $title): void { ?>
 .link{font-family:monospace;background:#f6f3ec;border:1px solid var(--line);padding:8px 10px;word-break:break-all;display:block}
 h2{font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:20px;margin:32px 0 8px}
 .drop{border:2px dashed var(--ink);padding:24px;text-align:center;background:#f6f3ec}.ok{color:#0a6b2d}.pill{display:inline-block;padding:1px 8px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:12px}</style></head><body>
-<header class="top"><a class="brand" href="/client/admin/">Gallery admin</a><span style="display:flex;gap:22px"><a href="/client/admin/">Galleries</a><a href="/client/admin/?a=clients">Clients</a><a href="/client/admin/?a=publish">Publish</a><a href="/client/admin/?a=stats">Stats</a><a href="/client/admin/?a=settings">Settings</a><a href="/client/admin/?a=logout">Log out</a></span></header><script>try{localStorage.setItem("eaSkip","1")}catch(e){}</script><div class="adm">
+<header class="top"><a class="brand" href="/client/admin/">Gallery admin</a><span style="display:flex;gap:22px"><a href="/client/admin/">Dashboard</a><a href="/client/admin/?a=list">Galleries</a><a href="/client/admin/?a=clients">Clients</a><a href="/client/admin/?a=publish">Publish</a><a href="/client/admin/?a=library">Library</a><a href="/client/admin/?a=codes">Codes</a><a href="/client/admin/?a=links">Links</a><a href="/client/admin/?a=stats">Stats</a><a href="/client/admin/?a=settings">Settings</a><a href="/client/admin/?a=logout">Log out</a></span></header><script>try{localStorage.setItem("eaSkip","1")}catch(e){}</script><div class="adm">
 <?php }
 function afoot(): void { echo '</div></body></html>'; }
 
@@ -71,8 +71,12 @@ function link_for(array $g): string { return 'https://' . ($_SERVER['HTTP_HOST']
 if ($a === 'thumb') {
     $s = db()->prepare('SELECT * FROM images WHERE id = ?'); $s->execute([(int)($_GET['id'] ?? 0)]); $i = $s->fetch();
     if (!$i) { http_response_code(404); exit; }
-    $p = gdir((int)$i['gallery_id'], 'thumb') . '/' . basename($i['file']);
-    if (!is_file($p)) { http_response_code(404); exit; }
+    // Order galleries (kind 'shop') keep unwatermarked copies in 'sthumb' and build them on first view.
+    $gk = db()->prepare('SELECT kind FROM galleries WHERE id = ?'); $gk->execute([(int)$i['gallery_id']]);
+    $wm = ($gk->fetchColumn() ?: '') !== 'shop';
+    $p = gdir((int)$i['gallery_id'], ($wm ? '' : 's') . 'thumb') . '/' . basename($i['file']);
+    if (!is_file($p)) $p = ensure_derivative((int)$i['gallery_id'], $i['file'], 'thumb', $wm);
+    if ($p === '' || !is_file($p)) { http_response_code(404); exit; }
     header('Content-Type: image/jpeg'); header('Cache-Control: private, max-age=3600'); readfile($p); exit;
 }
 
@@ -93,6 +97,9 @@ if ($a === 'releasepdf') {
 
 // ----- Publish photos (browser upload to the public galleries) -----
 if (in_array($a, ['publish', 'pubfile', 'pubdone'], true)) require __DIR__ . '/publish.php';
+if (in_array($a, ['library', 'libfile', 'libzip'], true)) require __DIR__ . '/library.php';
+if ($a === 'dashboard') require __DIR__ . '/dashboard.php';
+if (in_array($a, ['links', 'linknew', 'linktoggle', 'linkdel'], true)) require __DIR__ . '/links.php';
 
 // ----- POST actions -----
 if ($post) {
@@ -196,6 +203,32 @@ if ($post) {
         if (!empty($_POST['revoke'])) set_setting('nas_token_hash', '');
         else { $k = bin2hex(random_bytes(24)); set_setting('nas_token_hash', hash('sha256', $k)); $_SESSION['new_nas_token'] = $k; }
         go($base . '?a=settings#nas');
+    }
+    if ($a === 'codenew') {
+        $name = trim(strip_tags((string)($_POST['name'] ?? '')));
+        if ($name === '') go($base . '?a=codes&err=name');
+        $c = strtolower(trim((string)($_POST['code'] ?? '')));
+        if ($c === '') { $al = 'abcdefghjkmnpqrstuvwxyz23456789'; $c = ''; for ($k = 0; $k < 10; $k++) $c .= $al[random_int(0, strlen($al) - 1)]; $c = substr($c, 0, 5) . '-' . substr($c, 5); }
+        if (strlen($c) < 6 || !preg_match('/^[a-z0-9-]+$/', $c)) go($base . '?a=codes&err=code');
+        $ex = trim((string)($_POST['expires'] ?? '')); if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $ex)) $ex = '';
+        try { db()->prepare('INSERT INTO codes (name, code, expires, created) VALUES (?,?,?,?)')->execute([mb_substr($name, 0, 80), $c, $ex, time()]); }
+        catch (Throwable $e) { go($base . '?a=codes&err=dup'); }
+        go($base . '?a=codes&saved=1');
+    }
+    if ($a === 'codeedit') {
+        $cid = (int)($_POST['cid'] ?? 0);
+        $c = strtolower(trim((string)($_POST['code'] ?? '')));
+        $name = trim(strip_tags((string)($_POST['name'] ?? '')));
+        if ($name === '') go($base . '?a=codes&err=name');
+        if (strlen($c) < 6 || !preg_match('/^[a-z0-9-]+$/', $c)) go($base . '?a=codes&err=code');
+        $ex = trim((string)($_POST['expires'] ?? '')); if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $ex)) $ex = '';
+        try { db()->prepare('UPDATE codes SET name = ?, code = ?, expires = ? WHERE id = ?')->execute([mb_substr($name, 0, 80), $c, $ex, $cid]); }
+        catch (Throwable $e) { go($base . '?a=codes&err=dup'); }
+        go($base . '?a=codes&saved=1');
+    }
+    if ($a === 'codetoggle') {
+        db()->prepare('UPDATE codes SET active = 1 - active WHERE id = ?')->execute([(int)($_POST['cid'] ?? 0)]);
+        go($base . '?a=codes');
     }
     if ($a === 'githubsave') {
         if (trim((string)($_POST['github_token'] ?? '')) !== '') set_setting('github_token', trim((string)$_POST['github_token']));
@@ -492,6 +525,55 @@ if ($a === 'stats') {
 <h2>Top pages</h2><?php $tbl($pages, 'Page'); ?>
 <h2>Where visitors came from</h2><p>Sites that sent people here. "direct" means typed the address, used a bookmark, or came from an app that hides it.</p><?php $tbl($refs, 'Source'); ?>
 <h2>Devices</h2><?php $tbl($devs, 'Device'); ?>
+<?php     $tl = (int)db()->query('SELECT COALESCE(SUM(n),0) FROM photo_likes')->fetchColumn();
+    $top = db()->query('SELECT g, id, n FROM photo_likes WHERE n > 0 ORDER BY n DESC, g, id LIMIT 12')->fetchAll();
+    $gt = is_file(dirname(__DIR__) . '/gallery-titles.json') ? (json_decode((string)file_get_contents(dirname(__DIR__) . '/gallery-titles.json'), true) ?: []) : []; ?>
+<h2>Photo likes</h2>
+<p><?= $tl ?> like<?= $tl === 1 ? '' : 's' ?> in total.</p>
+<?php if ($top): ?><table><tr><th>Photo</th><th>Gallery</th><th>Likes</th></tr>
+<?php foreach ($top as $r): ?><tr><td><a href="/photo/<?= h($r['g']) ?>/<?= h($r['id']) ?>/" target="_blank"><img src="/photos/<?= h($r['g']) ?>/<?= h($r['id']) ?>-t.jpg" alt="" style="height:54px;vertical-align:middle"> <?= h($r['id']) ?></a></td><td><?= h($gt[$r['g']] ?? $r['g']) ?></td><td><?= (int)$r['n'] ?></td></tr><?php endforeach; ?></table><?php endif; ?>
+<?php
+afoot(); exit;
+}
+
+if ($a === 'codescsv') {
+    header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="code-uses.csv"');
+    $o = fopen('php://output', 'w'); fputcsv($o, ['Code name', 'Date', 'Email', 'Gallery', 'Photo', 'Downloaded']);
+    $q = db()->query("SELECT c.name cname, g.created, g.client_email, g.title, i.label, i.id iid, (SELECT COUNT(*) FROM downloads d WHERE d.image_id = i.id) dl FROM galleries g JOIN codes c ON c.id = g.code_id JOIN images i ON i.gallery_id = g.id ORDER BY g.created DESC, i.sort");
+    foreach ($q as $r) fputcsv($o, [$r['cname'], date('Y-m-d H:i', (int)$r['created']), $r['client_email'], $r['title'], $r['label'], $r['dl'] > 0 ? 'yes' : 'no']);
+    exit;
+}
+if ($a === 'codes') {
+    ahead('Codes'); $tok = csrf();
+    $rows = db()->query('SELECT * FROM codes ORDER BY id DESC')->fetchAll(); ?>
+<h1 style="font-size:clamp(32px,5vw,64px)">Free download codes</h1>
+<p>Give someone a code and they can get photos from the public galleries with no payment: add photos to the order, open the cart, click "Have a code?". Each code is logged with who used it, which photos, and whether they downloaded them. Turn a code off any time without affecting the others.</p>
+<?php if (!empty($_GET['saved'])): ?><p class="ok">Saved.</p><?php endif; ?>
+<?php $errs = ['name' => 'Give the code a name.', 'code' => 'A code needs 6 or more letters, numbers or dashes.', 'dup' => 'That code already exists.']; if (!empty($errs[$_GET['err'] ?? ''])): ?><p class="err"><?= h($errs[$_GET['err']]) ?></p><?php endif; ?>
+<form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codenew">
+<div class="cols"><label>Who it is for (example: Q Minnesota)<input name="name" required></label>
+<label>Code (leave blank to make one)<input name="code" autocomplete="off" placeholder="made for you"></label>
+<label>Stops working after (optional)<input name="expires" type="date"></label></div>
+<button class="btn">Add code</button></form>
+<?php if ($rows): ?><p style="font-size:14px">The link opens the Events page with the code applied. To land on a specific gallery instead, put <code>?code=...</code> on the end of that gallery's address.</p><h2>Codes</h2><p><a href="?a=codescsv">Download everything as a spreadsheet (CSV)</a></p><?php endif; ?>
+<?php foreach ($rows as $c):
+    $u = db()->prepare("SELECT g.id, g.created, g.client_email, g.title, (SELECT COUNT(*) FROM images i WHERE i.gallery_id = g.id) n, (SELECT COUNT(DISTINCT d.image_id) FROM downloads d JOIN images i ON i.id = d.image_id WHERE i.gallery_id = g.id) dl, (SELECT GROUP_CONCAT(i.label, ', ') FROM images i WHERE i.gallery_id = g.id) labels FROM galleries g WHERE g.code_id = ? ORDER BY g.created DESC");
+    $u->execute([$c['id']]); $uses = $u->fetchAll();
+    $np = array_sum(array_column($uses, 'n')); $nd = array_sum(array_column($uses, 'dl'));
+    $exp = ($c['expires'] ?? '') !== '' && $c['expires'] < date('Y-m-d'); ?>
+<h3 style="margin:28px 0 4px"><?= h($c['name']) ?> <span class="pill"><?= $c['active'] ? ($exp ? 'expired' : 'on') : 'off' ?></span></h3>
+<p style="margin:0 0 6px">Code: <span class="link" style="display:inline;padding:3px 8px"><?= h($c['code']) ?></span><?= ($c['expires'] ?? '') !== '' ? ' &nbsp; until ' . h($c['expires']) : '' ?> &nbsp;
+<?= count($uses) ?> use<?= count($uses) === 1 ? '' : 's' ?>, <?= (int)$np ?> photo<?= $np === 1 ? '' : 's' ?>, <?= (int)$nd ?> downloaded</p>
+<?php $lh = preg_replace('/^new\./', 'www.', (string)($_SERVER['HTTP_HOST'] ?? '')); $link = 'https://' . $lh . '/events/?code=' . rawurlencode($c['code']); ?>
+<p style="margin:0 0 8px">Link to send: <span class="link" style="display:inline;padding:3px 8px"><?= h($link) ?></span> <button type="button" class="btn" style="padding:4px 12px" onclick="navigator.clipboard.writeText(this.dataset.l).then(()=>{this.textContent='Copied'})" data-l="<?= h($link) ?>">Copy link</button></p>
+<form method="post" style="display:inline"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codetoggle"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><button class="btn" style="background:#fff;color:var(--ink)"><?= $c['active'] ? 'Turn off' : 'Turn on' ?></button></form>
+<details style="margin:8px 0"><summary style="cursor:pointer">Change name, code or end date</summary>
+<form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codeedit"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>">
+<div class="cols"><label>Name<input name="name" value="<?= h($c['name']) ?>" required></label><label>Code<input name="code" value="<?= h($c['code']) ?>" autocomplete="off" required></label><label>Stops working after<input name="expires" type="date" value="<?= h((string)$c['expires']) ?>"></label></div>
+<button class="btn">Save changes</button></form></details>
+<?php if ($uses): ?><table><tr><th>When</th><th>Email</th><th>Photos</th><th>Downloaded</th></tr>
+<?php foreach ($uses as $r): ?><tr><td><?= h(date('M j, Y g:ia', (int)$r['created'])) ?></td><td><?= h($r['client_email']) ?></td><td><?= (int)$r['n'] ?>: <?= h(mb_strimwidth((string)$r['labels'], 0, 90, '...')) ?></td><td><?= (int)$r['dl'] ?> of <?= (int)$r['n'] ?></td></tr><?php endforeach; ?></table><?php endif; ?>
+<?php endforeach; ?>
 <?php afoot(); exit;
 }
 

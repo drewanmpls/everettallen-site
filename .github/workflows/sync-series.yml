@@ -1,0 +1,20 @@
+name: Sync series dropdown
+on:
+  push:
+    branches: [main]
+    paths: ['content/series.json']
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/sync-series.py
+      - run: |
+          if ! git diff --quiet .pages.yml; then
+            git config user.name "github-actions"
+            git config user.email "actions@users.noreply.github.com"
+            git commit -am "Sync Series dropdown with series list"
+            git push
+          fi

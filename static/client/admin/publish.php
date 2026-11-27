@@ -116,10 +116,12 @@ if ($a === 'pubdone') {   // save the gallery file to GitHub
             $title = mb_substr(trim(strip_tags((string)($d['title'] ?? ''))), 0, 200);
             $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($d['date'] ?? '')) ? $d['date'] : date('Y-m-d');
             if ($title === '') json_out(['error' => 'A new gallery needs a title.'], 400);
+            // Events keep the year in the title ("2026 TCLF Friday"), even if the sender left it off.
+            if (!empty($apiAuth) && !preg_match('/^\d{4}\b/', $title) && (($d['category'] ?? '') !== 'portraits')) $title = substr($date, 0, 4) . ' ' . $title;
             $g = ['title' => $title, 'category' => (($d['category'] ?? '') === 'portraits') ? 'portraits' : 'events', 'year' => substr($date, 0, 4), 'date' => $date, 'cover' => (string)array_key_first($new), 'description' => '', 'images' => []];
         }
         $have = []; foreach ($g['images'] as $k => $im) $have[(string)$im['id']] = $k;
-        foreach ($new as $id => $ratio) { if (isset($have[$id])) $g['images'][$have[$id]]['ratio'] = $ratio; else $g['images'][] = ['id' => $id, 'ratio' => $ratio]; }
+        foreach ($new as $id => $ratio) { $id = (string)$id; if (isset($have[$id])) $g['images'][$have[$id]]['ratio'] = $ratio; else $g['images'][] = ['id' => $id, 'ratio' => $ratio]; }
         if (empty($g['cover']) || !in_array($g['cover'], array_map(fn($i) => (string)$i['id'], $g['images']), true)) $g['cover'] = (string)$g['images'][0]['id'];
         $body = ['message' => 'Gallery: ' . $slug . ' (' . count($g['images']) . ' photos)', 'branch' => 'main',
                  'content' => base64_encode(json_encode($g, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n")];

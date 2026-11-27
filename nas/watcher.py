@@ -8,8 +8,8 @@ same file name are replaced, new ones are added.
 
 To publish: finish the export, then rename the folder so it ends with -READY (for example
 "2026-11-05 TCLF Thursday Atons Kickoff-READY"). Or leave the name alone and drop an empty file named READY inside it.
-Folder name = gallery. "2026-11-05 TCLF Thursday Atons Kickoff" becomes the title "TCLF Thursday Atons Kickoff"
-(the leading date is used as the date) and the web address 2026-11-05-tclf-thursday-atons-kickoff.
+Folder name = gallery. "2026-11-05 TCLF Thursday Atons Kickoff" becomes the title "2026 TCLF Thursday Atons Kickoff"
+(the leading date is used as the date, and its year starts the title) and the web address 2026-11-05-tclf-thursday-atons-kickoff.
 To file it under Portraits, end the name with -PORTRAITS-READY (default is Events).
 
 When it finishes the folder is renamed to end with -PUBLISHED. If something fails it is renamed to end with -FAILED and
@@ -71,6 +71,8 @@ def publish(folder, via_file):
     m = re.match(r"^(\d{4}-\d{2}-\d{2})[ _-]+(.*)$", base)
     date = m.group(1) if m else datetime.date.today().isoformat()
     title = (m.group(2) if m else base).strip() or base
+    if m and not re.match(r"^\d{4}\b", title):
+        title = f"{date[:4]} {title}"  # keep the year in the title: "2026-11-06 TCLF Friday" -> "2026 TCLF Friday"
     slug = slugify(base)
     files = sorted((f for f in os.listdir(path) if f.lower().endswith((".jpg", ".jpeg")) and not f.startswith(".")),
                    key=lambda s: [int(x) if x.isdigit() else x.lower() for x in re.split(r"(\d+)", s)])

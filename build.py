@@ -5,11 +5,11 @@ R=os.path.dirname(os.path.abspath(__file__)); os.chdir(R)
 site=json.load(open('content/site.json'))
 e=html.escape
 def ver(path): return hashlib.md5(open(path,'rb').read()).hexdigest()[:8]  # cache-busting stamp so browsers never mix old CSS with new JS
-VCSS,VSITE,VSHOP,VSEARCH=[ver('static/'+x) for x in ('css/style.css','js/site.js','js/shop.js','js/search.js')]
+VCSS,VSITE,VSHOP,VSEARCH,VLIKES=[ver('static/'+x) for x in ('css/style.css','js/site.js','js/shop.js','js/search.js','js/likes.js')]
 cats={'portraits':'Portraits','events':'Events'}
 G=[]
 for f in glob.glob('content/galleries/*.json'):
-    g=json.load(open(f)); g['slug']=os.path.basename(f)[:-5]; g.setdefault('year',g['date'][:4]); G.append(g)
+    g=json.load(open(f)); g['slug']=os.path.basename(f)[:-5]; g.setdefault('year',g['date'][:4]); g.setdefault('description',''); g['cover']=str(g.get('cover') or g['images'][0]['id']); G.append(g)
 G=[g for g in G if g['images']]
 SER=json.load(open('content/series.json'))['series']
 ser_by={x['slug']:x for x in SER}
@@ -33,6 +33,7 @@ def page(title,body,path,section,desc='',image='',url=''):
     elif section=='Events': nav='<a href="/">&larr; Portraits</a><a href="/search/">Search</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
     else: nav='<a href="/">Portraits</a><a href="/events/">Events</a><a href="/search/">Search</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script>try{{var u=new URL(location.href),c=u.searchParams.get("code");if(c){{localStorage.setItem("eaCode",c.trim());u.searchParams.delete("code");history.replaceState(null,"",u.pathname+u.search+u.hash)}}}}catch(e){{}}</script>
 <title>{e(t)}</title><meta name="description" content="{d}"><link rel="canonical" href="{site['base_url']}{canon}">
 <meta property="og:title" content="{e(t)}"><meta property="og:description" content="{d}"><meta property="og:type" content="website"><meta property="og:site_name" content="{e(site['title'])}"><meta property="og:url" content="{site['base_url']}{canon}"><meta property="og:image" content="{site['base_url']}{image or '/assets/og-default.jpg'}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{e(t)}"><meta name="twitter:description" content="{d}"><meta name="twitter:image" content="{site['base_url']}{image or '/assets/og-default.jpg'}">
 <link rel="icon" href="/assets/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -106,7 +107,7 @@ for g in G:
     tg=''.join(f'<a href="/tag/{slugify(t)}/">{e(t)}</a>' for t in g['tags'])
     tg=f'<p class="tags">{tg}</p>' if tg else ''
     back=f'<a href="/{g["category"]}/">&larr; {sec}</a>'
-    w(f'/gallery/{s}/',page(g['title'],f'<div class="wrap"><p class="meta">{back}</p><h1 class="h1">{e(g["title"])}</h1><p class="meta">{g["year"]} / {len(g["images"])} photos{sx}</p><div class="desc">{d}</div>{tg}<div class="grid">{items}</div><div class="share" data-label="Share this gallery" data-path="/gallery/{s}/" data-title="{e(g["title"])}" data-media="/photos/{s}/{g["cover"]}-l.jpg"></div><p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js?v={VSHOP}" defer></script>',f'/{g["category"]}/',sec,re.sub('<[^>]+>','',d)[:160] or f'{g["title"]} by Everett Allen Photography',f'/photos/{s}/{g["cover"]}-l.jpg',f'/gallery/{s}/'))
+    w(f'/gallery/{s}/',page(g['title'],f'<div class="wrap"><p class="meta">{back}</p><h1 class="h1">{e(g["title"])}</h1><p class="meta">{g["year"]} / {len(g["images"])} photos{sx}</p><div class="desc">{d}</div>{tg}<div class="grid">{items}</div><div class="share" data-label="Share this gallery" data-path="/gallery/{s}/" data-title="{e(g["title"])}" data-media="/photos/{s}/{g["cover"]}-l.jpg"></div><p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js?v={VSHOP}" defer></script><script src="/js/likes.js?v={VLIKES}" defer></script>',f'/{g["category"]}/',sec,re.sub('<[^>]+>','',d)[:160] or f'{g["title"]} by Everett Allen Photography',f'/photos/{s}/{g["cover"]}-l.jpg',f'/gallery/{s}/'))
 # ---- One page per photo (so a shared link shows that exact photo in the preview)
 for g in G:
     s=g['slug']; n=len(g['images']); sec=cats[g['category']]
@@ -118,7 +119,7 @@ for g in G:
               f'<img class="pimg" src="/photos/{s}/{pid}-l.jpg" alt="{e(title)}" style="aspect-ratio:{i["ratio"]}">'
               f'<p class="meta pnav">{nav}</p>'
               f'<div class="share" data-label="Share this photo" data-path="/photo/{s}/{pid}/" data-title="{e(g["title"])}" data-media="/photos/{s}/{pid}-l.jpg"></div>'
-              f'<p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js?v={VSHOP}" defer></script>')
+              f'<p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js?v={VSHOP}" defer></script><script src="/js/likes.js?v={VLIKES}" defer></script>')
         html=page(title,body,f'/photo/{s}/{pid}/',sec,f'{g["title"]}, photo {k+1}, by Everett Allen Photography',f'/photos/{s}/{pid}-l.jpg')
         w(f'/photo/{s}/{pid}/',html.replace('<meta name="description"','<meta name="robots" content="noindex,follow"><meta name="description"',1))
 # ---- Contact etc.
@@ -165,6 +166,8 @@ urls=['/','/portraits/','/events/','/search/','/services/','/contact/']+[f'/tag/
 open('dist/sitemap.xml','w').write('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+''.join(f'<url><loc>{site["base_url"]}{u}</loc></url>' for u in urls)+'</urlset>')
 open('dist/robots.txt','w').write(f'User-agent: *\nAllow: /\nDisallow: /client/\nSitemap: {site["base_url"]}/sitemap.xml\n')
 ht=['ErrorDocument 404 /404.html','RewriteEngine On','RewriteCond %{HTTPS} off','RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]',
+'# Short links made in Admin > Links',
+'RewriteRule ^go/([A-Za-z0-9-]+)/?$ /client/go.php?s=$1 [L,QSA]',
 '# Hotlink protection: other websites cannot embed /photos/ images. Allowed: this site, empty referrers (direct visits, privacy browsers, messaging apps), search engines and social/link-preview crawlers.',
 'RewriteCond %{REQUEST_URI} ^/photos/ [NC]',
 'RewriteCond %{HTTP_REFERER} !^$',
