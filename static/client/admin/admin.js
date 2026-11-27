@@ -177,6 +177,25 @@
         });
     });
 
+    // Services: cards move, get removed or added; new cards get the next free index for their field names
+    var cl = document.getElementById('cardlist');
+    if (cl) {
+      var said3 = document.getElementById('svcmoved'), next = cl.children.length;
+      cl.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-card]'); if (!b) return;
+        var li = b.closest('li'), d = +b.getAttribute('data-card'), name = li.querySelector('legend').textContent;
+        if (d === 0) { if (cl.children.length < 2) { said3.textContent = 'Keep at least one card.'; return; } if (!window.confirm('Remove the card "' + name + '"? It is gone once you save.')) return; li.remove(); said3.textContent = name + ' removed. Save to keep the change.'; return; }
+        var to = d < 0 ? li.previousElementSibling : li.nextElementSibling; if (!to) return;
+        if (d < 0) cl.insertBefore(li, to); else cl.insertBefore(to, li);
+        b.focus(); said3.textContent = name + ' is now card ' + ([].indexOf.call(cl.children, li) + 1) + ' of ' + cl.children.length + '.';
+      });
+      document.getElementById('cardadd').addEventListener('click', function () {
+        var li = document.getElementById('cardtpl').content.firstElementChild.cloneNode(true), n = next++;
+        li.querySelectorAll('[data-n]').forEach(function (el) { el.name = 'cards[' + n + '][' + el.getAttribute('data-n') + ']'; });
+        cl.appendChild(li); li.querySelector('input[data-n=title]').focus(); said3.textContent = 'New card added at the end.';
+      });
+    }
+
     // Client gallery: per-photo prices save as you change them; the upload box sends photos one at a time
     var files = document.getElementById('files');
     if (files) {
