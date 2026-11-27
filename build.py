@@ -160,9 +160,10 @@ os.makedirs('dist/client',exist_ok=True)
 json.dump([{'title':c['title'],'price':c['price'],'unit':c.get('unit',''),'meta':c['meta'],'included':int(c.get('included',0) or 0)} for c in SV['cards']],open('dist/client/services.json','w'),ensure_ascii=False)
 json.dump({g['slug']:g['title'] for g in G},open('dist/client/gallery-titles.json','w'),ensure_ascii=False)
 # every gallery for the admin's Portfolio pages (T-24), newest first; hidden ones are listed too (T-25 leaves them out of the site only)
-GI=[{'slug':g['slug'],'title':g['title'],'date':g['date'],'year':g['year'],'category':g.get('category',''),'series':g.get('series',''),'cover':g['cover'],'count':len(g['images']),'hidden':bool(g.get('hidden'))} for g in G]
+GI=[{'slug':g['slug'],'title':g['title'],'date':g['date'],'year':g['year'],'category':g.get('category',''),'series':g.get('series',''),'cover':g['cover'],'count':len(g['images']),'hidden':bool(g.get('hidden')),'described':bool(g.get('description','').strip())} for g in G]
 GI.sort(key=lambda x:x['slug']); GI.sort(key=lambda x:x['date'],reverse=True)
 json.dump(GI,open('dist/client/galleries-index.json','w'),ensure_ascii=False,indent=1)
+json.dump([{'slug':x['slug'],'short':x['short'],'name':x['name']} for x in SER],open('dist/client/series-index.json','w'),ensure_ascii=False)
 json.dump({'percent':int(SV.get('share_discount_percent',0) or 0),'title':SV.get('release_title',''),'version':SV.get('release_version',''),'terms':SV.get('release_terms',[]),'definitions':SV.get('release_definitions',[]),'gallery_question':SV.get('release_gallery_question',''),'consideration':SV.get('release_consideration','')},open('dist/client/share.json','w'),ensure_ascii=False)
 w('/thanks/',page('Thanks','<div class="wrap narrow"><h1 class="h1">Thanks!</h1><p class="lede2">Your message was sent. I\'ll get back to you soon.</p><p><a href="/">Back home</a></p></div>','/thanks/','Contact'))
 w('/404.html',page('Not found','<div class="wrap narrow"><h1 class="h1">Page not found</h1><p class="lede2"><a href="/">Back home</a> or browse <a href="/portraits/">Portraits</a> and <a href="/events/">Events</a>.</p></div>','/404','Contact'))

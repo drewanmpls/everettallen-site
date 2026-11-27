@@ -16,7 +16,7 @@ function go(string $to): void { header('Location: ' . $to); exit; }
 const ADMIN_MENU = [
     '' => [['Dashboard', 'dashboard', []]],
     'Studio' => [['Clients', 'clients', ['client']], ['Client galleries', 'list', ['gallery']], ['Codes', 'codes', []]],
-    'Portfolio' => [['Publish', 'publish', []], ['Library', 'library', []]],
+    'Portfolio' => [['Galleries', 'pgalleries', ['pgallery']], ['Publish', 'publish', []], ['Library', 'library', []]],
     'Website' => [['Short links', 'links', []], ['Stats', 'stats', []], ['Settings', 'settings', []]],
 ];
 // Phone tab bar: label, action, icon path.
@@ -132,6 +132,7 @@ if ($a === 'releasepdf') {
 if (in_array($a, ['publish', 'pubfile', 'pubdone'], true)) require __DIR__ . '/publish.php';
 if (in_array($a, ['library', 'libfile', 'libzip'], true)) require __DIR__ . '/library.php';
 if ($a === 'dashboard') require __DIR__ . '/dashboard.php';
+if ($a === 'pgalleries') require __DIR__ . '/pgalleries.php';
 if (in_array($a, ['links', 'linknew', 'linktoggle', 'linkdel'], true)) require __DIR__ . '/links.php';
 
 // ----- POST actions -----
