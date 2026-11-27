@@ -19,6 +19,8 @@ const ADMIN_MENU = [
     'Portfolio' => [['Galleries', 'pgalleries', ['pgallery']], ['Publish', 'publish', []], ['Event series', 'series', []], ['Library', 'library', []]],
     'Website' => [['Pages', 'pages', []], ['Short links', 'links', []], ['Stats', 'stats', []], ['Settings', 'settings', []]],
 ];
+// Claude models offered in Settings > Claude AI for "Suggest with Claude": id => label (rough cost per suggestion).
+const AI_MODELS = ['claude-opus-5-5' => 'Claude Opus 5.5: best writing (about 3 cents per suggestion)', 'claude-sonnet-5-5' => 'Claude Sonnet 5.5: very good, about half the price (1 to 2 cents)', 'claude-haiku-5-5' => 'Claude Haiku 5.5: fastest and cheapest (under 1 cent)'];
 // Phone tab bar: label, action, icon path.
 const ADMIN_TABS = [
     ['Dashboard', 'dashboard', 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'],
@@ -133,6 +135,7 @@ if ($a === 'releasepdf') {
 if (in_array($a, ['publish', 'pubfile', 'pubdone', 'nasstatus'], true)) require __DIR__ . '/publish.php';
 if (in_array($a, ['library', 'libfile', 'libzip'], true)) require __DIR__ . '/library.php';
 if ($a === 'dashboard') require __DIR__ . '/dashboard.php';
+if ($a === 'pgsuggest') require __DIR__ . '/ai.php';
 if (in_array($a, ['pgalleries', 'pgallery', 'pgsave', 'pgorder', 'pgremove'], true)) require __DIR__ . '/pgalleries.php';
 if (in_array($a, ['series', 'seriessave', 'pages', 'pagesave', 'sitesave'], true)) require __DIR__ . '/content-editors.php';
 if (in_array($a, ['links', 'linknew', 'linktoggle', 'linkdel'], true)) require __DIR__ . '/links.php';
@@ -234,6 +237,12 @@ if ($post) {
         set_setting('drive_webhook_url', trim((string)($_POST['drive_webhook_url'] ?? '')));
         if (trim((string)($_POST['drive_webhook_secret'] ?? '')) !== '') set_setting('drive_webhook_secret', trim((string)$_POST['drive_webhook_secret']));
         go($base . '?a=settings&tab=drive&saved=1');
+    }
+    if ($a === 'aisave') {
+        if (!empty($_POST['claude_clear'])) set_setting('claude_api_key', '');
+        elseif (trim((string)($_POST['claude_api_key'] ?? '')) !== '') set_setting('claude_api_key', trim((string)$_POST['claude_api_key']));
+        $m = (string)($_POST['claude_model'] ?? ''); if (isset(AI_MODELS[$m])) set_setting('claude_model', $m);
+        go($base . '?a=settings&tab=ai&saved=1');
     }
     if ($a === 'nastoken') {
         if (!empty($_POST['revoke'])) set_setting('nas_token_hash', '');
@@ -578,7 +587,7 @@ if ($a === 'codes') {
 
 if ($a === 'settings') {
     ahead('Settings'); $tok = csrf();
-    $tabs = ['payments' => 'Payments', 'selling' => 'Selling', 'publishing' => 'Publishing', 'drive' => 'Google Drive', 'account' => 'Account'];
+    $tabs = ['payments' => 'Payments', 'selling' => 'Selling', 'publishing' => 'Publishing', 'drive' => 'Google Drive', 'ai' => 'Claude AI', 'account' => 'Account'];
     $tab = (string)($_GET['tab'] ?? ''); if (!isset($tabs[$tab])) $tab = 'payments';
     $pwerrs = ['current' => 'The current password is wrong.', 'short' => 'The new password needs 10 or more characters.', 'match' => 'The two new passwords do not match.', 'many' => 'Too many tries. Wait 15 minutes and try again.'];
     $sk = (string)setting('stripe_secret_key', '');
@@ -636,6 +645,15 @@ if ($a === 'settings') {
 <label>Web app address<input name="drive_webhook_url" value="<?= h((string)setting('drive_webhook_url', '')) ?>" placeholder="https://script.google.com/macros/s/.../exec"></label>
 <label>Secret word <?= setting('drive_webhook_secret', '') ? '(already saved, type a new one to replace it)' : '' ?><?= $secret('drive_webhook_secret') ?></label>
 <button class="btn">Save Google Drive settings</button></form>
+<?php elseif ($tab === 'ai'): $ck = (string)setting('claude_api_key', ''); $cm = (string)setting('claude_model', 'claude-opus-5-5'); ?>
+<h2>Claude AI (gallery suggestions)</h2>
+<p>The gallery editor's "Suggest with Claude" button drafts tags and a description. It sends the gallery's title, date, series and up to 8 thumbnails to Anthropic, which bills your account per use. Suggestions only fill the boxes; nothing is saved until you click Save gallery.</p>
+<form method="post" class="form"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="aisave">
+<label>Claude API key <?= $ck !== '' ? '(saved: ' . h(substr($ck, 0, 7)) . '...; type a new one to replace it)' : '(from console.anthropic.com, starts with sk-ant-)' ?><?= $secret('claude_api_key') ?></label>
+<?php if ($ck !== ''): ?><label class="check"><input type="checkbox" name="claude_clear" value="1"> Remove the saved key (turns suggestions off)</label><?php endif; ?>
+<label>Model<select name="claude_model"><?php foreach (AI_MODELS as $id => $lab): ?><option value="<?= h($id) ?>" <?= $cm === $id ? 'selected' : '' ?>><?= h($lab) ?></option><?php endforeach; ?></select></label>
+<p class="hint">Costs are rough estimates; the real cost of each use shows in your Anthropic console.</p>
+<button class="btn">Save Claude settings</button></form>
 <?php else: ?>
 <h2>Change password</h2>
 <?php if (!empty($_GET['pw'])): ?><p class="msg good" role="status">Password changed.</p><?php endif; ?>

@@ -163,6 +163,10 @@ if ($a === 'pgsave' || $a === 'pgallery') {
 <label>Year (groups the Events page)<input name="year" id="pgyear" value="<?= h((string)($v['year'] ?? '')) ?>" inputmode="numeric" maxlength="4" pattern="\d{4}"></label>
 <label>Section<select name="category"><?php foreach (['portraits' => 'Portraits', 'events' => 'Events'] as $k => $lab): ?><option value="<?= $k ?>" <?= ($v['category'] ?? '') === $k ? 'selected' : '' ?>><?= $lab ?></option><?php endforeach; ?></select></label>
 <label>Event series<select name="series"><option value="">None</option><?php foreach ($ser as $k => $lab): ?><option value="<?= h($k) ?>" <?= ($v['series'] ?? '') === $k ? 'selected' : '' ?>><?= h($lab) ?></option><?php endforeach; ?></select></label></div>
+<div class="panel aibox"><p><b>Need words?</b> Claude can look at a few of this gallery's photos and draft tags and a description for you to edit.</p>
+<div class="acts"><button type="button" class="btn sm alt" id="aisuggest" data-slug="<?= h($slug) ?>" <?= trim((string)setting('claude_api_key', '')) === '' ? 'disabled' : '' ?>>Suggest with Claude</button>
+<?php if (trim((string)setting('claude_api_key', '')) === ''): ?><span class="hint">Add a Claude API key in <a href="?a=settings&amp;tab=ai">Settings</a> first.</span><?php endif; ?></div>
+<p class="hint" id="aistat" role="status" aria-live="polite"></p></div>
 <label>Tags (one per line, up to 12; they become search chips and tag pages)<textarea name="tags" rows="4"><?= h(implode("\n", is_array($v['tags'] ?? null) ? $v['tags'] : [])) ?></textarea></label>
 <label>Description<textarea name="description" rows="6" maxlength="2000"><?= h((string)($v['description'] ?? '')) ?></textarea></label>
 <p class="hint">Plain text. A blank line starts a new paragraph.</p>
