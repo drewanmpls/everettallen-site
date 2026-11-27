@@ -478,21 +478,37 @@ if ($a === 'gallery') {
 }
 
 if ($a === 'clients') {
-    $stf = (string)($_GET['status'] ?? ''); $q = trim((string)($_GET['q'] ?? ''));
+    $stf = (string)($_GET['status'] ?? ''); $q = trim((string)($_GET['q'] ?? '')); $src = (string)($_GET['src'] ?? ''); $rel = (string)($_GET['rel'] ?? ''); $sort = (string)($_GET['sort'] ?? '');
+    if (!isset(CLIENT_STATUSES[$stf])) $stf = '';
+    $srcNames = ['form' => 'Form', 'contact' => 'Contact', 'admin' => 'Added by you'];
+    foreach (db()->query("SELECT DISTINCT source FROM clients WHERE source != '' ORDER BY source")->fetchAll(PDO::FETCH_COLUMN) as $x) $srcNames[$x] = $srcNames[$x] ?? ucfirst($x);
+    if (!isset($srcNames[$src])) $src = '';
+    if (!in_array($rel, ['signed', 'unsigned'], true)) $rel = '';
+    $sorts = ['' => ['Newest', 'c.created DESC, c.id DESC'], 'old' => ['Oldest', 'c.created ASC, c.id ASC'], 'name' => ['Name', 'c.name COLLATE NOCASE ASC, c.id ASC']];
+    if (!isset($sorts[$sort])) $sort = '';
     $sql = 'SELECT c.*, (SELECT COUNT(*) FROM galleries g WHERE g.client_id = c.id) AS ng FROM clients c WHERE 1=1'; $args = [];
-    if ($stf !== '' && isset(CLIENT_STATUSES[$stf])) { $sql .= ' AND c.status = ?'; $args[] = $stf; } elseif ($stf === '') { $sql .= " AND c.status != 'archived'"; }
-    if ($q !== '') { $sql .= ' AND (c.name LIKE ? OR c.email LIKE ? OR c.service LIKE ?)'; array_push($args, "%$q%", "%$q%", "%$q%"); }
-    $stmt = db()->prepare($sql . ' ORDER BY c.created DESC'); $stmt->execute($args); $rows = $stmt->fetchAll();
+    if ($stf !== '') { $sql .= ' AND c.status = ?'; $args[] = $stf; } else { $sql .= " AND c.status != 'archived'"; }
+    if ($q !== '') { $sql .= ' AND (c.name LIKE ? OR c.email LIKE ? OR c.service LIKE ? OR c.phone LIKE ? OR c.handle LIKE ?)'; array_push($args, "%$q%", "%$q%", "%$q%", "%$q%", "%$q%"); }
+    if ($src !== '') { $sql .= ' AND c.source = ?'; $args[] = $src; }
+    if ($rel === 'signed') $sql .= " AND COALESCE(c.release_at, '') NOT IN ('', 0)"; elseif ($rel === 'unsigned') $sql .= " AND COALESCE(c.release_at, '') IN ('', 0)";
+    $stmt = db()->prepare($sql . ' ORDER BY ' . $sorts[$sort][1]); $stmt->execute($args); $rows = $stmt->fetchAll();
     $counts = db()->query('SELECT status, COUNT(*) n FROM clients GROUP BY status')->fetchAll(PDO::FETCH_KEY_PAIR);
+    $keep = fn(array $o) => '?' . h(http_build_query(array_filter(array_merge(['a' => 'clients', 'status' => $stf, 'q' => $q, 'src' => $src, 'rel' => $rel, 'sort' => $sort], $o), fn($v) => $v !== '')));   // filters stay in the address so a list can be bookmarked
     ahead('Clients'); $tok = csrf(); $intake = 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/client/new/'; ?>
 <div class="ph"><div><h1>Clients</h1></div><div class="act"><a class="btn" href="#add">Add a client</a></div></div>
 <p class="kicker">New-client form to send people</p>
 <code class="link" id="ilnk"><?= h($intake) ?></code>
 <p><button type="button" class="btn sm alt" data-copy="#ilnk">Copy link</button> <a class="btn sm alt" target="_blank" href="/client/new/">Open the form</a></p>
-<div class="chips mt"><a class="tab <?= $stf === '' ? 'on' : '' ?>"<?= $stf === '' ? ' aria-current="page"' : '' ?> href="?a=clients">Active</a>
-<?php foreach (CLIENT_STATUSES as $k => $lab): ?><a class="tab <?= $stf === $k ? 'on' : '' ?>"<?= $stf === $k ? ' aria-current="page"' : '' ?> href="?a=clients&status=<?= $k ?>"><?= h($lab) ?> <?= (int)($counts[$k] ?? 0) ?></a><?php endforeach; ?></div>
-<form method="get" class="row narrow" role="search"><input type="hidden" name="a" value="clients"><input name="q" value="<?= h($q) ?>" placeholder="Search name, email or service" aria-label="Search clients"><button class="btn sm">Search</button></form>
-<?php if (!$rows): ?><p>No clients here yet.</p><?php else: ?>
+<div class="chips mt"><a class="tab <?= $stf === '' ? 'on' : '' ?>"<?= $stf === '' ? ' aria-current="page"' : '' ?> href="<?= $keep(['status' => '']) ?>">Active <?= array_sum($counts) - (int)($counts['archived'] ?? 0) ?></a>
+<?php foreach (CLIENT_STATUSES as $k => $lab): ?><a class="tab <?= $stf === $k ? 'on' : '' ?>"<?= $stf === $k ? ' aria-current="page"' : '' ?> href="<?= $keep(['status' => $k]) ?>"><?= h($lab) ?> <?= (int)($counts[$k] ?? 0) ?></a><?php endforeach; ?></div>
+<form method="get" class="row" role="search"><input type="hidden" name="a" value="clients"><?php if ($stf !== ''): ?><input type="hidden" name="status" value="<?= h($stf) ?>"><?php endif; ?>
+<label>Search<input name="q" value="<?= h($q) ?>" placeholder="Name, email, phone, social or service"></label>
+<label>Source<select name="src"><option value="">Any</option><?php foreach ($srcNames as $k => $lab): ?><option value="<?= h($k) ?>" <?= $src === $k ? 'selected' : '' ?>><?= h($lab) ?></option><?php endforeach; ?></select></label>
+<label>Release<select name="rel"><option value="">Any</option><option value="signed" <?= $rel === 'signed' ? 'selected' : '' ?>>Signed</option><option value="unsigned" <?= $rel === 'unsigned' ? 'selected' : '' ?>>Not signed</option></select></label>
+<label>Sort<select name="sort"><?php foreach ($sorts as $k => $so): ?><option value="<?= h($k) ?>" <?= $sort === $k ? 'selected' : '' ?>><?= h($so[0]) ?></option><?php endforeach; ?></select></label>
+<button class="btn sm">Show</button></form>
+<p class="hint"><?= count($rows) ?> <?= count($rows) === 1 ? 'client' : 'clients' ?><?= ($q !== '' || $src !== '' || $rel !== '' || $sort !== '') ? ' <a href="' . $keep(['q' => '', 'src' => '', 'rel' => '', 'sort' => '']) . '">Clear filters</a>' : '' ?></p>
+<?php if (!$rows): ?><p>No clients match.</p><?php else: ?>
 <table class="stack"><tr><th>Name</th><th>Service</th><th>Status</th><th>Timeframe</th><th>Galleries</th><th>Received</th></tr>
 <?php foreach ($rows as $r): ?><tr><td><a href="?a=client&id=<?= $r['id'] ?>"><b><?= h($r['name']) ?></b></a><br><small><?= h($r['email']) ?></small></td><td data-label="Service"><?= h($r['service']) ?></td><td data-label="Status"><span class="tag"><?= h(CLIENT_STATUSES[$r['status']] ?? $r['status']) ?></span><?= $r['release_at'] ? ' <span class="tag good">release</span>' : '' ?></td><td data-label="Timeframe"><?= h($r['timeframe']) ?></td><td data-label="Galleries"><?= (int)$r['ng'] ?></td><td data-label="Received"><?= date('M j, Y', (int)$r['created']) ?><?= $r['source'] === 'admin' ? ' (added by you)' : '' ?></td></tr><?php endforeach; ?></table><?php endif; ?>
 <h2 id="add">Add a client yourself</h2>
