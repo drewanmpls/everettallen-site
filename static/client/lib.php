@@ -142,6 +142,12 @@ function throttle_clear(string $scope): void {
     db()->prepare('DELETE FROM login_fails WHERE scope = ? AND h = ?')->execute([$scope, throttle_key()]);
 }
 
+// A file under the web root with a version stamp, so browsers pick up a changed CSS or JS file right away.
+function asset(string $path): string {
+    $f = rtrim((string)($_SERVER['DOCUMENT_ROOT'] ?? ''), '/') . $path;
+    return $path . (is_file($f) ? '?v=' . substr((string)md5_file($f), 0, 8) : '');
+}
+
 function h($s): string { return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 
 function money(int $cents): string {

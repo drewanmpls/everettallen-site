@@ -11,20 +11,51 @@ $base = '/client/admin/';
 $flash = '';
 
 function go(string $to): void { header('Location: ' . $to); exit; }
-function ahead(string $title): void { ?>
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+// Admin menu (IMPLEMENTATION-PLAN.md Section 3.7). Each row: label, action, the actions that also mark it as current.
+// Later tickets add one line here when their page exists (Sessions, Sales, Galleries, Event series, Pages, Services).
+const ADMIN_MENU = [
+    '' => [['Dashboard', 'dashboard', []]],
+    'Studio' => [['Clients', 'clients', ['client']], ['Client galleries', 'list', ['gallery']], ['Codes', 'codes', []]],
+    'Portfolio' => [['Publish', 'publish', []], ['Library', 'library', []]],
+    'Website' => [['Short links', 'links', []], ['Stats', 'stats', []], ['Settings', 'settings', []]],
+];
+// Phone tab bar: label, action, icon path.
+const ADMIN_TABS = [
+    ['Dashboard', 'dashboard', 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'],
+    ['Clients', 'clients', 'M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 4.15a3.5 3.5 0 0 1 0 6.7'],
+    ['Galleries', 'list', 'M4 5h16v14H4zM4 15l4.5-4.5 4 4 3-3L20 15'],
+    ['Publish', 'publish', 'M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3'],
+];
+function admin_current(): string {
+    $a = (string)($GLOBALS['a'] ?? 'dashboard');
+    foreach (ADMIN_MENU as $rows) foreach ($rows as [$lab, $act, $also]) if ($a === $act || in_array($a, $also, true)) return $act;
+    return '';
+}
+function ahead(string $title): void {
+    $in = !empty($_SESSION['admin']); $cur = admin_current(); $base = '/client/admin/';
+    $href = fn(string $act) => $act === 'dashboard' ? $base : $base . '?a=' . $act; ?>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow">
 <title><?= h($title) ?> | Gallery admin</title><link rel="icon" href="/assets/icon.png">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Archivo+Narrow:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/client/client.css">
-<style>.adm{padding:0 28px 64px;max-width:1200px;margin:0 auto}table{border-collapse:collapse;width:100%;margin:12px 0 28px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}th{font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:13px;color:var(--mut)}
-.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0 20px}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
-.cd{background:#f6f3ec;border:1px solid var(--line);padding:6px}.cd img{width:100%;aspect-ratio:3/2;object-fit:cover;display:block}.cd input{padding:5px 8px;font-size:14px}.cd small{display:block;color:var(--mut);font-size:12px;word-break:break-all}
-.link{font-family:monospace;background:#f6f3ec;border:1px solid var(--line);padding:8px 10px;word-break:break-all;display:block}
-h2{font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:20px;margin:32px 0 8px}
-.drop{border:2px dashed var(--ink);padding:24px;text-align:center;background:#f6f3ec}.ok{color:#0a6b2d}.pill{display:inline-block;padding:1px 8px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:12px}</style></head><body>
-<header class="top"><a class="brand" href="/client/admin/">Gallery admin</a><span style="display:flex;gap:22px"><a href="/client/admin/">Dashboard</a><a href="/client/admin/?a=list">Galleries</a><a href="/client/admin/?a=clients">Clients</a><a href="/client/admin/?a=publish">Publish</a><a href="/client/admin/?a=library">Library</a><a href="/client/admin/?a=codes">Codes</a><a href="/client/admin/?a=links">Links</a><a href="/client/admin/?a=stats">Stats</a><a href="/client/admin/?a=settings">Settings</a><a href="/client/admin/?a=logout">Log out</a></span></header><script>try{localStorage.setItem("eaSkip","1")}catch(e){}</script><div class="adm">
+<link rel="stylesheet" href="<?= h(asset('/client/admin/admin.css')) ?>"><script src="<?= h(asset('/client/admin/admin.js')) ?>"></script></head>
+<body<?= $in ? '' : ' class="solo"' ?>><a class="skip" href="#main">Skip to content</a>
+<?php if ($in): ?><nav class="side" id="side" aria-label="Admin menu"><button type="button" class="mnuclose">Close menu</button>
+<a class="logo" href="<?= $base ?>">Everett Allen<small>Photography admin</small></a>
+<?php foreach (ADMIN_MENU as $sec => $rows): ?><?php if ($sec !== ''): ?><h2><?= h($sec) ?></h2><?php endif; ?><ul><?php foreach ($rows as [$lab, $act]): ?><li><a href="<?= h($href($act)) ?>"<?= $cur === $act ? ' aria-current="page"' : '' ?>><?= h($lab) ?></a></li><?php endforeach; ?></ul>
+<?php endforeach; ?><div class="tools"><label for="eaTheme">Appearance</label><select id="eaTheme"><option value="auto">Auto (match device)</option><option value="light">Light</option><option value="dark">Dark</option></select>
+<ul><li><a href="/" target="_blank" rel="noopener">View site</a></li><li><a href="<?= $base ?>?a=logout">Log out</a></li></ul></div></nav><?php endif; ?>
+<div class="main"><header class="top"><?php if ($in): ?><button type="button" class="mnubtn" data-menu-open aria-controls="side" aria-expanded="false"><i></i>Menu</button><?php endif; ?><span class="grp">Everett Allen</span><a class="site" href="/" target="_blank" rel="noopener">View site</a></header>
+<main id="main">
 <?php }
-function afoot(): void { echo '</div></body></html>'; }
+function afoot(): void {
+    if (!empty($_SESSION['admin'])) {
+        $cur = admin_current();
+        echo '</main><nav class="tabbar" aria-label="Quick menu">';
+        foreach (ADMIN_TABS as [$lab, $act, $d]) echo '<a href="/client/admin/' . ($act === 'dashboard' ? '' : '?a=' . $act) . '"' . ($cur === $act ? ' aria-current="page"' : '') . '><svg viewBox="0 0 24 24" aria-hidden="true"><path d="' . $d . '"/></svg>' . h($lab) . '</a>';
+        echo '<button type="button" data-menu-open aria-controls="side" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>More</button></nav></div></body></html>';
+        return;
+    }
+    echo '</main></div></body></html>';
+}
 
 // ----- auth -----
 $hash = setting('admin_hash', '');
@@ -396,7 +427,7 @@ if ($a === 'clients') {
 <form method="get" style="display:flex;gap:8px;max-width:420px"><input type="hidden" name="a" value="clients"><input name="q" value="<?= h($q) ?>" placeholder="Search name, email or service"><button class="btn sm">Search</button></form>
 <?php if (!$rows): ?><p style="margin-top:16px">No clients here yet.</p><?php else: ?>
 <table><tr><th>Name</th><th>Service</th><th>Status</th><th>Timeframe</th><th>Galleries</th><th>Received</th></tr>
-<?php foreach ($rows as $r): ?><tr><td><a href="?a=client&id=<?= $r['id'] ?>"><b><?= h($r['name']) ?></b></a><br><small><?= h($r['email']) ?></small></td><td><?= h($r['service']) ?></td><td><span class="pill"><?= h(CLIENT_STATUSES[$r['status']] ?? $r['status']) ?></span><?= $r['release_at'] ? ' <span class="pill" style="background:#0a6b2d">release</span>' : '' ?></td><td><?= h($r['timeframe']) ?></td><td><?= (int)$r['ng'] ?></td><td><?= date('M j, Y', (int)$r['created']) ?><?= $r['source'] === 'admin' ? ' (added by you)' : '' ?></td></tr><?php endforeach; ?></table><?php endif; ?>
+<?php foreach ($rows as $r): ?><tr><td><a href="?a=client&id=<?= $r['id'] ?>"><b><?= h($r['name']) ?></b></a><br><small><?= h($r['email']) ?></small></td><td><?= h($r['service']) ?></td><td><span class="pill"><?= h(CLIENT_STATUSES[$r['status']] ?? $r['status']) ?></span><?= $r['release_at'] ? ' <span class="pill" style="background:var(--good)">release</span>' : '' ?></td><td><?= h($r['timeframe']) ?></td><td><?= (int)$r['ng'] ?></td><td><?= date('M j, Y', (int)$r['created']) ?><?= $r['source'] === 'admin' ? ' (added by you)' : '' ?></td></tr><?php endforeach; ?></table><?php endif; ?>
 <h2>Add a client yourself</h2>
 <form method="post" action="?a=clientsave" class="cols"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="clientsave"><input type="hidden" name="id" value="0">
 <label>Name<input name="name" required></label><label>Email<input name="email" type="email"></label><label>Phone<input name="phone"></label>
@@ -428,10 +459,10 @@ if ($a === 'client') {
 <select name="gallery" style="padding:8px"><?php foreach ($free as $f): ?><option value="<?= $f['id'] ?>"><?= h($f['title']) ?></option><?php endforeach; ?></select><button class="btn sm alt">Link existing gallery</button></form><?php endif; ?>
 
 <?php if ($c['release_at']): $ds = (string)$c['drive_status']; ?><h2>Photo release on file</h2>
-<div style="background:#f6f3ec;border-left:4px solid <?= $c['id_verified'] !== '' ? '#0a6b2d' : '#b36b00' ?>;padding:12px 16px;max-width:75ch">
+<div style="background:var(--sunk);border-left:4px solid <?= $c['id_verified'] !== '' ? 'var(--good)' : 'var(--wait)' ?>;padding:12px 16px;max-width:75ch">
 <b>Signed by <?= h($c['release_name']) ?></b><?= $c['release_stage'] ? ' (' . h($c['release_stage']) . ')' : '' ?> on <?= date('M j, Y g:ia', (int)$c['release_at']) ?><?= $c['discount_percent'] ? ', ' . (int)$c['discount_percent'] . '% session discount' : '' ?>. Gallery displays: <b><?= h($c['release_gallery'] ?: 'n/a') ?></b>. Born <?= h($c['release_dob']) ?>.<br>
-<b>ID checked in person:</b> <?= $c['id_verified'] !== '' ? h($c['id_verified']) : '<span style="color:#b36b00">not yet. Check ID at the session, then record it below.</span>' ?><br>
-<b>Google Drive:</b> <?= $ds === 'saved' ? '<span class="ok">saved</span>' . ($c['drive_url'] ? ' (<a href="' . h($c['drive_url']) . '" target="_blank" rel="noopener">open</a>)' : '') : ($ds === '' ? 'not sent' : '<span style="color:#b00020">' . h($ds) . '</span>') ?>
+<b>ID checked in person:</b> <?= $c['id_verified'] !== '' ? h($c['id_verified']) : '<span style="color:var(--wait)">not yet. Check ID at the session, then record it below.</span>' ?><br>
+<b>Google Drive:</b> <?= $ds === 'saved' ? '<span class="ok">saved</span>' . ($c['drive_url'] ? ' (<a href="' . h($c['drive_url']) . '" target="_blank" rel="noopener">open</a>)' : '') : ($ds === '' ? 'not sent' : '<span style="color:var(--bad)">' . h($ds) . '</span>') ?>
 <p style="margin:10px 0 0"><a class="btn sm" href="?a=releasepdf&id=<?= $c['id'] ?>" target="_blank">View / download PDF</a></p>
 <details style="margin-top:10px"><summary>Exact wording they agreed to</summary><p style="white-space:pre-line"><?= h($c['release_text']) ?></p></details></div>
 <form method="post" enctype="multipart/form-data" class="cols" style="margin-top:12px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="releasesave"><input type="hidden" name="id" value="<?= $c['id'] ?>">
@@ -446,10 +477,10 @@ if ($a === 'client') {
 <?php if ($c['idphoto_path'] !== '' && is_file($c['idphoto_path'])): ?><div style="margin-top:6px"><img src="?a=releasephoto&k=id&id=<?= $c['id'] ?>" alt="" style="max-width:200px;max-height:140px;display:block"><label style="font-size:13px"><input type="checkbox" name="remove_idphoto" value="1" style="width:auto"> Remove this photo</label></div><?php endif; ?></div>
 <label style="align-self:end"><input type="checkbox" name="to_drive" value="1" style="width:auto" checked> Also save the updated PDF to Google Drive</label>
 <div style="grid-column:1/-1"><button class="btn sm">Update release PDF</button></div></form>
-<dialog id="camdlg" style="max-height:94vh;overflow:auto;border:2px solid #111;background:#f6f3ec;padding:14px;max-width:640px;width:92vw">
+<dialog id="camdlg" style="max-height:94vh;overflow:auto;border:2px solid var(--ink);background:var(--card);padding:14px;max-width:640px;width:92vw">
 <p id="camtitle" style="margin:0 0 8px;font-weight:700"></p>
 <video id="camvid" autoplay playsinline muted style="width:100%;background:#000;max-height:50vh;object-fit:contain"></video>
-<p id="camerr" style="color:#b00020;margin:8px 0 0"></p>
+<p id="camerr" style="color:var(--bad);margin:8px 0 0"></p>
 <p style="margin:10px 0 0;display:flex;gap:8px"><button type="button" class="btn sm" id="camsnap">Take photo</button><button type="button" class="btn sm alt" id="camcancel">Cancel</button></p>
 </dialog>
 <script>
@@ -514,14 +545,14 @@ if ($a === 'stats') {
     for ($i = 0; $i < $days; $i++) { $d = $dt->format('Y-m-d'); $r = $byday[$d] ?? ['hits' => 0, 'visitors' => 0]; $series[] = [$d, (int)$r['hits'], (int)$r['visitors']]; $maxv = max($maxv, (int)$r['hits']); $th += (int)$r['hits']; $tv += (int)$r['visitors']; $dt->modify('+1 day'); }
     $top = function (string $col, string $where = '', int $lim = 15) use ($from) { $s = db()->prepare("SELECT $col AS k, SUM(hits) AS n FROM stat_hits WHERE day >= ? $where GROUP BY $col ORDER BY n DESC LIMIT $lim"); $s->execute([$from]); return $s->fetchAll(); };
     $pages = $top('path', '', 20); $refs = $top('ref', "AND ref <> ''", 15); $devs = $top('dev', '', 5);
-    $tbl = function (array $rows, string $head) { echo '<table style="width:100%;max-width:640px;border-collapse:collapse"><tr><th style="text-align:left">' . h($head) . '</th><th style="text-align:right">Views</th></tr>'; foreach ($rows as $r) echo '<tr><td style="padding:4px 0;border-top:1px solid #0002">' . h($r['k']) . '</td><td style="text-align:right;border-top:1px solid #0002">' . (int)$r['n'] . '</td></tr>'; if (!$rows) echo '<tr><td colspan="2" style="padding:6px 0">Nothing yet.</td></tr>'; echo '</table>'; };
+    $tbl = function (array $rows, string $head) { echo '<table style="width:100%;max-width:640px;border-collapse:collapse"><tr><th style="text-align:left">' . h($head) . '</th><th style="text-align:right">Views</th></tr>'; foreach ($rows as $r) echo '<tr><td style="padding:4px 0;border-top:1px solid var(--line)">' . h($r['k']) . '</td><td style="text-align:right;border-top:1px solid var(--line)">' . (int)$r['n'] . '</td></tr>'; if (!$rows) echo '<tr><td colspan="2" style="padding:6px 0">Nothing yet.</td></tr>'; echo '</table>'; };
     ?>
 <h1 style="font-size:clamp(32px,5vw,64px)">Stats</h1>
 <p>Page views and daily visitors for the public site. No cookies, no IP addresses or browser details are stored, and your own visits are not counted in this browser.
 <?php foreach ([7, 30, 90, 365] as $d): ?> <a href="?a=stats&days=<?= $d ?>"<?= $d === $days ? ' style="font-weight:800"' : '' ?>><?= $d ?> days</a><?php endforeach; ?></p>
 <p style="font-size:20px"><b><?= $th ?></b> page views, <b><?= $tv ?></b> visitor-days (a person who visits on 3 different days counts 3 times)</p>
-<div style="display:flex;align-items:flex-end;gap:2px;height:140px;max-width:900px;border-bottom:2px solid #111">
-<?php foreach ($series as [$d, $hv, $vv]): ?><div title="<?= h($d) ?>: <?= $hv ?> views, <?= $vv ?> visitors" style="flex:1;background:#2b2bff;height:<?= max(1, (int)round(130 * $hv / $maxv)) ?>px;min-width:1px;<?= $hv ? '' : 'opacity:.25' ?>"></div><?php endforeach; ?>
+<div style="display:flex;align-items:flex-end;gap:2px;height:140px;max-width:900px;border-bottom:2px solid var(--ink)">
+<?php foreach ($series as [$d, $hv, $vv]): ?><div title="<?= h($d) ?>: <?= $hv ?> views, <?= $vv ?> visitors" style="flex:1;background:var(--acc);height:<?= max(1, (int)round(130 * $hv / $maxv)) ?>px;min-width:1px;<?= $hv ? '' : 'opacity:.25' ?>"></div><?php endforeach; ?>
 </div>
 <p style="font-size:13px;max-width:900px;display:flex;justify-content:space-between"><span><?= h($series[0][0]) ?></span><span><?= h(end($series)[0]) ?></span></p>
 <h2>Top pages</h2><?php $tbl($pages, 'Page'); ?>
@@ -568,7 +599,7 @@ if ($a === 'codes') {
 <?= count($uses) ?> use<?= count($uses) === 1 ? '' : 's' ?>, <?= (int)$np ?> photo<?= $np === 1 ? '' : 's' ?>, <?= (int)$nd ?> downloaded</p>
 <?php $lh = preg_replace('/^new\./', 'www.', (string)($_SERVER['HTTP_HOST'] ?? '')); $link = 'https://' . $lh . '/events/?code=' . rawurlencode($c['code']); ?>
 <p style="margin:0 0 8px">Link to send: <span class="link" style="display:inline;padding:3px 8px"><?= h($link) ?></span> <button type="button" class="btn" style="padding:4px 12px" onclick="navigator.clipboard.writeText(this.dataset.l).then(()=>{this.textContent='Copied'})" data-l="<?= h($link) ?>">Copy link</button></p>
-<form method="post" style="display:inline"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codetoggle"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><button class="btn" style="background:#fff;color:var(--ink)"><?= $c['active'] ? 'Turn off' : 'Turn on' ?></button></form>
+<form method="post" style="display:inline"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codetoggle"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><button class="btn" style="background:var(--card);color:var(--ink)"><?= $c['active'] ? 'Turn off' : 'Turn on' ?></button></form>
 <details style="margin:8px 0"><summary style="cursor:pointer">Change name, code or end date</summary>
 <form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codeedit"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>">
 <div class="cols"><label>Name<input name="name" value="<?= h($c['name']) ?>" required></label><label>Code<input name="code" value="<?= h($c['code']) ?>" autocomplete="off" required></label><label>Stops working after<input name="expires" type="date" value="<?= h((string)$c['expires']) ?>"></label></div>
@@ -602,7 +633,7 @@ if ($a === 'settings') {
 <form method="post" style="max-width:640px"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="nastoken">
 <p><?= setting('nas_token_hash', '') ? 'A key is active.' : 'No key yet.' ?></p>
 <button class="btn"><?= setting('nas_token_hash', '') ? 'Make a new key' : 'Make a key' ?></button>
-<?php if (setting('nas_token_hash', '')): ?> <button class="btn" name="revoke" value="1" style="background:#fff;color:var(--ink)">Turn the key off</button><?php endif; ?></form>
+<?php if (setting('nas_token_hash', '')): ?> <button class="btn" name="revoke" value="1" style="background:var(--card);color:var(--ink)">Turn the key off</button><?php endif; ?></form>
 <h2>Payments</h2>
 <p>Clients pay with Stripe on a secure Stripe page. If Stripe is switched off, not set up, or has a problem, the site automatically uses the manual flow instead: you get an email, the client gets your payment instructions, and you click "Mark paid" in the gallery.</p>
 <?php $sk = (string)setting('stripe_secret_key', ''); ?>
@@ -633,7 +664,7 @@ ahead('Galleries'); $tok = csrf(); ?>
 <?php $shop = db()->query("SELECT g.*, (SELECT COUNT(*) FROM images i WHERE i.gallery_id=g.id) AS n, (SELECT COUNT(*) FROM orders o WHERE o.gallery_id=g.id AND o.status='paid') AS paid FROM galleries g WHERE g.kind = 'shop' ORDER BY g.id DESC LIMIT 100")->fetchAll(); if ($shop): ?>
 <h2>Photo orders from the public galleries</h2>
 <table><tr><th>Buyer</th><th>Photos</th><th>Paid</th><th>Placed</th><th></th></tr>
-<?php foreach ($shop as $r): ?><tr><td><?= h($r['client_email']) ?></td><td><?= (int)$r['n'] ?></td><td><?= $r['paid'] ? '<span class="pill" style="background:#0a6b2d">paid</span>' : 'not yet' ?></td><td><?= date('M j, Y g:ia', (int)$r['created']) ?></td><td><a href="?a=gallery&id=<?= $r['id'] ?>">Manage</a></td></tr><?php endforeach; ?></table>
+<?php foreach ($shop as $r): ?><tr><td><?= h($r['client_email']) ?></td><td><?= (int)$r['n'] ?></td><td><?= $r['paid'] ? '<span class="pill" style="background:var(--good)">paid</span>' : 'not yet' ?></td><td><?= date('M j, Y g:ia', (int)$r['created']) ?></td><td><a href="?a=gallery&id=<?= $r['id'] ?>">Manage</a></td></tr><?php endforeach; ?></table>
 <?php endif; ?>
 <h2>New gallery</h2>
 <form method="post" class="cols"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="create">
