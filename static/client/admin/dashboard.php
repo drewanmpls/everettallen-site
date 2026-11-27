@@ -23,7 +23,6 @@ if ($a === 'dashboard') {
     $stat = ['requested' => 'Needs action', 'paid' => 'Paid', 'declined' => 'Declined'];
     $n = fn($v) => number_format((int)$v);
 ?>
-<style>.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0 8px}.tile{background:#f6f3ec;border:1px solid var(--line);padding:12px 14px}.tile b{display:block;font-size:30px;font-family:'Archivo',sans-serif;line-height:1.1}.tile span{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}.tile.hot{border-color:var(--ink);background:var(--ink);color:var(--bg)}.tile.hot span{color:inherit;opacity:.8}.tile a{color:inherit}.go{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.go a{display:block;padding:14px;border:1px solid var(--ink);text-decoration:none;font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.08em}.go a small{display:block;text-transform:none;letter-spacing:0;font-family:inherit;color:var(--mut);margin-top:2px}.go a:hover{background:var(--ink);color:var(--bg)}.go a:hover small{color:inherit}</style>
 <h1 style="font-size:clamp(32px,5vw,64px)">Dashboard</h1>
 <div class="tiles">
 <a class="tile <?= $pending ? 'hot' : '' ?>" href="<?= $base ?>?a=list#orders" style="text-decoration:none"><b><?= $n($pending) ?></b><span>Orders needing action</span></a>
