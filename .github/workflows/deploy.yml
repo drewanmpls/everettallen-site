@@ -11,6 +11,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build
         run: python3 build.py
+      - name: PHP lint
+        run: |
+          find static -name '*.php' -print0 | sort -z | while IFS= read -r -d '' f; do
+            php -l "$f" >/dev/null || { php -l "$f"; exit 1; }
+          done
+          echo "PHP files OK"
       - name: Set up SSH
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -24,3 +30,18 @@ jobs:
           DEPLOY_DIR: ${{ vars.DEPLOY_DIR || 'new.everettallenphotography.com' }}
         run: |
           rsync -av -e "ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes" dist/ "dh_dbvmkc@iad1-shared-b7-19.dreamhost.com:~/${DEPLOY_DIR}/"
+      - name: Remove stale generated pages
+        env:
+          DEPLOY_DIR: ${{ vars.DEPLOY_DIR || 'new.everettallenphotography.com' }}
+        run: |
+          # Only these four folders are cleaned. They hold nothing but pages written by build.py,
+          # so a page for a removed gallery, photo, tag or series disappears. Never use --delete anywhere else.
+          n=$(find dist/gallery -mindepth 1 -maxdepth 1 -type d | wc -l)
+          if [ "$n" -lt 50 ]; then
+            echo "::warning::Only $n galleries were built (expected 50 or more). Skipping cleanup so a broken build cannot remove the site."
+            exit 0
+          fi
+          for d in gallery photo tag series; do
+            echo "== $d/"
+            rsync -a -v --itemize-changes --delete -e "ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes" "dist/$d/" "dh_dbvmkc@iad1-shared-b7-19.dreamhost.com:~/${DEPLOY_DIR}/$d/"
+          done
