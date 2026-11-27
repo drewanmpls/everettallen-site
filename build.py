@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Static site builder (no dependencies). Usage: python3 build.py  -> writes ./dist"""
-import json, os, shutil, html, re, glob, hashlib
+import json, os, shutil, html, re, glob, hashlib, datetime
 R=os.path.dirname(os.path.abspath(__file__)); os.chdir(R)
 site=json.load(open('content/site.json'))
 e=html.escape
@@ -42,7 +42,7 @@ def page(title,body,path,section,desc='',image='',url=''):
 <body><a class="skip" href="#content">Skip to content</a>
 <header class="top"><span class="brand">{'<a href="/">EA</a>' if path=='/' else '<a href="/">Everett Allen Photography</a>'} / {section}</span><nav>{nav}</nav></header>
 <main id="content">{body}</main>
-<footer><span>Copyright 2026 Everett Allen Photography</span><span class="fl">{FL}</span><span>{SOC}</span></footer>
+<footer><span>Copyright {datetime.date.today().year} Everett Allen Photography</span><span class="fl">{FL}</span><span>{SOC}</span></footer>
 <script src="/js/site.js?v={VSITE}" defer></script></body></html>'''
 def w(path,content):
     p=os.path.join('dist',path.strip('/'),'index.html') if not path.endswith('.html') else os.path.join('dist',path.lstrip('/'))
@@ -118,7 +118,7 @@ for g in G:
         pv=g['images'][k-1]['id'] if k>0 else None; nx=g['images'][k+1]['id'] if k<n-1 else None
         nav=(f'<a href="/photo/{s}/{pv}/">&larr; Previous</a> ' if pv else '')+f'<span>{k+1} / {n}</span>'+(f' <a href="/photo/{s}/{nx}/">Next &rarr;</a>' if nx else '')
         body=(f'<div class="wrap pp"><p class="meta"><a href="/gallery/{s}/">&larr; {e(g["title"])}</a></p>'
-              f'<img class="pimg" src="/photos/{s}/{pid}-l.jpg" alt="{e(title)}" style="aspect-ratio:{i["ratio"]}">'
+              f'<h1 class="ptitle">{e(title)}</h1><img class="pimg" src="/photos/{s}/{pid}-l.jpg" alt="{e(title)}" style="aspect-ratio:{i["ratio"]}">'
               f'<p class="meta pnav">{nav}</p>'
               f'<div class="share" data-label="Share this photo" data-path="/photo/{s}/{pid}/" data-title="{e(g["title"])}" data-media="/photos/{s}/{pid}-l.jpg"></div>'
               f'<p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js?v={VSHOP}" defer></script><script src="/js/likes.js?v={VLIKES}" defer></script>')
