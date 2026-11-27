@@ -99,6 +99,10 @@ details>summary{cursor:pointer}
 .tiles2 .mv{display:flex;gap:4px}.tiles2 .mv .btn{flex:1;min-height:36px}.tiles2 li:has(input:checked){box-shadow:inset 0 0 0 2px var(--bad)}
 .confirm{max-width:560px;margin-top:12px}
 @media(max-width:639px){.tiles2{grid-template-columns:repeat(2,1fr)}.tiles2 .mv .btn{min-height:44px}}
+.drop{display:flex;flex-direction:column;gap:6px;align-items:center;cursor:pointer;font-weight:400}.drop b{font-size:16px;color:var(--ink)}.drop.over{border-color:var(--acc);background:var(--hover)}.drop:focus-within{outline:2px solid var(--acc);outline-offset:2px}
+.prog{list-style:none;padding:0;margin:8px 0;display:grid;gap:6px}.prog li{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px}
+.prog img{width:56px;height:40px;object-fit:cover;border-radius:4px;background:var(--photo);flex:none}.prog .nm{flex:1;word-break:break-all}.prog .st{color:var(--mut);text-align:right}
+.prog li.ok .st{color:var(--good);font-weight:600}.prog li.bad .st{color:var(--bad);font-weight:600}.prog li.busy .st{color:var(--wait);font-weight:600}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .secret{display:flex;gap:8px;align-items:center;margin-top:5px}.secret input{margin-top:0;flex:1}.secret button{flex:none}
 .btn.xs,button.xs{min-height:30px;padding:3px 8px;font-size:12px}

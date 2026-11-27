@@ -9,6 +9,12 @@ function pub_slug_ok(string $s): bool { return strlen($s) <= 120 && (bool)preg_m
 function pub_photos_dir(string $slug): string { return rtrim($_SERVER['DOCUMENT_ROOT'] ?? '.', '/') . '/photos/' . $slug; }
 function pub_masters_dir(string $slug): string { return masters_dir() . '/' . $slug; }
 function pub_bytes(string $v): int { $v = trim($v); $n = (int)$v; return match (strtolower(substr($v, -1))) { 'g' => $n << 30, 'm' => $n << 20, 'k' => $n << 10, default => $n }; }
+function pub_series(): array {   // slug => name, from dist/client/series-index.json (built from content/series.json)
+    $f = dirname(__DIR__) . '/series-index.json';
+    $j = is_file($f) ? json_decode((string)file_get_contents($f), true) : null; $o = [];
+    if (is_array($j)) foreach ($j as $x) if (is_array($x) && isset($x['slug'])) $o[(string)$x['slug']] = (string)($x['name'] ?? $x['slug']);
+    return $o;
+}
 function pub_titles(): array {
     $f = dirname(__DIR__) . '/gallery-titles.json';
     $j = is_file($f) ? json_decode((string)file_get_contents($f), true) : null;
@@ -106,10 +112,15 @@ if ($a === 'pubdone') {   // save the gallery file to GitHub
             // Events keep the year in the title ("2026 TCLF Friday"), even if the sender left it off.
             if (!empty($apiAuth) && !preg_match('/^\d{4}\b/', $title) && (($d['category'] ?? '') !== 'portraits')) $title = substr($date, 0, 4) . ' ' . $title;
             $g = ['title' => $title, 'category' => (($d['category'] ?? '') === 'portraits') ? 'portraits' : 'events', 'year' => substr($date, 0, 4), 'date' => $date, 'cover' => (string)array_key_first($new), 'description' => '', 'images' => []];
+            // optional series and tags (Publish page, T-39); only for a new gallery file. The NAS watcher sends neither.
+            $sr = is_string($d['series'] ?? null) ? trim($d['series']) : ''; if ($sr !== '') $g['series'] = $sr;
+            $tg = []; foreach ((is_array($d['tags'] ?? null) ? $d['tags'] : []) as $t) if (is_string($t) && ($t = trim($t)) !== '' && !in_array($t, $tg, true)) $tg[] = $t;
+            if ($tg) $g['tags'] = $tg;
         }
         $have = []; foreach ($g['images'] as $k => $im) $have[(string)$im['id']] = $k;
         foreach ($new as $id => $ratio) { $id = (string)$id; if (isset($have[$id])) $g['images'][$have[$id]]['ratio'] = $ratio; else $g['images'][] = ['id' => $id, 'ratio' => $ratio]; }
         if (empty($g['cover']) || !in_array($g['cover'], array_map(fn($i) => (string)$i['id'], $g['images']), true)) $g['cover'] = (string)$g['images'][0]['id'];
+        if ($code !== 200 && (isset($g['series']) || isset($g['tags']))) { $pv = validate_gallery($g, array_keys(pub_series())); if ($pv) json_out(['error' => implode(' ', $pv)], 400); }
         $body = ['message' => 'Gallery: ' . $slug . ' (' . count($g['images']) . ' photos)', 'branch' => 'main',
                  'content' => base64_encode(json_encode($g, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n")];
         if ($sha) $body['sha'] = $sha;
@@ -125,6 +136,7 @@ ahead('Publish photos'); $tok = csrf();
 $hasTok = trim((string)setting('github_token', '')) !== '';
 $limit = min(pub_bytes((string)ini_get('upload_max_filesize')), pub_bytes((string)ini_get('post_max_size')));
 $titles = pub_titles(); asort($titles, SORT_NATURAL | SORT_FLAG_CASE);
+$series = pub_series();
 ?>
 <div class="ph"><div><h1>Publish photos</h1></div></div>
 <p>Upload JPEGs straight from your browser to a public gallery. The full-size originals are kept privately (for paid downloads), and the web copies get the small corner logo. Adding to a gallery you already published is fine: only the new photos are added.</p>
@@ -138,15 +150,20 @@ $titles = pub_titles(); asort($titles, SORT_NATURAL | SORT_FLAG_CASE);
 <div class="cols"><label>Date<input id="pdate" type="date"></label>
 <label>Section<select id="pcat"><option value="events">Events</option><option value="portraits">Portraits</option></select></label></div>
 <label>Web address (made from the date and title; you can edit it)<input id="pslug" autocomplete="off"></label>
+<div class="cols"><label>Event series<select id="pser"><option value="">None</option><?php foreach ($series as $k => $n): ?><option value="<?= h($k) ?>"><?= h($n) ?></option><?php endforeach; ?></select></label>
+<label>Tags (optional, one per line)<textarea id="ptags" rows="3"></textarea></label></div>
 </div>
 <?php if ($titles): ?>
 <label class="check"><input type="radio" name="mode" value="old"> Add to an existing gallery</label>
 <div id="oldbox" hidden><label>Gallery<select id="pold"><?php foreach ($titles as $s => $t): ?><option value="<?= h($s) ?>"><?= h($t) ?></option><?php endforeach; ?></select></label></div>
 <?php endif; ?>
-<div class="drop mt"><input type="file" id="pfiles" accept="image/jpeg" multiple>
-<p class="kicker">JPEGs only. Largest file the server accepts: <b><?= h(number_format($limit / 1048576, 0)) ?> MB</b>.</p></div>
-<p><button class="btn" id="pgo" <?= $hasTok ? '' : 'disabled' ?>>Upload and publish</button></p>
-<p id="pstat" class="kicker"></p><ul id="plist" class="plain"></ul>
+<label class="drop mt" id="pdrop"><input type="file" id="pfiles" class="sr" accept="image/jpeg" multiple>
+<b>Drop JPEGs here, or tap to choose photos</b>
+<span class="hint">JPEGs only. Largest file the server accepts: <?= h(number_format($limit / 1048576, 0)) ?> MB.</span>
+<span id="pchosen" class="hint" aria-live="polite"></span></label>
+<p class="mt"><button class="btn" id="pgo" <?= $hasTok ? '' : 'disabled' ?>>Upload and publish</button></p>
+<p id="pstat" role="status" aria-live="polite"></p><ul id="plist" class="prog"></ul>
+<p id="plive" class="msg wait" role="status" hidden></p>
 </form>
 <script src="<?= h(asset('/client/admin/publish.js')) ?>"></script>
 <?php afoot(); exit;
