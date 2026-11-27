@@ -202,6 +202,44 @@
       b.addEventListener('click', function () { var open = box.hidden; box.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) box.querySelector('button, a').focus(); });
     });
 
+    // Session Photos tab: Select mode for several photos at once (bulkphotos)
+    var sm = document.getElementById('selmode'), grid = document.getElementById('photogrid'), bar = document.getElementById('selbar');
+    if (sm && grid && bar) {
+      var boxes = function () { return [].slice.call(grid.querySelectorAll('.selpick')); };
+      var refresh = function () {
+        var on = boxes().filter(function (b) { return b.checked; });
+        boxes().forEach(function (b) { b.closest('.cd').classList.toggle('picked', b.checked); });
+        document.getElementById('selcount').textContent = on.length + ' selected';
+        document.getElementById('selids').value = on.map(function (b) { return b.value; }).join(',');
+      };
+      sm.addEventListener('click', function () {
+        var on = !grid.classList.contains('selecting');
+        grid.classList.toggle('selecting', on); bar.hidden = !on; sm.setAttribute('aria-pressed', on ? 'true' : 'false');
+        sm.textContent = on ? 'Done selecting' : 'Select photos';
+        if (!on) { boxes().forEach(function (b) { b.checked = false; }); refresh(); }
+      });
+      grid.addEventListener('change', function (e) { if (e.target.classList.contains('selpick')) refresh(); });
+      grid.addEventListener('click', function (e) {   // in Select mode, tapping a photo toggles it
+        if (!grid.classList.contains('selecting') || e.target.closest('input, button, label, form')) return;
+        var cd = e.target.closest('.cd'); if (!cd) return;
+        var b = cd.querySelector('.selpick'); b.checked = !b.checked; refresh();
+      });
+      bar.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-sel]'); if (!b) return;
+        var k = b.getAttribute('data-sel');
+        boxes().forEach(function (x) { x.checked = k === 'all' || (k === 'fav' && x.closest('.cd').getAttribute('data-fav') === '1'); });
+        refresh();
+      });
+      var lastDo = '';
+      bar.addEventListener('click', function (e) { var b = e.target.closest('button[name=do]'); if (b) lastDo = b.value; }, true);
+      bar.addEventListener('submit', function (e) {
+        refresh(); var n = boxes().filter(function (b) { return b.checked; }).length;
+        var d = (e.submitter && e.submitter.value) || lastDo;
+        if (!n) { e.preventDefault(); window.alert('Select at least one photo first.'); return; }
+        if (d === 'delete' && !window.confirm('Delete ' + n + ' photo' + (n > 1 ? 's' : '') + ' and ' + (n > 1 ? 'their originals' : 'its original') + '? This cannot be undone.')) e.preventDefault();
+      });
+    }
+
     // Client gallery: per-photo prices save as you change them; the upload box sends photos one at a time
     var files = document.getElementById('files');
     if (files) {
