@@ -375,9 +375,9 @@ $fv = db()->prepare('SELECT i.label FROM favorites f JOIN images i ON i.id = f.i
 ?>
 <h2 id="orders">Photo requests</h2>
 <?php if (!$orders): ?><p>None yet.</p><?php else: ?><table class="stack"><tr><th>Photo</th><th>Size</th><th>Email</th><th>Status</th><th></th></tr>
-<?php foreach ($orders as $r): ?><tr><td data-label="Photo"><?= h($r['label']) ?></td><td data-label="Size"><?= $r['tier'] === 'web' ? 'Web' : 'Full' ?></td><td data-label="Email"><?= h($r['email']) ?></td><td data-label="Status"><span class="tag <?= ['requested' => 'wait', 'paid' => 'good', 'declined' => 'bad'][$r['status']] ?? '' ?>"><?= h($r['status']) ?></span></td><td>
+<?php foreach ($orders as $r): ?><tr><td data-label="Photo"><?= h($r['label']) ?></td><td data-label="Size"><?= $r['tier'] === 'web' ? 'Web' : 'Full' ?></td><td data-label="Email"><?= h($r['email']) ?></td><td data-label="Status"><span class="tag <?= ['requested' => 'wait', 'paid' => 'good', 'declined' => 'bad'][$r['status']] ?? '' ?>"><?= h($r['status']) ?></span></td><td><?php if ($r['status'] === 'requested'): ?>
 <form method="post" class="acts"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="order"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="order" value="<?= $r['id'] ?>">
-<button name="status" value="paid" class="btn sm">Mark paid (unlocks download)</button><button name="status" value="declined" class="btn sm alt">Decline</button></form></td></tr><?php endforeach; ?></table><?php endif; ?>
+<button name="status" value="paid" class="btn sm">Mark paid (unlocks download)</button><button name="status" value="declined" class="btn sm alt">Decline</button></form><?php endif; ?></td></tr><?php endforeach; ?></table><?php endif; ?>
 
 <h2>Favorites (<?= count($favs) ?>)</h2>
 <p><?= $favs ? h(implode(', ', $favs)) : 'None yet.' ?></p>
