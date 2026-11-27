@@ -4,12 +4,6 @@
 // Included by index.php after the admin login check.
 declare(strict_types=1);
 
-// A session's shoot date as YYYY-MM-DD: its own, else the linked client's (which may be typed as 11/15/2026). '' when unknown.
-function ses_date(string $own, ?string $client): string {
-    foreach ([$own, (string)$client] as $d) { $d = trim($d); if ($d === '') continue; $t = strtotime($d); if ($t !== false) return date('Y-m-d', $t); }
-    return '';
-}
-
 if ($a === 'sessions') {
     ahead('Sessions'); $tok = csrf();
     $rows = db()->query("SELECT g.*, c.name AS cname, c.shoot_date AS cdate, c.shoot_location AS cloc,

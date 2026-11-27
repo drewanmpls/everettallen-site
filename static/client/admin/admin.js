@@ -196,6 +196,12 @@
       });
     }
 
+    // Session page: the Share button opens and closes the share panel
+    document.querySelectorAll('[data-share]').forEach(function (b) {
+      var box = document.querySelector(b.getAttribute('data-share')); if (!box) return;
+      b.addEventListener('click', function () { var open = box.hidden; box.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) box.querySelector('button, a').focus(); });
+    });
+
     // Client gallery: per-photo prices save as you change them; the upload box sends photos one at a time
     var files = document.getElementById('files');
     if (files) {

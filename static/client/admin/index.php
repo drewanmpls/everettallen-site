@@ -100,6 +100,11 @@ if (empty($_SESSION['admin']) && !$apiAuth) {
 }
 
 // ----- helpers -----
+// A session's shoot date as YYYY-MM-DD: its own, else the linked client's (which may be typed as 11/15/2026). '' when unknown.
+function ses_date(string $own, ?string $client): string {
+    foreach ([$own, (string)$client] as $d) { $d = trim($d); if ($d === '') continue; $t = strtotime($d); if ($t !== false) return date('Y-m-d', $t); }
+    return '';
+}
 function gal(int $id): array { $s = db()->prepare('SELECT * FROM galleries WHERE id = ?'); $s->execute([$id]); $g = $s->fetch(); if (!$g) { http_response_code(404); echo 'Not found'; exit; } return $g; }
 function link_for(array $g): string { return 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/client/g/' . $g['token'] . '/'; }
 
@@ -168,7 +173,7 @@ if ($post) {
         db()->prepare('UPDATE galleries SET title=?, client_name=?, client_email=?, password_hash=?, default_price_cents=?, default_web_cents=?, included_count=?, note=?, active=?, client_id=? WHERE id=?')
             ->execute([trim((string)$_POST['title']) ?: $g['title'], trim((string)$_POST['client_name']), trim((string)$_POST['client_email']), $pwHash, dollars_to_cents((string)($_POST['price'] ?? '0')), dollars_to_cents((string)($_POST['price_web'] ?? '0')), max(0, (int)($_POST['included'] ?? 0)), trim((string)$_POST['note']), empty($_POST['active']) ? 0 : 1, (int)($_POST['client_id'] ?? 0) ?: null, $id]);
         ses_shoot_save($id);
-        go($base . '?a=gallery&id=' . $id . '&saved=1');
+        go($base . '?a=gallery&id=' . $id . '&tab=settings&saved=1');
     }
     if ($a === 'upload') {
         $g = gal($id);
@@ -192,7 +197,7 @@ if ($post) {
         $col = ($_POST['tier'] ?? 'full') === 'web' ? 'price_web_cents' : 'price_cents';
         if (!empty($_POST['only_fav'])) db()->prepare("UPDATE images SET $col = ? WHERE gallery_id = ? AND id IN (SELECT image_id FROM favorites)")->execute([$v === '' ? null : dollars_to_cents($v), $id]);
         else db()->prepare("UPDATE images SET $col = ? WHERE gallery_id = ?")->execute([$v === '' ? null : dollars_to_cents($v), $id]);
-        go($base . '?a=gallery&id=' . $id . '&saved=1');
+        go($base . '?a=gallery&id=' . $id . '&tab=settings&saved=1');
     }
     if ($a === 'delimg') {
         $s = db()->prepare('SELECT * FROM images WHERE id = ?'); $s->execute([(int)($_POST['image'] ?? 0)]); $i = $s->fetch();
@@ -202,13 +207,13 @@ if ($post) {
     if ($a === 'reply') {
         $body = trim((string)($_POST['body'] ?? ''));
         if ($body !== '') db()->prepare('INSERT INTO comments (image_id, author, body, from_owner, created) VALUES (?,?,?,1,?)')->execute([(int)$_POST['image'], 'Andrew', $body, time()]);
-        go($base . '?a=gallery&id=' . $id . '#comments');
+        go($base . '?a=gallery&id=' . $id . '&tab=activity#comments');
     }
     if ($a === 'order') {
         $st = in_array($_POST['status'] ?? '', ['paid', 'requested', 'declined'], true) ? $_POST['status'] : 'requested';
         if ($st === 'paid') { require_once __DIR__ . '/../payments.php'; mark_order_paid((int)($_POST['order'] ?? 0), ''); }
         else db()->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$st, (int)($_POST['order'] ?? 0)]);
-        go($base . '?a=gallery&id=' . $id . '#orders');
+        go($base . '?a=gallery&id=' . $id . '&tab=activity#orders');
     }
     if ($a === 'clientsave') {
         $f = []; foreach (['name', 'email', 'phone', 'pronouns', 'service', 'timeframe', 'location', 'handle', 'referral', 'share_pref', 'message', 'notes'] as $k) $f[$k] = trim((string)($_POST[$k] ?? ''));
@@ -331,7 +336,7 @@ if ($post) {
     }
     if ($a === 'resetclaims') {
         db()->prepare('DELETE FROM claims WHERE image_id IN (SELECT id FROM images WHERE gallery_id = ?)')->execute([$id]);
-        go($base . '?a=gallery&id=' . $id . '&saved=1');
+        go($base . '?a=gallery&id=' . $id . '&tab=settings&saved=1');
     }
     if ($a === 'delgallery') {
         $g = gal($id);
@@ -341,7 +346,7 @@ if ($post) {
             db()->prepare('DELETE FROM galleries WHERE id = ?')->execute([$id]);
             go($base);
         }
-        go($base . '?a=gallery&id=' . $id);
+        go($base . '?a=gallery&id=' . $id . '&tab=settings');
     }
     go($base);
 }
@@ -352,19 +357,61 @@ if ($a === 'gallery') {
     $q = db()->prepare('SELECT i.*, (SELECT COUNT(*) FROM favorites f WHERE f.image_id = i.id) AS fav, (SELECT COUNT(*) FROM comments c WHERE c.image_id = i.id) AS ncom, (SELECT COUNT(*) FROM downloads d WHERE d.image_id = i.id) AS dls, (SELECT COUNT(*) FROM claims cl WHERE cl.image_id = i.id) AS claimed FROM images i WHERE i.gallery_id = ? ORDER BY i.sort, i.id'); $q->execute([$gid]);
     $imgs = $q->fetchAll();
     $nfav = count(array_filter($imgs, fn($i) => $i['fav'] > 0));
+    $o = db()->prepare('SELECT o.*, i.label FROM orders o JOIN images i ON i.id = o.image_id WHERE o.gallery_id = ? ORDER BY o.id DESC'); $o->execute([$gid]); $orders = $o->fetchAll();
+    $c = db()->prepare('SELECT c.*, i.label, i.id AS iid, NOT EXISTS (SELECT 1 FROM comments r WHERE r.image_id = c.image_id AND r.from_owner = 1 AND r.id > c.id) AS open FROM comments c JOIN images i ON i.id = c.image_id WHERE i.gallery_id = ? ORDER BY c.id DESC'); $c->execute([$gid]); $coms = $c->fetchAll();
+    $cl = null; if ($g['client_id']) { $cs = db()->prepare('SELECT * FROM clients WHERE id = ?'); $cs->execute([(int)$g['client_id']]); $cl = $cs->fetch() ?: null; }
+    $when = ses_date((string)$g['shoot_date'], $cl['shoot_date'] ?? null);
+    $where = trim((string)$g['shoot_location']) !== '' ? (string)$g['shoot_location'] : (string)($cl['shoot_location'] ?? '');
+    $dls = array_sum(array_column($imgs, 'dls')); $picks = count(array_filter($imgs, fn($i) => $i['claimed'] > 0));
+    [$stl, $stc] = !$g['active'] ? ['Off', 'wait'] : ($dls > 0 ? ['Delivered', 'good'] : (($picks || $nfav) ? ['Picks made', 'good'] : ['Proofing', '']));
+    $openReq = count(array_filter($orders, fn($r) => $r['status'] === 'requested'));
+    $needs = count(array_filter($coms, fn($r) => !$r['from_owner'] && $r['open']));
+    $who = trim((string)$g['client_name']) !== '' ? (string)$g['client_name'] : (string)($cl['name'] ?? '');
+    $email = trim((string)$g['client_email']) !== '' ? (string)$g['client_email'] : (string)($cl['email'] ?? '');
+    $url = link_for($g);
+    $mail = 'mailto:' . rawurlencode($email) . '?subject=' . rawurlencode('Your photos from Everett Allen Photography') . '&body=' . rawurlencode('Hi ' . ($who !== '' ? $who : 'there') . ",\n\nYour private gallery is ready:\n" . $url . ($g['password_hash'] ? "\n\n(I'll send the password separately.)" : '') . "\n\nTap the heart on your favorites, and leave a comment on any photo.\n\nAndrew");
+    $tabs = ['photos' => 'Photos', 'activity' => 'Activity', 'settings' => 'Settings'];
+    $tab = (string)($_GET['tab'] ?? ''); if (!isset($tabs[$tab])) $tab = 'photos';
     ahead($g['title']); $tok = csrf(); ?>
-<div class="ph"><div><p class="back"><?php if ($g['client_id']): ?><a href="?a=client&id=<?= (int)$g['client_id'] ?>">&larr; Back to this client's record</a><?php else: ?><a href="?a=sessions">&larr; All sessions</a><?php endif; ?></p>
-<h1><?= h($g['title']) ?></h1><?= $g['active'] ? '<span class="tag good">On</span>' : '<span class="tag wait">Off</span>' ?><?= $g['password_hash'] ? ' <span class="tag">Password</span>' : '' ?></div>
-<div class="act"><a class="btn alt" target="_blank" href="/client/g/<?= h($g['token']) ?>/">Preview as client</a></div></div>
+<div class="ph"><div><p class="back"><a href="?a=sessions">&larr; All sessions</a></p>
+<h1><?= h($g['title']) ?></h1><span class="tag <?= $stc ?>"><?= $stl ?></span><?= $g['password_hash'] ? ' <span class="tag">Password</span>' : '' ?>
+<p class="sesmeta"><?= $cl ? '<a href="?a=client&amp;id=' . (int)$cl['id'] . '">' . h($who !== '' ? $who : 'Client record') . '</a>' : h($who !== '' ? $who : 'No client set') ?><?= $when !== '' ? ' &middot; ' . h(date('M j, Y', (int)strtotime($when))) : '' ?><?= $where !== '' ? ' &middot; ' . h($where) : '' ?></p></div>
+<div class="act"><button type="button" class="btn" data-share="#sharebox" aria-expanded="false" aria-controls="sharebox">Share</button></div></div>
+<div class="panel share" id="sharebox" hidden><h2 class="mt0">Share with <?= h($who !== '' ? $who : 'your client') ?></h2>
+<code class="link" id="lnk"><?= h($url) ?></code>
+<div class="acts mt"><button type="button" class="btn sm" data-copy="#lnk">Copy link</button>
+<?php if ($email !== ''): ?><a class="btn sm alt" href="<?= h($mail) ?>">Email the link</a><?php endif; ?>
+<a class="btn sm alt" target="_blank" rel="noopener" href="/client/g/<?= h($g['token']) ?>/">Preview as client</a></div>
+<p class="hint mt"><?= $g['password_hash'] ? 'A password is set: send it separately.' : 'No password: anyone with the link can open it.' ?><?= $g['active'] ? '' : ' The gallery is turned off, so the link shows nothing until you turn it on in Settings.' ?><?= $email === '' ? ' Add the client email in Settings to email the link from here.' : '' ?></p></div>
 <?php if (!empty($_GET['saved'])): ?><p class="msg good" role="status">Saved.</p><?php endif; ?>
-<p class="kicker">Client link (send this to <?= h($g['client_name'] ?: 'your client') ?>)<?= $g['password_hash'] ? ', password protected' : '' ?><?= $g['active'] ? '' : ' / currently turned OFF' ?></p>
-<code class="link" id="lnk"><?= h(link_for($g)) ?></code>
-<p><button type="button" class="btn sm alt" data-copy="#lnk">Copy link</button></p>
-
-<h2>Upload photos</h2>
+<nav class="chips" aria-label="Session sections"><?php foreach ($tabs as $k => $lab): ?><a class="tab<?= $k === $tab ? ' on" aria-current="page' : '' ?>" href="?a=gallery&amp;id=<?= $gid ?>&amp;tab=<?= $k ?>"><?= $lab ?><?= $k === 'photos' ? ' ' . count($imgs) : '' ?><?= $k === 'activity' && ($openReq + $needs) ? ' <span class="tag wait">' . ($openReq + $needs) . '</span>' : '' ?></a><?php endforeach; ?></nav>
+<?php if ($tab === 'photos'): ?>
 <div class="drop"><input type="file" id="files" accept="image/jpeg" multiple data-gid="<?= $gid ?>" data-csrf="<?= h($tok) ?>"><p id="prog" class="kicker">JPEGs only. Originals are stored privately; the client sees watermarked copies. Photos upload one at a time in filename order.</p></div>
-
-<h2>Gallery settings</h2>
+<p class="hint mt">Each photo uses the session's prices unless you type its own (0 = Free, blank = default). Marks: &#9829; favorite, Picked = in the included package.</p>
+<div class="cards">
+<?php foreach ($imgs as $i): ?>
+<div class="cd"><img loading="lazy" src="<?= $base ?>?a=thumb&id=<?= $i['id'] ?>" alt="">
+<small><?= h($i['label']) ?></small>
+<p class="marks"><?= $i['fav'] ? '<span class="tag good">&#9829; Favorite</span> ' : '' ?><?= $i['claimed'] ? '<span class="tag good">Picked</span> ' : '' ?><?= $i['ncom'] ? '<span class="tag">' . (int)$i['ncom'] . ' comment' . ($i['ncom'] > 1 ? 's' : '') . '</span> ' : '' ?><?= $i['dls'] ? '<span class="tag">' . (int)$i['dls'] . ' download' . ($i['dls'] > 1 ? 's' : '') . '</span>' : '' ?></p>
+<div class="prices"><span>Web $</span><input value="<?= ($i['price_web_cents'] ?? null) === null ? '' : h(number_format($i['price_web_cents'] / 100, 2)) ?>" placeholder="<?= h(number_format($g['default_web_cents'] / 100, 2)) ?>" data-img="<?= $i['id'] ?>" data-tier="web" class="pr" aria-label="Web size price for <?= h($i['label']) ?>"><span>Full $</span><input value="<?= $i['price_cents'] === null ? '' : h(number_format($i['price_cents'] / 100, 2)) ?>" placeholder="<?= h(number_format($g['default_price_cents'] / 100, 2)) ?>" data-img="<?= $i['id'] ?>" data-tier="full" class="pr" aria-label="Full size price for <?= h($i['label']) ?>"></div>
+<form method="post" data-confirm="Delete this photo and its original?"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="delimg"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="image" value="<?= $i['id'] ?>"><button class="btn xs alt">Delete</button></form></div>
+<?php endforeach; ?></div>
+<?php if (!$imgs): ?><p>No photos yet. Drop JPEGs in the box above.</p><?php endif; ?>
+<?php elseif ($tab === 'activity'): $favImgs = array_values(array_filter($imgs, fn($i) => $i['fav'] > 0)); ?>
+<h2 id="orders">Photo requests<?= $openReq ? ' <span class="tag wait">' . $openReq . ' open</span>' : '' ?></h2>
+<?php if (!$orders): ?><p>None yet.</p><?php else: ?><table class="stack"><tr><th>Photo</th><th>Size</th><th>Email</th><th>Status</th><th></th></tr>
+<?php foreach ($orders as $r): ?><tr><td data-label="Photo"><?= h($r['label']) ?></td><td data-label="Size"><?= $r['tier'] === 'web' ? 'Web' : 'Full' ?></td><td data-label="Email"><?= h($r['email']) ?></td><td data-label="Status"><span class="tag <?= ['requested' => 'wait', 'paid' => 'good', 'declined' => 'bad'][$r['status']] ?? '' ?>"><?= h($r['status']) ?></span></td><td><?php if ($r['status'] === 'requested'): ?>
+<div class="acts"><form method="post" data-confirm="Mark this request paid? It unlocks the download and emails the client."><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="order"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="order" value="<?= $r['id'] ?>"><button name="status" value="paid" class="btn sm">Mark paid (unlocks download)</button></form>
+<form method="post"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="order"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="order" value="<?= $r['id'] ?>"><button name="status" value="declined" class="btn sm alt">Decline</button></form></div><?php endif; ?></td></tr><?php endforeach; ?></table><?php endif; ?>
+<h2>Favorites (<?= count($favImgs) ?>)</h2>
+<?php if (!$favImgs): ?><p>None yet.</p><?php else: ?><ul class="favs"><?php foreach ($favImgs as $i): ?><li><img loading="lazy" src="<?= $base ?>?a=thumb&id=<?= $i['id'] ?>" alt=""><small><?= h($i['label']) ?><?= $i['claimed'] ? ' &middot; Picked' : '' ?></small></li><?php endforeach; ?></ul><?php endif; ?>
+<?php if ($g['included_count'] > 0): ?><p><b>Package:</b> <?= claims_used($gid) ?> of <?= (int)$g['included_count'] ?> included photos picked.</p><?php endif; ?>
+<h2 id="comments">Comments<?= $needs ? ' <span class="tag wait">' . $needs . ' need' . ($needs > 1 ? '' : 's') . ' reply</span>' : '' ?></h2>
+<?php if (!$coms): ?><p>None yet.</p><?php else: ?><table class="stack"><tr><th>Photo</th><th>Who</th><th>Comment</th><th>Reply</th></tr>
+<?php foreach ($coms as $r): ?><tr><td data-label="Photo"><?= h($r['label']) ?></td><td data-label="Who"><?= h($r['from_owner'] ? 'You' : $r['author']) ?><br><small><?= date('M j, g:ia', (int)$r['created']) ?></small></td><td data-label="Comment"><?= nl2br(h($r['body'])) ?><?= !$r['from_owner'] && $r['open'] ? ' <span class="tag wait">needs reply</span>' : '' ?></td><td>
+<?php if (!$r['from_owner']): ?><form method="post" class="row"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="reply"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="image" value="<?= $r['iid'] ?>"><input name="body" placeholder="Reply" required aria-label="Reply to <?= h($r['author']) ?>"><button class="btn sm">Send</button></form><?php endif; ?></td></tr><?php endforeach; ?></table><?php endif; ?>
+<?php else: ?>
+<h2>Session settings</h2>
 <form method="post" class="cols"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="update"><input type="hidden" name="id" value="<?= $gid ?>">
 <label>Title<input name="title" value="<?= h($g['title']) ?>" required></label>
 <label>Client name<input name="client_name" value="<?= h($g['client_name']) ?>"></label>
@@ -380,50 +427,21 @@ if ($a === 'gallery') {
 <label class="full">Note shown to client<textarea name="note" rows="3"><?= h($g['note']) ?></textarea></label>
 <label class="check"><input type="checkbox" name="active" value="1" <?= $g['active'] ? 'checked' : '' ?>> Gallery is on (uncheck to hide it)</label>
 <div class="full"><button class="btn">Save settings</button></div></form>
-
 <h2>Prices</h2>
-<p><b>Web size</b> is a 2048 px copy for social sharing. <b>Full resolution</b> is the original file for printing. Photos in the client's included package get both for free. Each photo uses the gallery default unless you type its own price (0 = Free, blank = default).</p>
+<p><b>Web size</b> is a 2048 px copy for social sharing. <b>Full resolution</b> is the original file for printing. Photos in the client's included package get both for free. Each photo uses the default unless you type its own price on the Photos tab (0 = Free, blank = default).</p>
 <form method="post" class="row"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="priceall"><input type="hidden" name="id" value="<?= $gid ?>">
 <label>Set all photos<select name="tier"><option value="web">web size</option><option value="full">full resolution</option></select></label>
 <label>to ($)<input name="price" placeholder="blank = default"></label>
 <label class="check"><input type="checkbox" name="only_fav" value="1"> only favorites (<?= $nfav ?>)</label><button class="btn sm">Apply</button></form>
-<?php $used = claims_used($gid); if ($g['included_count'] > 0): ?>
-<p class="mt"><b>Package:</b> <?= $used ?> of <?= (int)$g['included_count'] ?> included photos used.
-<form method="post" data-confirm="Clear all of this client&#39;s package picks?" class="acts"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="resetclaims"><input type="hidden" name="id" value="<?= $gid ?>"><button class="btn sm alt">Reset picks</button></form></p>
+<?php if ($g['included_count'] > 0): ?>
+<h2>Package picks</h2>
+<p><?= claims_used($gid) ?> of <?= (int)$g['included_count'] ?> included photos picked.</p>
+<form method="post" data-confirm="Clear all of this client&#39;s package picks?" class="acts"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="resetclaims"><input type="hidden" name="id" value="<?= $gid ?>"><button class="btn sm alt">Reset picks</button></form>
 <?php endif; ?>
-
-<h2><?= count($imgs) ?> photos</h2>
-<div class="cards">
-<?php foreach ($imgs as $i): ?>
-<div class="cd"><img loading="lazy" src="<?= $base ?>?a=thumb&id=<?= $i['id'] ?>" alt="">
-<small><?= h($i['label']) ?></small>
-<div class="prices"><span>Web $</span><input value="<?= ($i['price_web_cents'] ?? null) === null ? '' : h(number_format($i['price_web_cents'] / 100, 2)) ?>" placeholder="<?= h(number_format($g['default_web_cents'] / 100, 2)) ?>" data-img="<?= $i['id'] ?>" data-tier="web" class="pr"><span>Full $</span><input value="<?= $i['price_cents'] === null ? '' : h(number_format($i['price_cents'] / 100, 2)) ?>" placeholder="<?= h(number_format($g['default_price_cents'] / 100, 2)) ?>" data-img="<?= $i['id'] ?>" data-tier="full" class="pr"></div>
-<small><?= $i['fav'] ? '&#9829; favorite ' : '' ?><?= $i['claimed'] ? '[in package] ' : '' ?><?= $i['ncom'] ? $i['ncom'] . ' comments ' : '' ?><?= $i['dls'] ? $i['dls'] . ' downloads' : '' ?></small>
-<form method="post" data-confirm="Delete this photo and its original?"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="delimg"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="image" value="<?= $i['id'] ?>"><button class="btn xs alt">Delete</button></form></div>
-<?php endforeach; ?></div>
-
-<?php
-$o = db()->prepare('SELECT o.*, i.label FROM orders o JOIN images i ON i.id = o.image_id WHERE o.gallery_id = ? ORDER BY o.id DESC'); $o->execute([$gid]); $orders = $o->fetchAll();
-$c = db()->prepare('SELECT c.*, i.label, i.id AS iid FROM comments c JOIN images i ON i.id = c.image_id WHERE i.gallery_id = ? ORDER BY c.id DESC'); $c->execute([$gid]); $coms = $c->fetchAll();
-$fv = db()->prepare('SELECT i.label FROM favorites f JOIN images i ON i.id = f.image_id WHERE i.gallery_id = ? ORDER BY i.sort'); $fv->execute([$gid]); $favs = $fv->fetchAll(PDO::FETCH_COLUMN);
-?>
-<h2 id="orders">Photo requests</h2>
-<?php if (!$orders): ?><p>None yet.</p><?php else: ?><table class="stack"><tr><th>Photo</th><th>Size</th><th>Email</th><th>Status</th><th></th></tr>
-<?php foreach ($orders as $r): ?><tr><td data-label="Photo"><?= h($r['label']) ?></td><td data-label="Size"><?= $r['tier'] === 'web' ? 'Web' : 'Full' ?></td><td data-label="Email"><?= h($r['email']) ?></td><td data-label="Status"><span class="tag <?= ['requested' => 'wait', 'paid' => 'good', 'declined' => 'bad'][$r['status']] ?? '' ?>"><?= h($r['status']) ?></span></td><td><?php if ($r['status'] === 'requested'): ?>
-<form method="post" class="acts"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="order"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="order" value="<?= $r['id'] ?>">
-<button name="status" value="paid" class="btn sm">Mark paid (unlocks download)</button><button name="status" value="declined" class="btn sm alt">Decline</button></form><?php endif; ?></td></tr><?php endforeach; ?></table><?php endif; ?>
-
-<h2>Favorites (<?= count($favs) ?>)</h2>
-<p><?= $favs ? h(implode(', ', $favs)) : 'None yet.' ?></p>
-
-<h2 id="comments">Comments</h2>
-<?php if (!$coms): ?><p>None yet.</p><?php else: ?><table class="stack"><tr><th>Photo</th><th>Who</th><th>Comment</th><th>Reply</th></tr>
-<?php foreach ($coms as $r): ?><tr><td data-label="Photo"><?= h($r['label']) ?></td><td data-label="Who"><?= h($r['from_owner'] ? 'You' : $r['author']) ?><br><small><?= date('M j, g:ia', (int)$r['created']) ?></small></td><td data-label="Comment"><?= nl2br(h($r['body'])) ?></td><td>
-<?php if (!$r['from_owner']): ?><form method="post" class="row"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="reply"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="image" value="<?= $r['iid'] ?>"><input name="body" placeholder="Reply" required><button class="btn sm">Send</button></form><?php endif; ?></td></tr><?php endforeach; ?></table><?php endif; ?>
-
-<h2>Delete gallery</h2>
-<form method="post" data-confirm="This permanently deletes the gallery and all its photos. Continue?" class="row narrow"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="delgallery"><input type="hidden" name="id" value="<?= $gid ?>"><input name="confirm" placeholder="Type DELETE"><button class="btn sm alt">Delete</button></form>
-
+<h2>Delete session</h2>
+<p>Deletes the gallery, its photos and originals for good. Type DELETE to confirm.</p>
+<form method="post" data-confirm="This permanently deletes the gallery and all its photos. Continue?" class="row narrow"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="delgallery"><input type="hidden" name="id" value="<?= $gid ?>"><input name="confirm" placeholder="Type DELETE" aria-label="Type DELETE to confirm"><button class="btn sm alt">Delete</button></form>
+<?php endif; ?>
 <?php afoot(); exit;
 }
 
