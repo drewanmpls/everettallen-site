@@ -204,6 +204,27 @@ if ($post) {
         if ($i) { foreach (['orig', 'display', 'thumb'] as $k) @unlink(gdir((int)$i['gallery_id'], $k) . '/' . basename($i['file'])); db()->prepare('DELETE FROM images WHERE id = ?')->execute([$i['id']]); }
         go($base . '?a=gallery&id=' . $id);
     }
+    if ($a === 'bulkphotos') {   // T-43: several photos at once. Same effects as price (per photo) and delimg.
+        gal($id); $back = $base . '?a=gallery&id=' . $id . '&tab=photos';
+        $ids = array_values(array_unique(array_filter(array_map('intval', explode(',', (string)($_POST['images'] ?? ''))), fn($v) => $v > 0)));
+        $do = (string)($_POST['do'] ?? '');
+        if (!$ids || count($ids) > 2000) go($back . '&err=none');
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $s = db()->prepare("SELECT * FROM images WHERE gallery_id = ? AND id IN ($in)"); $s->execute(array_merge([$id], $ids)); $own = $s->fetchAll();
+        if (count($own) !== count($ids)) go($back . '&err=other');   // every photo must belong to this session
+        if ($do === 'webprice' || $do === 'fullprice') {
+            $v = trim((string)($_POST['price'] ?? ''));
+            if ($v !== '' && !preg_match('/^\$?\d{1,5}(\.\d{1,2})?$/', $v)) go($back . '&err=price');
+            $col = $do === 'webprice' ? 'price_web_cents' : 'price_cents';
+            db()->prepare("UPDATE images SET $col = ? WHERE gallery_id = ? AND id IN ($in)")->execute(array_merge([$v === '' ? null : dollars_to_cents(ltrim($v, '$'))], [$id], $ids));
+            go($back . '&done=' . $do . '&n=' . count($ids));
+        }
+        if ($do === 'delete') {
+            foreach ($own as $i) { foreach (['orig', 'display', 'thumb'] as $k) @unlink(gdir((int)$i['gallery_id'], $k) . '/' . basename($i['file'])); db()->prepare('DELETE FROM images WHERE id = ?')->execute([$i['id']]); }
+            go($back . '&done=delete&n=' . count($own));
+        }
+        go($back);
+    }
     if ($a === 'reply') {
         $body = trim((string)($_POST['body'] ?? ''));
         if ($body !== '') db()->prepare('INSERT INTO comments (image_id, author, body, from_owner, created) VALUES (?,?,?,1,?)')->execute([(int)$_POST['image'], 'Andrew', $body, time()]);
@@ -388,9 +409,20 @@ if ($a === 'gallery') {
 <?php if ($tab === 'photos'): ?>
 <div class="drop"><input type="file" id="files" accept="image/jpeg" multiple data-gid="<?= $gid ?>" data-csrf="<?= h($tok) ?>"><p id="prog" class="kicker">JPEGs only. Originals are stored privately; the client sees watermarked copies. Photos upload one at a time in filename order.</p></div>
 <p class="hint mt">Each photo uses the session's prices unless you type its own (0 = Free, blank = default). Marks: &#9829; favorite, Picked = in the included package.</p>
-<div class="cards">
+<?php $bdone = ['webprice' => 'Web price set on %d photos.', 'fullprice' => 'Full price set on %d photos.', 'delete' => '%d photos deleted.'];
+    $berr = ['none' => 'Select at least one photo first.', 'other' => 'Some of those photos are not in this session. Reload the page and try again.', 'price' => 'Type a price like 5 or 5.00, 0 for Free, or leave it blank for the default.']; ?>
+<?php if (isset($bdone[$_GET['done'] ?? ''])): $bn = (int)($_GET['n'] ?? 0); ?><p class="msg good" role="status"><?= str_replace(' photos', $bn === 1 ? ' photo' : ' photos', sprintf($bdone[$_GET['done']], $bn)) ?></p><?php endif; ?>
+<?php if (isset($berr[$_GET['err'] ?? ''])): ?><p class="msg bad" role="alert"><?= $berr[$_GET['err']] ?></p><?php endif; ?>
+<?php if ($imgs): ?><p><button type="button" class="btn sm alt" id="selmode" aria-pressed="false">Select photos</button></p>
+<form method="post" class="panel selbar" id="selbar" hidden><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="bulkphotos"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="images" id="selids">
+<p class="selcount" id="selcount" role="status" aria-live="polite">0 selected</p>
+<div class="acts"><button type="button" class="btn sm alt" data-sel="all">Select all</button><button type="button" class="btn sm alt" data-sel="fav">Select favorites</button><button type="button" class="btn sm alt" data-sel="none">Clear</button></div>
+<div class="row mt"><label>Price for the selected photos ($)<input name="price" placeholder="blank = default, 0 = Free" inputmode="decimal"></label><button class="btn sm" name="do" value="webprice">Set web price</button><button class="btn sm" name="do" value="fullprice">Set full price</button></div>
+<div class="acts"><button class="btn sm danger" name="do" value="delete">Delete selected</button></div></form><?php endif; ?>
+<div class="cards" id="photogrid">
 <?php foreach ($imgs as $i): ?>
-<div class="cd"><img loading="lazy" src="<?= $base ?>?a=thumb&id=<?= $i['id'] ?>" alt="">
+<div class="cd" data-id="<?= $i['id'] ?>" data-fav="<?= $i['fav'] ? 1 : 0 ?>"><img loading="lazy" src="<?= $base ?>?a=thumb&id=<?= $i['id'] ?>" alt="">
+<label class="selbox"><input type="checkbox" class="selpick" value="<?= $i['id'] ?>"> Select <?= h($i['label']) ?></label>
 <small><?= h($i['label']) ?></small>
 <p class="marks"><?= $i['fav'] ? '<span class="tag good">&#9829; Favorite</span> ' : '' ?><?= $i['claimed'] ? '<span class="tag good">Picked</span> ' : '' ?><?= $i['ncom'] ? '<span class="tag">' . (int)$i['ncom'] . ' comment' . ($i['ncom'] > 1 ? 's' : '') . '</span> ' : '' ?><?= $i['dls'] ? '<span class="tag">' . (int)$i['dls'] . ' download' . ($i['dls'] > 1 ? 's' : '') . '</span>' : '' ?></p>
 <div class="prices"><span>Web $</span><input value="<?= ($i['price_web_cents'] ?? null) === null ? '' : h(number_format($i['price_web_cents'] / 100, 2)) ?>" placeholder="<?= h(number_format($g['default_web_cents'] / 100, 2)) ?>" data-img="<?= $i['id'] ?>" data-tier="web" class="pr" aria-label="Web size price for <?= h($i['label']) ?>"><span>Full $</span><input value="<?= $i['price_cents'] === null ? '' : h(number_format($i['price_cents'] / 100, 2)) ?>" placeholder="<?= h(number_format($g['default_price_cents'] / 100, 2)) ?>" data-img="<?= $i['id'] ?>" data-tier="full" class="pr" aria-label="Full size price for <?= h($i['label']) ?>"></div>

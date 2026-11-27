@@ -114,6 +114,9 @@ details>summary{cursor:pointer}
 .sesmeta{margin:6px 0 0;color:var(--mut)}.share{margin:0 0 16px}.mt0{margin-top:0}
 .cd .marks{margin:4px 0;display:flex;flex-wrap:wrap;gap:4px}.cd .marks .tag{font-size:11px}
 .favs{list-style:none;padding:0;margin:0 0 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}.favs img{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:6px;background:var(--photo)}.favs small{display:block;font-size:12px;word-break:break-all}
+.selbox{display:none;margin:4px 0;font-size:13px;font-weight:600}.selecting .selbox{display:flex;gap:6px;align-items:center}.selecting .cd{cursor:pointer}.cd.picked{box-shadow:inset 0 0 0 3px var(--acc)}
+.selbar{position:sticky;top:0;z-index:6}.selbar .selcount{font-weight:700;margin:0 0 8px}
+@media(max-width:1023px){.selbar{top:52px}}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .secret{display:flex;gap:8px;align-items:center;margin-top:5px}.secret input{margin-top:0;flex:1}.secret button{flex:none}
 .btn.xs,button.xs{min-height:30px;padding:3px 8px;font-size:12px}
