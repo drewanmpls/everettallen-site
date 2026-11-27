@@ -25,6 +25,10 @@ function masters_dir(): string {
     return getenv('EA_MASTERS') ?: dirname(priv_dir()) . '/masters';
 }
 
+// Database layout version. To add a table or column: put it in the migration block in db() (CREATE TABLE IF NOT EXISTS,
+// or a row in the add-column list) and raise SCHEMA_VERSION by one. The block then runs once per database, not on every request.
+const SCHEMA_VERSION = 2;
+
 function db(): PDO {
     static $pdo = null;
     if ($pdo) return $pdo;
@@ -32,6 +36,12 @@ function db(): PDO {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
     $pdo->exec('PRAGMA foreign_keys = ON');
+    $ver = function () use ($pdo): int { try { return (int)$pdo->query("SELECT v FROM settings WHERE k = 'schema_version'")->fetchColumn(); } catch (Throwable $e) { return 0; } };
+    if ($ver() >= SCHEMA_VERSION) return $pdo;
+    $pdo->exec('PRAGMA busy_timeout = 10000');
+    $pdo->exec('BEGIN IMMEDIATE');   // one request migrates at a time
+    try {
+    if ($ver() < SCHEMA_VERSION) {
     $pdo->exec("
     CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT);
     CREATE TABLE IF NOT EXISTS stat_hits (day TEXT, path TEXT, ref TEXT, dev TEXT, hits INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, path, ref, dev));
@@ -73,6 +83,10 @@ function db(): PDO {
         foreach ($pdo->query("PRAGMA table_info($t)") as $col) if ($col['name'] === $c) $has = true;
         if (!$has) $pdo->exec("ALTER TABLE $t ADD COLUMN $c $def");
     }
+    $pdo->prepare("INSERT INTO settings (k, v) VALUES ('schema_version', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v")->execute([(string)SCHEMA_VERSION]);
+    }
+    $pdo->exec('COMMIT');
+    } catch (Throwable $e) { $pdo->exec('ROLLBACK'); throw $e; }
     return $pdo;
 }
 
