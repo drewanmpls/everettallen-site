@@ -79,6 +79,7 @@ Admin: https://www.everettallenphotography.com/client/admin/ (Publish, Codes, St
 ### Publish from the browser or the NAS
 - **Browser:** Admin > Publish. Pick a new or existing gallery, set date, section and slug, drop in JPEGs. Needs the GitHub token saved in Admin > Settings ("Publishing from the browser").
 - **NAS folder watcher:** drop a folder into `EAP-Publish` on the Ugreen NAS and rename it to end in `-READY` (or `-portraits-READY`). The `eap-watcher` Docker container (see `nas/README.md`) uploads it, then renames it `-PUBLISHED` or `-FAILED`. Folder names should start with the date and include the year, for example `2026-11-06 TCLF Friday`. The container downloads `nas/watcher.py` from GitHub `main` each time it starts: after changing it, merge, then Stop and Start the eap-watcher project in the NAS Docker app. The folder key lives in Admin > Settings ("Folder watcher key").
+- **Suggest with Claude:** the gallery editor can draft tags and a description from the title, date, series and up to 8 thumbnails (`static/client/admin/ai.php`). Needs a Claude API key in Admin > Settings > Claude AI, where the model is chosen too; Anthropic bills per use. It only fills the boxes; nothing is saved until Save gallery. Locally `dev/run.sh` points it at a dead address, so nothing is sent.
 - **NAS status (T-40):** the watcher reports to the "NAS folder watcher" card on Admin > Publish once a minute, with its version.
 
 ### Pages CMS tips

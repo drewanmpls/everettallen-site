@@ -16,6 +16,7 @@ export EA_PRIVATE="$LOCAL/data"
 export EA_MASTERS="$LOCAL/masters"
 export EA_GITHUB_API="http://127.0.0.1:9"
 export EA_STRIPE_BASE="http://127.0.0.1:9/"
+export EA_ANTHROPIC_BASE="http://127.0.0.1:9/"   # Claude API calls go nowhere locally
 PHPOPTS=(-d "sendmail_path=cat >> '$LOCAL/mail.log'" -d upload_max_filesize=64M -d post_max_size=64M -d display_errors=1 -d "error_reporting=E_ALL & ~E_DEPRECATED")
 
 python3 build.py
