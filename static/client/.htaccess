@@ -11,3 +11,7 @@ Header set X-Robots-Tag "noindex, nofollow, noarchive"
 <FilesMatch "\.(sqlite|db|log)$">
   Require all denied
 </FilesMatch>
+# The admin reads this list from disk; it also names hidden galleries, so it is not served to the web
+<Files "galleries-index.json">
+  Require all denied
+</Files>

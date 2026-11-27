@@ -62,6 +62,18 @@
       });
     });
 
+    // Find box over a table: <input data-filter="#table"> hides rows whose data-q does not contain the words typed
+    document.querySelectorAll('input[data-filter]').forEach(function (q) {
+      var tbl = document.querySelector(q.getAttribute('data-filter')); if (!tbl) return;
+      var rows = [].slice.call(tbl.querySelectorAll('tr[data-q]')), count = document.getElementById('pgn'), none = document.getElementById('pgnone');
+      q.addEventListener('input', function () {
+        var words = q.value.toLowerCase().split(/\s+/).filter(Boolean), n = 0;
+        rows.forEach(function (r) { var hit = words.every(function (w) { return r.getAttribute('data-q').indexOf(w) !== -1; }); r.hidden = !hit; if (hit) n++; });
+        if (count) count.textContent = n + (n === 1 ? ' gallery' : ' galleries');
+        if (none) none.hidden = n > 0;
+      });
+    });
+
     // Client gallery: per-photo prices save as you change them; the upload box sends photos one at a time
     var files = document.getElementById('files');
     if (files) {

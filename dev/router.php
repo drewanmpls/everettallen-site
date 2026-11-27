@@ -5,6 +5,7 @@ $path = rawurldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/');
 $root = $_SERVER['DOCUMENT_ROOT'];
 
 if (preg_match('/\.(sqlite|db|log)$/i', $path)) { http_response_code(403); echo 'Forbidden'; return true; }
+if (basename($path) === 'galleries-index.json') { http_response_code(403); echo 'Forbidden'; return true; }   // like static/client/.htaccess
 
 $run = function (string $file) use ($root) {
     $_SERVER['SCRIPT_NAME'] = $file;
