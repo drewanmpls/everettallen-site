@@ -42,7 +42,7 @@ Lives in `static/client/` (PHP + SQLite, no WordPress). Private data is stored *
 - Signing the release on `/client/new/` stores the signature, the exact wording, the date and the signer privately, builds a PDF, and sends it to Google Drive through a small Apps Script (`scripts/drive-release-receiver.gs`). Deploy that script as a web app, then paste its address and secret into Admin > Settings.
 - Files land in `EAP / Model Releases` named like `ER20261101-Name-00002.pdf`.
 - In the admin, a client's page shows the PDF, the Drive status, and fields for shoot date, location and "ID checked in person". Updating them rebuilds the PDF (and re-saves it to Drive, replacing the earlier copy).
-- Release wording, discount, and the gallery question are edited in the Pages CMS under "Services and rates".
+- Release wording, discount, and the gallery question are edited in Admin > Website > Services (the "Model release wording" section; a wording change needs a new version label).
 
 ## Payments (Stripe, with manual backup)
 Admin > Settings > Payments holds the Stripe secret key, the webhook signing secret and the "use Stripe" switch. The webhook address is `/client/stripe-webhook.php` (event `checkout.session.completed`). If Stripe is off, missing, under $0.50 or errors, requests fall back to the manual flow: Andrew gets an email, the client gets the "how to pay manually" text from Settings, and "Mark paid" in the gallery unlocks the download and emails the client.
@@ -75,6 +75,8 @@ The web folder really is `new.everettallenphotography.com` (the live domain's we
 ## Admin and Pages CMS quick guide
 
 Admin: https://www.everettallenphotography.com/client/admin/ (Publish, Codes, Stats, Settings, Clients). Pages CMS: https://app.pagescms.org (sign in with GitHub, repo `drewanmpls/everettallen-site`). Edits in Pages CMS commit to GitHub and go live in a minute or two.
+
+Gallery details (title, date, series, tags, description, cover, hide, photo order and removal), event series, the four footer pages and site settings, and services and rates are now edited in the admin: Portfolio > Galleries and Event series, Website > Pages and Services. Saving there commits to GitHub and the site rebuilds in a minute or two. Pages CMS still works as a fallback until it is removed (H-05); `.pages.yml` stays in place.
 
 ### Publish from the browser or the NAS
 - **Browser:** Admin > Publish. Pick a new or existing gallery, set date, section and slug, drop in JPEGs. Needs the GitHub token saved in Admin > Settings ("Publishing from the browser").
