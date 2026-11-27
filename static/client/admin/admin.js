@@ -74,6 +74,13 @@
       });
     });
 
+    // Gallery editor: when the date changes, the year follows it unless you typed a different year yourself
+    document.querySelectorAll('input[data-year]').forEach(function (d) {
+      var y = document.querySelector(d.getAttribute('data-year')); if (!y) return;
+      var last = d.value.slice(0, 4);
+      d.addEventListener('change', function () { if (y.value === '' || y.value === last) y.value = d.value.slice(0, 4); last = d.value.slice(0, 4); });
+    });
+
     // Client gallery: per-photo prices save as you change them; the upload box sends photos one at a time
     var files = document.getElementById('files');
     if (files) {

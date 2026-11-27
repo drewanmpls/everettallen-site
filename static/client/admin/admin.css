@@ -86,6 +86,12 @@ details>summary{cursor:pointer}
 .pr.saved{outline:2px solid var(--good)}.pr.failed{outline:2px solid var(--bad)}
 .cov{display:block;width:96px;height:auto;aspect-ratio:3/2;object-fit:cover;border-radius:6px;background:var(--photo)}.pg td{vertical-align:middle}.grow{flex:1 1 260px}
 @media(min-width:640px) and (max-width:1199px){.pg th:nth-child(4),.pg td:nth-child(4){display:none}.pg .cov{width:72px}}   /* tablets: the chips already say Portraits or Events */
+.form.wide{max-width:860px}.msg ul{margin:6px 0 0;padding-left:20px;font-weight:400}.msg p{margin:0;color:inherit}
+.pick{border:0;margin:0 0 16px;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;max-height:560px;overflow:auto}
+.pk{position:relative;margin:0;font-weight:400;font-size:12px;color:var(--mut);cursor:pointer}.pk img{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:8px;background:var(--photo);border:3px solid transparent}
+.pk input{position:absolute;top:8px;left:8px;width:20px;height:20px}.pk input:checked+img{border-color:var(--acc)}.pk input:focus-visible+img{outline:2px solid var(--acc);outline-offset:2px}.pk span{display:block;text-align:center}
+.savebar{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:12px 0;margin-top:8px;z-index:5}
+@media(max-width:639px){.savebar{bottom:calc(60px + env(safe-area-inset-bottom))}.pick{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .secret{display:flex;gap:8px;align-items:center;margin-top:5px}.secret input{margin-top:0;flex:1}.secret button{flex:none}
 .btn.xs,button.xs{min-height:30px;padding:3px 8px;font-size:12px}
