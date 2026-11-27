@@ -44,6 +44,7 @@ content:
       - { name: cover, label: Cover photo ID (e.g. 001), type: string }
       - { name: description, label: Description, type: text }
       - { name: hidden, label: Hide this gallery from the site, type: boolean }
+      - { name: venue, label: Venue (events only; shown on the gallery page), type: string }
       - name: images
         label: Photos
         type: object

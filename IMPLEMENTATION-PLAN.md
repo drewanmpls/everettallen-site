@@ -292,6 +292,7 @@ File name is the slug: lowercase letters, digits and single hyphens, `^[a-z0-9]+
 | `series` | string | no | A `slug` from `content/series.json`, or absent |
 | `tags` | array of strings | no | Each 1 to 40 characters, 12 tags max |
 | `hidden` | boolean | no | **NEW in T-25.** `true` leaves the gallery out of the built site. Absent means shown |
+| `venue` | string | no | **NEW 2026-11-27.** Events only: 1 to 120 characters, plain text, for example `Minneapolis Eagle, Minneapolis`. Shown on the gallery page and searchable. Never set on portraits (this repository is public) |
 | `images` | array | yes | At least 1 entry. Order is display order |
 | `images[].id` | string | yes | `^\d{3,6}$` (for example `"001"`). Must be a string |
 | `images[].ratio` | number | yes | Width divided by height, 4 decimals, greater than 0.1 and less than 10 |

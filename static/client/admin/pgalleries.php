@@ -120,6 +120,8 @@ function pg_apply(array $g, array $in): array {
     if ($tags) $g['tags'] = $tags; else unset($g['tags']);
     $cv = (string)($in['cover'] ?? ''); if ($cv !== '') $g['cover'] = $cv;
     if (!empty($in['hidden'])) $g['hidden'] = true; else unset($g['hidden']);
+    $vn = trim(preg_replace('/\s+/', ' ', (string)($in['venue'] ?? '')));   // events only: portrait locations never go into the public repository
+    if ($vn !== '' && $g['category'] === 'events') $g['venue'] = $vn; else unset($g['venue']);
     return $g;
 }
 
@@ -162,8 +164,11 @@ if ($a === 'pgsave' || $a === 'pgallery') {
 <div class="cols"><label>Date<input name="date" type="date" value="<?= h((string)($v['date'] ?? '')) ?>" required data-year="#pgyear"></label>
 <label>Year (groups the Events page)<input name="year" id="pgyear" value="<?= h((string)($v['year'] ?? '')) ?>" inputmode="numeric" maxlength="4" pattern="\d{4}"></label>
 <label>Section<select name="category"><?php foreach (['portraits' => 'Portraits', 'events' => 'Events'] as $k => $lab): ?><option value="<?= $k ?>" <?= ($v['category'] ?? '') === $k ? 'selected' : '' ?>><?= $lab ?></option><?php endforeach; ?></select></label>
+<label id="venuebox"<?= ($v['category'] ?? '') === 'events' ? '' : ' hidden' ?>>Venue (events only; shown on the gallery page)<input name="venue" value="<?= h((string)($v['venue'] ?? '')) ?>" maxlength="120" list="venues" placeholder="Minneapolis Eagle, Minneapolis" autocomplete="off"></label>
+<datalist id="venues"><?php $vs = []; foreach (pg_json('galleries-index.json') as $x) if (is_array($x) && ($x['venue'] ?? '') !== '') $vs[$x['venue']] = true; ksort($vs, SORT_NATURAL | SORT_FLAG_CASE); foreach (array_keys($vs) as $vv): ?><option value="<?= h((string)$vv) ?>"><?php endforeach; ?></datalist>
 <label>Event series<select name="series"><option value="">None</option><?php foreach ($ser as $k => $lab): ?><option value="<?= h($k) ?>" <?= ($v['series'] ?? '') === $k ? 'selected' : '' ?>><?= h($lab) ?></option><?php endforeach; ?></select></label></div>
 <div class="panel aibox"><p><b>Need words?</b> Claude can look at a few of this gallery's photos and draft tags and a description for you to edit.</p>
+<label>Notes for Claude (optional, not saved): facts it cannot see, like who won or who hosted<textarea id="ainotes" rows="2" maxlength="1000" placeholder="Mr Minneapolis Eagle 2026 contest, 6 contestants, winner Max L., hosted by Atons"></textarea></label>
 <div class="acts"><button type="button" class="btn sm alt" id="aisuggest" data-slug="<?= h($slug) ?>" <?= trim((string)setting('claude_api_key', '')) === '' ? 'disabled' : '' ?>>Suggest with Claude</button>
 <?php if (trim((string)setting('claude_api_key', '')) === ''): ?><span class="hint">Add a Claude API key in <a href="?a=settings&amp;tab=ai">Settings</a> first.</span><?php endif; ?></div>
 <p class="hint" id="aistat" role="status" aria-live="polite"></p></div>

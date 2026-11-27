@@ -75,6 +75,8 @@ function validate_gallery(array $g, ?array $seriesSlugs = null): array {
         else foreach ($g['tags'] as $tg) if (!is_string($tg) || trim($tg) === '' || mb_strlen($tg) > 40) { $p[] = 'Each tag needs 1 to 40 characters.'; break; }
     }
     if (isset($g['hidden']) && !is_bool($g['hidden'])) $p[] = 'Hidden must be on or off.';
+    if (isset($g['venue']) && (!is_string($g['venue']) || trim($g['venue']) === '' || mb_strlen($g['venue']) > 120 || $g['venue'] !== strip_tags($g['venue']))) $p[] = 'The venue needs 1 to 120 characters of plain text, or leave it empty.';
+    if (isset($g['venue']) && ($g['category'] ?? '') !== 'events') $p[] = 'A venue can only be set on an event gallery.';
     $ids = [];
     if (empty($g['images']) || !is_array($g['images']) || !array_is_list($g['images'])) $p[] = 'The gallery needs at least one photo.';
     else foreach ($g['images'] as $im) {

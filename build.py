@@ -94,7 +94,7 @@ for ts,tv in TAGS.items():
     gs=sorted(tv['g'],key=newest,reverse=True)
     cards=''.join(f'<a class="card" href="/gallery/{g["slug"]}/"><img loading="lazy" src="{img(g,"t")}" alt=""><span><b>{e(g["title"])}</b><small>{g["year"]} / {len(g["images"])} photos</small></span></a>' for g in gs)
     w(f'/tag/{ts}/',page(tv['name'],f'<div class="wrap"><p class="meta"><a href="/search/">&larr; Search</a></p><h1 class="h1">{e(tv["name"])}</h1><p class="meta">{len(gs)} galleries</p><div class="cards">{cards}</div></div>','/search/','Events',f'Galleries tagged {tv["name"]}',img(gs[0],'l')))
-idx=[{'t':g['title'],'u':f'/gallery/{g["slug"]}/','i':img(g,'t'),'y':g['year'],'c':cats[g['category']],'s':ser_by[g['series']]['name'] if g.get('series') in ser_by else '','g':g['tags'],'k':ser_by[g['series']]['short'] if g.get('series') in ser_by else '','n':len(g['images'])} for g in sorted(G,key=newest,reverse=True)]
+idx=[{'t':g['title'],'u':f'/gallery/{g["slug"]}/','i':img(g,'t'),'y':g['year'],'c':cats[g['category']],'s':ser_by[g['series']]['name'] if g.get('series') in ser_by else '','g':g['tags'],'k':ser_by[g['series']]['short'] if g.get('series') in ser_by else '','n':len(g['images']),'v':str(g.get('venue','')).strip() if g['category']=='events' else ''} for g in sorted(G,key=newest,reverse=True)]
 open('dist/search-index.json','w').write(json.dumps(idx,separators=(',',':')))
 chips=''.join(f'<a href="#" data-q="{e(x["short"])}">{e(x["short"])}</a>' for x in active)+''.join(f'<a href="#" data-q="{e(tv["name"])}">{e(tv["name"])}</a>' for tv in sorted(TAGS.values(),key=lambda v:v['name'].lower()))+''.join(f'<a href="#" data-q="{y}">{y}</a>' for y in sorted({g['year'] for g in G},reverse=True))
 w('/search/',page('Search',f'<div class="wrap"><h1 class="h1">Search</h1><p class="meta">Find a gallery by name, year, event or tag</p><form class="sform" role="search" onsubmit="return false"><input id="q" type="search" placeholder="Try a name, TCLFW, Pride, 2025..." autocomplete="off" aria-label="Search galleries"></form><div class="chips">{chips}</div><p class="meta" id="rc"></p><div class="cards" id="res"></div><noscript><p class="lede2">Search needs JavaScript. Browse <a href="/portraits/">Portraits</a> or <a href="/events/">Events</a> instead.</p></noscript></div><script src="/js/search.js?v={VSEARCH}" defer></script>','/search/','Events','Search galleries by name, year, event or tag'))
@@ -105,6 +105,7 @@ for g in G:
     d=esc_desc(g['description'])
     sr=ser_by.get(g.get('series'))
     sx=f' / <a href="/series/{sr["slug"]}/">More from {e(sr["name"])}</a>' if sr else ''
+    if g['category']=='events' and str(g.get('venue','')).strip(): sx=f' / {e(str(g["venue"]).strip())}'+sx   # venue: events only (portrait locations stay off the site)
     tg=''.join(f'<a href="/tag/{slugify(t)}/">{e(t)}</a>' for t in g['tags'])
     tg=f'<p class="tags">{tg}</p>' if tg else ''
     back=f'<a href="/{g["category"]}/">&larr; {sec}</a>'
@@ -161,7 +162,7 @@ os.makedirs('dist/client',exist_ok=True)
 json.dump([{'title':c['title'],'price':c['price'],'unit':c.get('unit',''),'meta':c['meta'],'included':int(c.get('included',0) or 0)} for c in SV['cards']],open('dist/client/services.json','w'),ensure_ascii=False)
 json.dump({g['slug']:g['title'] for g in G},open('dist/client/gallery-titles.json','w'),ensure_ascii=False)
 # every gallery for the admin's Portfolio pages (T-24), newest first; hidden ones are listed too (T-25 leaves them out of the site only)
-GI=[{'slug':g['slug'],'title':g['title'],'date':g['date'],'year':g['year'],'category':g.get('category',''),'series':g.get('series',''),'cover':g['cover'],'count':len(g['images']),'hidden':bool(g.get('hidden')),'described':bool(g.get('description','').strip())} for g in GA]
+GI=[{'slug':g['slug'],'title':g['title'],'date':g['date'],'year':g['year'],'category':g.get('category',''),'series':g.get('series',''),'cover':g['cover'],'count':len(g['images']),'hidden':bool(g.get('hidden')),'described':bool(g.get('description','').strip()),'venue':str(g.get('venue','')).strip() if g.get('category')=='events' else '','tags':[t for t in g.get('tags',[]) if isinstance(t,str)],'description':g.get('description','')[:600]} for g in GA]   # venue, tags and description feed the admin (venue suggestions, Suggest with Claude)
 GI.sort(key=lambda x:x['slug']); GI.sort(key=lambda x:x['date'],reverse=True)
 json.dump(GI,open('dist/client/galleries-index.json','w'),ensure_ascii=False,indent=1)
 json.dump([{'slug':x['slug'],'short':x['short'],'name':x['name']} for x in SER],open('dist/client/series-index.json','w'),ensure_ascii=False)

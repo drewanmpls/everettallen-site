@@ -152,13 +152,18 @@
       });
     }
 
+    // Gallery editor: Venue is for events only, so it shows only while Section is Events
+    var vb = document.getElementById('venuebox'), cs = vb && vb.closest('form').querySelector('select[name=category]');
+    if (cs) cs.addEventListener('change', function () { vb.hidden = cs.value !== 'events'; });
+
     // Gallery editor: "Suggest with Claude" fills Tags and Description with a draft (nothing is saved until Save gallery)
     var aib = document.getElementById('aisuggest');
     if (aib) aib.addEventListener('click', function () {
       var f = aib.closest('form'), st = document.getElementById('aistat'), tg = f.querySelector('textarea[name=tags]'), ds = f.querySelector('textarea[name=description]');
       if ((tg.value.trim() || ds.value.trim()) && !window.confirm('Replace what is in Tags and Description with Claude\'s draft? You can still edit it before saving.')) return;
       var fd = new FormData(); fd.append('a', 'pgsuggest'); fd.append('slug', aib.getAttribute('data-slug')); fd.append('csrf', f.querySelector('input[name=csrf]').value);
-      ['title', 'date', 'category', 'series', 'description'].forEach(function (k) { var el = f.querySelector('[name=' + k + ']'); if (el) fd.append(k, el.value); });
+      ['title', 'date', 'category', 'series', 'venue', 'description'].forEach(function (k) { var el = f.querySelector('[name=' + k + ']'); if (el) fd.append(k, el.value); });
+      var nt = document.getElementById('ainotes'); if (nt) fd.append('notes', nt.value);
       aib.disabled = true; st.textContent = 'Asking Claude. This usually takes 15 to 60 seconds...';
       fetch('/client/admin/', { method: 'POST', body: fd, credentials: 'same-origin' })
         .then(function (r) { return r.json().catch(function () { return { error: 'The server returned an unexpected answer.' }; }); })

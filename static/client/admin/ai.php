@@ -44,13 +44,32 @@ if ($a === 'pgsuggest') {
     $sf = dirname(__DIR__) . '/series-index.json'; $sj = is_file($sf) ? json_decode((string)file_get_contents($sf), true) : [];
     foreach ((array)$sj as $x) if (is_array($x) && ($x['slug'] ?? '') === $sr) $sname = (string)($x['name'] ?? '');
     $have = trim((string)($_POST['description'] ?? ''));
-    $facts = "Gallery title: $title\nDate: $date\nKind: $cat" . ($sname !== '' ? "\nEvent series: $sname" : '') . ($have !== '' ? "\nCurrent description (improve it, keep its facts):\n$have" : '');
-    $content[] = ['type' => 'text', 'text' => $facts . "\n\nThese are " . count($content) . ' photos from the gallery. Draft the tags and description.'];
+    $venue = $cat === 'event' ? trim(mb_substr((string)($_POST['venue'] ?? $g['venue'] ?? ''), 0, 120)) : '';
+    $notes = trim(mb_substr(str_replace("\r\n", "\n", (string)($_POST['notes'] ?? '')), 0, 1000));
+    $facts = "Gallery title: $title\nDate: $date\nKind: $cat" . ($sname !== '' ? "\nEvent series: $sname" : '') . ($venue !== '' ? "\nVenue: $venue" : '')
+        . ($notes !== '' ? "\nPhotographer's notes (facts you may use, including any names given here):\n$notes" : '')
+        . ($have !== '' ? "\nCurrent description (improve it, keep its facts):\n$have" : '');
+
+    // The site's own tags (prefer these) and up to 3 of Andrew's own descriptions (match his voice), from galleries-index.json
+    $gi = json_decode((string)@file_get_contents(rtrim((string)($_SERVER['DOCUMENT_ROOT'] ?? ''), '/') . '/client/galleries-index.json'), true);
+    $tagCount = []; $examples = [];
+    foreach ((array)$gi as $x) {
+        if (!is_array($x)) continue;
+        foreach ((array)($x['tags'] ?? []) as $t) if (is_string($t) && trim($t) !== '') { $k = trim($t); $tagCount[$k] = ($tagCount[$k] ?? 0) + 1; }
+        $d0 = trim((string)($x['description'] ?? ''));
+        if ($d0 !== '' && ($x['slug'] ?? '') !== $slug) $examples[] = [((($x['series'] ?? '') === $sr && $sr !== '') ? 2 : 0) + ((($x['category'] ?? '') === ($cat === 'event' ? 'events' : 'portraits')) ? 1 : 0), (string)($x['date'] ?? ''), $d0];
+    }
+    arsort($tagCount); $known = array_slice(array_keys($tagCount), 0, 150);
+    usort($examples, fn($p, $q) => [$q[0], $q[1]] <=> [$p[0], $p[1]]);   // same series first, then same section, newest first
+    $ex = array_map(fn($e) => $e[2], array_slice($examples, 0, 3));
+    $guide = ($known ? "\n\nTags already used on the site (prefer these exact spellings when they fit; add a new tag only when none fits):\n" . implode(', ', $known) : '')
+        . ($ex ? "\n\nDescriptions the photographer wrote for other galleries. Match this voice and length; do not copy their facts:\n- " . implode("\n- ", $ex) : '');
+    $content[] = ['type' => 'text', 'text' => $facts . $guide . "\n\nThese are " . count($content) . ' photos from the gallery. Draft the tags and description.'];
 
     $system = 'You draft copy for Everett Allen Photography, a Minneapolis photographer whose public galleries cover portrait sessions and LGBTQ+ leather and kink community events. '
         . 'Write a short gallery description (2 or 3 sentences, plain text, warm and respectful, no hype) and 3 to 8 search tags. '
-        . 'Use only facts given in the gallery details and what is plainly visible in the photos. Never guess names, places, titles, sponsors or numbers that are not given. '
-        . 'Do not name or identify any person, and do not describe bodies in sexual or explicit terms; keep it suitable for a public portfolio. '
+        . 'Use only facts given in the gallery details, the photographer\'s notes and what is plainly visible in the photos. Never guess names, places, titles, sponsors or numbers that are not given. '
+        . 'Never identify a person from how they look; you may use a name only when the photographer\'s notes give it. Do not describe bodies in sexual or explicit terms; keep it suitable for a public portfolio. '
         . 'Tags are short (1 to 3 words, under 40 characters), describe the event or visible themes (for example a contest, a parade, harness, studio portrait), and do not repeat the year. '
         . 'Do not use em dashes.';
     $model = (string)setting('claude_model', 'claude-opus-5-5'); if (!isset(AI_MODELS[$model])) $model = 'claude-opus-5-5';
