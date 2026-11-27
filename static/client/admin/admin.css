@@ -75,6 +75,9 @@ details>summary{cursor:pointer}
 .tag{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:600;line-height:1.6;background:var(--sunk);color:var(--ink2);border:1px solid var(--line);white-space:nowrap}
 .tag.good{background:var(--goodbg);color:var(--good);border-color:transparent}.tag.wait{background:var(--waitbg);color:var(--wait);border-color:transparent}.tag.bad{background:var(--badbg);color:var(--bad);border-color:transparent}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:0 0 16px}.panel>:last-child{margin-bottom:0}
+.ovg{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}.ovg .full{grid-column:1/-1}@media(max-width:639px){.ovg{grid-template-columns:1fr}}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0}.kv dt{color:var(--mut);font-size:14px}.kv dd{margin:0;overflow-wrap:anywhere}
+.tl{list-style:none;margin:0;padding:0}.tl li{padding:8px 0;border-top:1px solid var(--line)}.tl li:first-child{border-top:0}.tl time{display:block;color:var(--mut);font-size:13px}
 .panel.good{box-shadow:inset 4px 0 0 var(--good)}.panel.wait{box-shadow:inset 4px 0 0 var(--wait)}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin:0 0 14px}.row label{margin:0}.row input:not([type=checkbox]):not([type=radio]){width:auto;flex:1 1 160px}
