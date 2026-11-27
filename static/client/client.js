@@ -1,4 +1,6 @@
 (function(){
+var cfg=document.getElementById('ea-cfg'); if(cfg) window.EA=JSON.parse(cfg.textContent);   // settings from the page, as JSON (no inline script)
+document.querySelectorAll('.ph[data-r]').forEach(function(f){f.style.setProperty('--r',f.getAttribute('data-r'))});   // each photo's shape for the grid
 var E=window.EA, imgs=E.images, cur=-1, filter='all';
 var $=function(id){return document.getElementById(id)};
 if(/[?&]paid=1/.test(location.search)){try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}setTimeout(function(){toast('Payment received. Your photo is unlocked: tap Download.')},400)}
