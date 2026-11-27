@@ -201,7 +201,7 @@ if ($post) {
     }
     if ($a === 'delimg') {
         $s = db()->prepare('SELECT * FROM images WHERE id = ?'); $s->execute([(int)($_POST['image'] ?? 0)]); $i = $s->fetch();
-        if ($i) { foreach (['orig', 'display', 'thumb'] as $k) @unlink(gdir((int)$i['gallery_id'], $k) . '/' . basename($i['file'])); db()->prepare('DELETE FROM images WHERE id = ?')->execute([$i['id']]); }
+        if ($i) { foreach (['orig', 'display', 'thumb', 'web'] as $k) @unlink(gdir((int)$i['gallery_id'], $k) . '/' . basename($i['file'])); db()->prepare('DELETE FROM images WHERE id = ?')->execute([$i['id']]); }
         go($base . '?a=gallery&id=' . $id);
     }
     if ($a === 'bulkphotos') {   // T-43: several photos at once. Same effects as price (per photo) and delimg.
@@ -220,7 +220,7 @@ if ($post) {
             go($back . '&done=' . $do . '&n=' . count($ids));
         }
         if ($do === 'delete') {
-            foreach ($own as $i) { foreach (['orig', 'display', 'thumb'] as $k) @unlink(gdir((int)$i['gallery_id'], $k) . '/' . basename($i['file'])); db()->prepare('DELETE FROM images WHERE id = ?')->execute([$i['id']]); }
+            foreach ($own as $i) { foreach (['orig', 'display', 'thumb', 'web'] as $k) @unlink(gdir((int)$i['gallery_id'], $k) . '/' . basename($i['file'])); db()->prepare('DELETE FROM images WHERE id = ?')->execute([$i['id']]); }
             go($back . '&done=delete&n=' . count($own));
         }
         go($back);
