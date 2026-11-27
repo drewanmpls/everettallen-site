@@ -14,7 +14,7 @@ function go(string $to): void { header('Location: ' . $to); exit; }
 // Admin menu (IMPLEMENTATION-PLAN.md Section 3.7). Each row: label, action, the actions that also mark it as current.
 // Later tickets add one line here when their page exists (Sessions, Sales, Galleries, Event series, Pages, Services).
 const ADMIN_MENU = [
-    '' => [['Dashboard', 'dashboard', []]],
+    '' => [['Today', 'dashboard', []]],
     'Studio' => [['Clients', 'clients', ['client']], ['Sessions', 'sessions', ['gallery', 'list']], ['Sales', 'orders', []], ['Codes', 'codes', []]],
     'Portfolio' => [['Galleries', 'pgalleries', ['pgallery']], ['Publish', 'publish', []], ['Event series', 'series', []], ['Library', 'library', []]],
     'Website' => [['Pages', 'pages', []], ['Services', 'services', []], ['Short links', 'links', []], ['Stats', 'stats', []], ['Settings', 'settings', []]],
@@ -23,7 +23,7 @@ const ADMIN_MENU = [
 const AI_MODELS = ['claude-opus-5-5' => 'Claude Opus 5.5: best writing (about 3 cents per suggestion)', 'claude-sonnet-5-5' => 'Claude Sonnet 5.5: very good, about half the price (1 to 2 cents)', 'claude-haiku-5-5' => 'Claude Haiku 5.5: fastest and cheapest (under 1 cent)'];
 // Phone tab bar: label, action, icon path.
 const ADMIN_TABS = [
-    ['Dashboard', 'dashboard', 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'],
+    ['Today', 'dashboard', 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'],
     ['Clients', 'clients', 'M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 4.15a3.5 3.5 0 0 1 0 6.7'],
     ['Sessions', 'sessions', 'M4 5h16v14H4zM4 15l4.5-4.5 4 4 3-3L20 15'],
     ['Publish', 'publish', 'M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3'],
@@ -484,14 +484,14 @@ if ($a === 'clients') {
     $srcNames = ['form' => 'Form', 'contact' => 'Contact', 'admin' => 'Added by you'];
     foreach (db()->query("SELECT DISTINCT source FROM clients WHERE source != '' ORDER BY source")->fetchAll(PDO::FETCH_COLUMN) as $x) $srcNames[$x] = $srcNames[$x] ?? ucfirst($x);
     if (!isset($srcNames[$src])) $src = '';
-    if (!in_array($rel, ['signed', 'unsigned'], true)) $rel = '';
+    if (!in_array($rel, ['signed', 'unsigned', 'noid'], true)) $rel = '';
     $sorts = ['' => ['Newest', 'c.created DESC, c.id DESC'], 'old' => ['Oldest', 'c.created ASC, c.id ASC'], 'name' => ['Name', 'c.name COLLATE NOCASE ASC, c.id ASC']];
     if (!isset($sorts[$sort])) $sort = '';
     $sql = 'SELECT c.*, (SELECT COUNT(*) FROM galleries g WHERE g.client_id = c.id) AS ng FROM clients c WHERE 1=1'; $args = [];
     if ($stf !== '') { $sql .= ' AND c.status = ?'; $args[] = $stf; } else { $sql .= " AND c.status != 'archived'"; }
     if ($q !== '') { $sql .= ' AND (c.name LIKE ? OR c.email LIKE ? OR c.service LIKE ? OR c.phone LIKE ? OR c.handle LIKE ?)'; array_push($args, "%$q%", "%$q%", "%$q%", "%$q%", "%$q%"); }
     if ($src !== '') { $sql .= ' AND c.source = ?'; $args[] = $src; }
-    if ($rel === 'signed') $sql .= " AND COALESCE(c.release_at, '') NOT IN ('', 0)"; elseif ($rel === 'unsigned') $sql .= " AND COALESCE(c.release_at, '') IN ('', 0)";
+    if ($rel === 'signed') $sql .= " AND COALESCE(c.release_at, '') NOT IN ('', 0)"; elseif ($rel === 'unsigned') $sql .= " AND COALESCE(c.release_at, '') IN ('', 0)"; elseif ($rel === 'noid') $sql .= " AND COALESCE(c.release_at, '') NOT IN ('', 0) AND TRIM(COALESCE(c.id_verified, '')) = ''";
     $stmt = db()->prepare($sql . ' ORDER BY ' . $sorts[$sort][1]); $stmt->execute($args); $rows = $stmt->fetchAll();
     $counts = db()->query('SELECT status, COUNT(*) n FROM clients GROUP BY status')->fetchAll(PDO::FETCH_KEY_PAIR);
     $keep = fn(array $o) => '?' . h(http_build_query(array_filter(array_merge(['a' => 'clients', 'status' => $stf, 'q' => $q, 'src' => $src, 'rel' => $rel, 'sort' => $sort], $o), fn($v) => $v !== '')));   // filters stay in the address so a list can be bookmarked
@@ -505,7 +505,7 @@ if ($a === 'clients') {
 <form method="get" class="row" role="search"><input type="hidden" name="a" value="clients"><?php if ($stf !== ''): ?><input type="hidden" name="status" value="<?= h($stf) ?>"><?php endif; ?>
 <label>Search<input name="q" value="<?= h($q) ?>" placeholder="Name, email, phone, social or service"></label>
 <label>Source<select name="src"><option value="">Any</option><?php foreach ($srcNames as $k => $lab): ?><option value="<?= h($k) ?>" <?= $src === $k ? 'selected' : '' ?>><?= h($lab) ?></option><?php endforeach; ?></select></label>
-<label>Release<select name="rel"><option value="">Any</option><option value="signed" <?= $rel === 'signed' ? 'selected' : '' ?>>Signed</option><option value="unsigned" <?= $rel === 'unsigned' ? 'selected' : '' ?>>Not signed</option></select></label>
+<label>Release<select name="rel"><option value="">Any</option><option value="signed" <?= $rel === 'signed' ? 'selected' : '' ?>>Signed</option><option value="unsigned" <?= $rel === 'unsigned' ? 'selected' : '' ?>>Not signed</option><option value="noid" <?= $rel === 'noid' ? 'selected' : '' ?>>Signed, ID not checked</option></select></label>
 <label>Sort<select name="sort"><?php foreach ($sorts as $k => $so): ?><option value="<?= h($k) ?>" <?= $sort === $k ? 'selected' : '' ?>><?= h($so[0]) ?></option><?php endforeach; ?></select></label>
 <button class="btn sm">Show</button></form>
 <p class="hint"><?= count($rows) ?> <?= count($rows) === 1 ? 'client' : 'clients' ?><?= ($q !== '' || $src !== '' || $rel !== '' || $sort !== '') ? ' <a href="' . $keep(['q' => '', 'src' => '', 'rel' => '', 'sort' => '']) . '">Clear filters</a>' : '' ?></p>
