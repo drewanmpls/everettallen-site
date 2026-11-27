@@ -43,7 +43,10 @@ if ($a === 'dashboard') {
 <a href="<?= $base ?>?a=codes">Codes<small>Free download links</small></a>
 <a href="<?= $base ?>?a=links">Short links<small>Short addresses for QR codes</small></a>
 <a href="<?= $base ?>?a=stats">Stats<small>Pages, sources, likes</small></a>
-<a href="https://app.pagescms.org" target="_blank" rel="noopener">Site content<small>Pages CMS (galleries, text)</small></a>
+<a href="<?= $base ?>?a=pgalleries">Galleries<small>Titles, covers, photos</small></a>
+<a href="<?= $base ?>?a=series">Event series<small>Names and descriptions</small></a>
+<a href="<?= $base ?>?a=pages">Pages and settings<small>About, home page, links</small></a>
+<a href="<?= $base ?>?a=services">Services and rates<small>Prices and cards</small></a>
 <a href="<?= $base ?>?a=settings">Settings<small>Payments, keys</small></a>
 </div>
 
