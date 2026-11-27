@@ -142,7 +142,7 @@ $titles = pub_titles(); asort($titles, SORT_NATURAL | SORT_FLAG_CASE);
 <div class="ph"><div><h1>Publish photos</h1></div></div>
 <p>Upload JPEGs straight from your browser to a public gallery. The full-size originals are kept privately (for paid downloads), and the web copies get the small corner logo. Adding to a gallery you already published is fine: only the new photos are added.</p>
 <?php if (!$hasTok): ?>
-<p class="msg wait" role="alert"><b>One-time setup needed:</b> this page saves the gallery to GitHub, so it needs a GitHub token. Add it in <a href="/client/admin/?a=settings#github">Settings</a> first.</p>
+<p class="msg wait" role="alert"><b>One-time setup needed:</b> this page saves the gallery to GitHub, so it needs a GitHub token. Add it in <a href="/client/admin/?a=settings&tab=publishing#github">Settings</a> first.</p>
 <?php endif; ?>
 <form id="pf" class="form" onsubmit="return false">
 <label class="check"><input type="radio" name="mode" value="new" checked> New gallery</label>

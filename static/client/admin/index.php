@@ -230,12 +230,12 @@ if ($post) {
     if ($a === 'settingssave') {
         set_setting('drive_webhook_url', trim((string)($_POST['drive_webhook_url'] ?? '')));
         if (trim((string)($_POST['drive_webhook_secret'] ?? '')) !== '') set_setting('drive_webhook_secret', trim((string)$_POST['drive_webhook_secret']));
-        go($base . '?a=settings&saved=1');
+        go($base . '?a=settings&tab=drive&saved=1');
     }
     if ($a === 'nastoken') {
         if (!empty($_POST['revoke'])) set_setting('nas_token_hash', '');
         else { $k = bin2hex(random_bytes(24)); set_setting('nas_token_hash', hash('sha256', $k)); $_SESSION['new_nas_token'] = $k; }
-        go($base . '?a=settings#nas');
+        go($base . '?a=settings&tab=publishing#nas');
     }
     if ($a === 'codenew') {
         $name = trim(strip_tags((string)($_POST['name'] ?? '')));
@@ -267,7 +267,7 @@ if ($post) {
         if (trim((string)($_POST['github_token'] ?? '')) !== '') set_setting('github_token', trim((string)$_POST['github_token']));
         if (!empty($_POST['github_clear'])) set_setting('github_token', '');
         $r = trim((string)($_POST['github_repo'] ?? '')); set_setting('github_repo', preg_match('#^[\w.-]+/[\w.-]+$#', $r) ? $r : '');
-        go($base . '?a=settings&saved=1#github');
+        go($base . '?a=settings&tab=publishing&saved=1#github');
     }
     if ($a === 'paysave') {
         set_setting('stripe_enabled', !empty($_POST['stripe_enabled']) ? '1' : '0');
@@ -278,7 +278,17 @@ if ($post) {
         set_setting('shop_price_full_cents', (string)dollars_to_cents((string)($_POST['shop_price_full'] ?? '')));
         set_setting('shop_discount_min', (string)max(0, min(30, (int)($_POST['shop_discount_min'] ?? 0))));
         set_setting('shop_discount_pct', (string)max(0, min(90, (int)($_POST['shop_discount_pct'] ?? 0))));
-        go($base . '?a=settings&saved=1');
+        go($base . '?a=settings&tab=' . (($_POST['tab'] ?? '') === 'selling' ? 'selling' : 'payments') . '&saved=1');
+    }
+    if ($a === 'pwchange') {
+        $to = $base . '?a=settings&tab=account';
+        if (throttle_blocked('admin')) go($to . '&err=many');
+        if (!password_verify((string)($_POST['current'] ?? ''), (string)setting('admin_hash', ''))) { throttle_fail('admin'); usleep(1000000); go($to . '&err=current'); }
+        $new = (string)($_POST['new'] ?? '');
+        if (mb_strlen($new) < 10) go($to . '&err=short');
+        if (!hash_equals($new, (string)($_POST['new2'] ?? ''))) go($to . '&err=match');
+        throttle_clear('admin'); set_setting('admin_hash', password_hash($new, PASSWORD_DEFAULT)); session_regenerate_id(true);
+        go($to . '&pw=1');
     }
     if ($a === 'makegallery') {
         $c = db()->prepare('SELECT * FROM clients WHERE id = ?'); $c->execute([$id]); $c = $c->fetch();
@@ -611,46 +621,78 @@ if ($a === 'codes') {
 }
 
 if ($a === 'settings') {
-    ahead('Settings'); $tok = csrf(); ?>
+    ahead('Settings'); $tok = csrf();
+    $tabs = ['payments' => 'Payments', 'selling' => 'Selling', 'publishing' => 'Publishing', 'drive' => 'Google Drive', 'account' => 'Account'];
+    $tab = (string)($_GET['tab'] ?? ''); if (!isset($tabs[$tab])) $tab = 'payments';
+    $pwerrs = ['current' => 'The current password is wrong.', 'short' => 'The new password needs 10 or more characters.', 'match' => 'The two new passwords do not match.', 'many' => 'Too many tries. Wait 15 minutes and try again.'];
+    $sk = (string)setting('stripe_secret_key', '');
+    $money = fn(string $k) => ((int)setting($k, '0')) > 0 ? number_format(((int)setting($k, '0')) / 100, 2, '.', '') : '';
+    $secret = fn(string $name, string $hint = '') => '<span class="secret"><input name="' . $name . '" type="password" autocomplete="off" spellcheck="false"' . ($hint ? ' placeholder="' . h($hint) . '"' : '') . '><button type="button" class="btn sm alt" data-show aria-pressed="false">Show</button></span>'; ?>
 <div class="ph"><div><h1>Settings</h1></div></div>
+<nav class="chips" aria-label="Settings sections"><?php foreach ($tabs as $k => $lab): ?><a class="tab<?= $k === $tab ? ' on" aria-current="page' : '' ?>" href="?a=settings&tab=<?= $k ?>"><?= h($lab) ?></a><?php endforeach; ?></nav>
 <?php if (!empty($_GET['saved'])): ?><p class="msg good" role="status">Saved.</p><?php endif; ?>
-<h2>Save signed releases to Google Drive</h2>
-<p>Paste the web app address from your Google Apps Script, and the secret word you put in that script. Releases are then filed into your Drive folder automatically when a client signs.</p>
-<form method="post" class="form"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="settingssave">
-<label>Web app address<input name="drive_webhook_url" value="<?= h((string)setting('drive_webhook_url', '')) ?>" placeholder="https://script.google.com/macros/s/.../exec"></label>
-<label>Secret word <?= setting('drive_webhook_secret', '') ? '(already saved, type a new one to replace it)' : '' ?><input name="drive_webhook_secret" type="text" autocomplete="off"></label>
-<button class="btn">Save</button></form>
+<?php if ($tab === 'payments' || $tab === 'selling'): ?>
+<form method="post" class="form"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="paysave"><input type="hidden" name="tab" value="<?= $tab ?>">
+<?php if ($tab === 'payments'): ?>
+<h2>Payments</h2>
+<p>Clients pay with Stripe on a secure Stripe page. If Stripe is switched off, not set up, or has a problem, the site automatically uses the manual flow instead: you get an email, the client gets your payment instructions, and you click "Mark paid" in the gallery.</p>
+<label class="check"><input type="checkbox" name="stripe_enabled" value="1" <?= setting('stripe_enabled', '') === '1' ? 'checked' : '' ?>> Use Stripe checkout (uncheck to pause it and use the manual flow)</label>
+<label>Stripe secret key <?= $sk !== '' ? '(saved: ' . h(substr($sk, 0, 8)) . '..., ' . (strpos($sk, '_test_') !== false ? 'TEST mode' : 'live mode') . '; type a new one to replace it)' : '(starts with sk_live_ or sk_test_, or rk_ for a restricted key)' ?><?= $secret('stripe_secret_key') ?></label>
+<label>Stripe webhook signing secret <?= setting('stripe_webhook_secret', '') ? '(saved; type a new one to replace it)' : '(starts with whsec_)' ?><?= $secret('stripe_webhook_secret') ?></label>
+<p class="hint">In Stripe, add a webhook endpoint with this address, listening for <b>checkout.session.completed</b>:<br><code>https://<?= h($_SERVER['HTTP_HOST'] ?? '') ?>/client/stripe-webhook.php</code></p>
+<label>How to pay manually (emailed to clients when they send a request without Stripe)<textarea name="manual_pay_text" rows="4" placeholder="Venmo @yourname, or Zelle to you@example.com. Please put your gallery name in the note."><?= h((string)setting('manual_pay_text', '')) ?></textarea></label>
+<?php /* this form also saves the Selling fields, so they ride along unchanged */ ?>
+<?php if (setting('shop_enabled', '') === '1'): ?><input type="hidden" name="shop_enabled" value="1"><?php endif; ?>
+<input type="hidden" name="shop_price_web" value="<?= h($money('shop_price_web_cents')) ?>"><input type="hidden" name="shop_price_full" value="<?= h($money('shop_price_full_cents')) ?>">
+<input type="hidden" name="shop_discount_min" value="<?= (int)setting('shop_discount_min', '0') ?>"><input type="hidden" name="shop_discount_pct" value="<?= (int)setting('shop_discount_pct', '0') ?>">
+<?php else: ?>
+<h2>Selling from public galleries</h2>
+<p>Lets visitors buy photos from any public gallery (single photos or a cart). Needs the full-size originals uploaded with the publish script. Prices are per photo.</p>
+<label class="check"><input type="checkbox" name="shop_enabled" value="1" <?= setting('shop_enabled', '') === '1' ? 'checked' : '' ?>> Show "Buy" on public gallery photos</label>
+<label>Web size price (2048px, for social media)<input name="shop_price_web" value="<?= h($money('shop_price_web_cents')) ?>" placeholder="5.00" inputmode="decimal"></label>
+<label>Full size price (original, for printing)<input name="shop_price_full" value="<?= h($money('shop_price_full_cents')) ?>" placeholder="25.00" inputmode="decimal"></label>
+<label>Multi-photo discount: starts at this many photos (leave 0 for no discount)<input name="shop_discount_min" value="<?= h((string)(int)setting('shop_discount_min', '0')) ?>" inputmode="numeric" placeholder="5"></label>
+<label>Discount percent off every photo in the order<input name="shop_discount_pct" value="<?= h((string)(int)setting('shop_discount_pct', '0')) ?>" inputmode="numeric" placeholder="20"></label>
+<?php /* this form also saves the Payments fields, so they ride along unchanged (blank secret fields keep the saved keys) */ ?>
+<?php if (setting('stripe_enabled', '') === '1'): ?><input type="hidden" name="stripe_enabled" value="1"><?php endif; ?>
+<input type="hidden" name="manual_pay_text" value="<?= h((string)setting('manual_pay_text', '')) ?>">
+<?php endif; ?>
+<button class="btn"><?= $tab === 'payments' ? 'Save payment settings' : 'Save selling settings' ?></button></form>
+<?php elseif ($tab === 'publishing'): ?>
 <h2 id="github">Publishing from the browser (GitHub)</h2>
 <p>The <a href="?a=publish">Publish</a> page saves each new gallery to your GitHub repository so the site rebuilds. Paste a fine-grained GitHub token here that can only edit the contents of that one repository.</p>
 <form method="post" class="form"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="githubsave">
-<label>GitHub token <?= setting('github_token', '') ? '(saved; type a new one to replace it)' : '(starts with github_pat_)' ?><input name="github_token" type="text" autocomplete="off"></label>
+<label>GitHub token <?= setting('github_token', '') ? '(saved; type a new one to replace it)' : '(starts with github_pat_)' ?><?= $secret('github_token') ?></label>
 <label>Repository<input name="github_repo" value="<?= h((string)setting('github_repo', '') ?: 'drewanmpls/everettallen-site') ?>"></label>
 <?php if (setting('github_token', '')): ?><label class="check"><input type="checkbox" name="github_clear" value="1"> Remove the saved token</label><?php endif; ?>
-<button class="btn">Save</button></form>
+<button class="btn">Save GitHub settings</button></form>
 <h2 id="nas">Folder watcher key (NAS)</h2>
 <p>A small program on your NAS uses this key to publish photos to the site. Making a new key replaces the old one. Copy it right away, it is only shown once.</p>
 <?php if (!empty($_SESSION['new_nas_token'])): ?><p class="msg good" role="status">Your new key (copy it now):</p><span class="link"><?= h($_SESSION['new_nas_token']) ?></span><?php unset($_SESSION['new_nas_token']); endif; ?>
 <form method="post" class="form"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="nastoken">
 <p><?= setting('nas_token_hash', '') ? 'A key is active.' : 'No key yet.' ?></p>
-<button class="btn"><?= setting('nas_token_hash', '') ? 'Make a new key' : 'Make a key' ?></button>
-<?php if (setting('nas_token_hash', '')): ?> <button class="btn alt" name="revoke" value="1">Turn the key off</button><?php endif; ?></form>
-<h2>Payments</h2>
-<p>Clients pay with Stripe on a secure Stripe page. If Stripe is switched off, not set up, or has a problem, the site automatically uses the manual flow instead: you get an email, the client gets your payment instructions, and you click "Mark paid" in the gallery.</p>
-<?php $sk = (string)setting('stripe_secret_key', ''); ?>
-<form method="post" class="form"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="paysave">
-<label class="check"><input type="checkbox" name="stripe_enabled" value="1" <?= setting('stripe_enabled', '') === '1' ? 'checked' : '' ?>> Use Stripe checkout (uncheck to pause it and use the manual flow)</label>
-<label>Stripe secret key <?= $sk !== '' ? '(saved: ' . h(substr($sk, 0, 8)) . '..., ' . (strpos($sk, '_test_') !== false ? 'TEST mode' : 'live mode') . '; type a new one to replace it)' : '(starts with sk_live_ or sk_test_, or rk_ for a restricted key)' ?><input name="stripe_secret_key" type="text" autocomplete="off"></label>
-<label>Stripe webhook signing secret <?= setting('stripe_webhook_secret', '') ? '(saved; type a new one to replace it)' : '(starts with whsec_)' ?><input name="stripe_webhook_secret" type="text" autocomplete="off"></label>
-<p class="hint">In Stripe, add a webhook endpoint with this address, listening for <b>checkout.session.completed</b>:<br><code>https://<?= h($_SERVER['HTTP_HOST'] ?? '') ?>/client/stripe-webhook.php</code></p>
-<label>How to pay manually (emailed to clients when they send a request without Stripe)<textarea name="manual_pay_text" rows="4" placeholder="Venmo @yourname, or Zelle to you@example.com. Please put your gallery name in the note."><?= h((string)setting('manual_pay_text', '')) ?></textarea></label>
-<h2>Selling from public galleries</h2>
-<p>Lets visitors buy photos from any public gallery (single photos or a cart). Needs the full-size originals uploaded with the publish script. Prices are per photo.</p>
-<label class="check"><input type="checkbox" name="shop_enabled" value="1" <?= setting('shop_enabled', '') === '1' ? 'checked' : '' ?>> Show "Buy" on public gallery photos</label>
-<label>Web size price (2048px, for social media)<input name="shop_price_web" value="<?= h(((int)setting('shop_price_web_cents', '0')) > 0 ? number_format(((int)setting('shop_price_web_cents', '0')) / 100, 2, '.', '') : '') ?>" placeholder="5.00" inputmode="decimal"></label>
-<label>Full size price (original, for printing)<input name="shop_price_full" value="<?= h(((int)setting('shop_price_full_cents', '0')) > 0 ? number_format(((int)setting('shop_price_full_cents', '0')) / 100, 2, '.', '') : '') ?>" placeholder="25.00" inputmode="decimal"></label>
-<label>Multi-photo discount: starts at this many photos (leave 0 for no discount)<input name="shop_discount_min" value="<?= h((string)(int)setting('shop_discount_min', '0')) ?>" inputmode="numeric" placeholder="5"></label>
-<label>Discount percent off every photo in the order<input name="shop_discount_pct" value="<?= h((string)(int)setting('shop_discount_pct', '0')) ?>" inputmode="numeric" placeholder="20"></label>
-<button class="btn">Save payment settings</button></form>
+<div class="acts"><button class="btn"><?= setting('nas_token_hash', '') ? 'Make a new key' : 'Make a key' ?></button>
+<?php if (setting('nas_token_hash', '')): ?><button class="btn alt" name="revoke" value="1">Turn the key off</button><?php endif; ?></div></form>
+<?php elseif ($tab === 'drive'): ?>
+<h2>Save signed releases to Google Drive</h2>
+<p>Paste the web app address from your Google Apps Script, and the secret word you put in that script. Releases are then filed into your Drive folder automatically when a client signs.</p>
+<form method="post" class="form"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="settingssave">
+<label>Web app address<input name="drive_webhook_url" value="<?= h((string)setting('drive_webhook_url', '')) ?>" placeholder="https://script.google.com/macros/s/.../exec"></label>
+<label>Secret word <?= setting('drive_webhook_secret', '') ? '(already saved, type a new one to replace it)' : '' ?><?= $secret('drive_webhook_secret') ?></label>
+<button class="btn">Save Google Drive settings</button></form>
+<?php else: ?>
+<h2>Change password</h2>
+<?php if (!empty($_GET['pw'])): ?><p class="msg good" role="status">Password changed.</p><?php endif; ?>
+<?php if (isset($pwerrs[$_GET['err'] ?? ''])): ?><p class="msg bad" role="alert"><?= h($pwerrs[$_GET['err']]) ?></p><?php endif; ?>
+<form method="post" class="form"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="pwchange">
+<input type="text" name="username" value="admin" autocomplete="username" hidden>
+<label>Current password<input name="current" type="password" autocomplete="current-password" required></label>
+<label>New password (10 or more characters)<input name="new" type="password" autocomplete="new-password" minlength="10" required></label>
+<label>New password again<input name="new2" type="password" autocomplete="new-password" minlength="10" required></label>
+<button class="btn">Change password</button></form>
+<h2>Appearance</h2>
+<form class="form"><label for="eaTheme2">Light or dark (saved in this browser only)<select id="eaTheme2" data-theme><option value="auto">Auto (match device)</option><option value="light">Light</option><option value="dark">Dark</option></select></label></form>
+<?php endif; ?>
 <?php afoot(); exit;
 }
 
