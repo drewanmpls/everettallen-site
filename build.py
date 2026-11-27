@@ -9,10 +9,9 @@ VCSS,VSITE,VSHOP,VSEARCH,VLIKES=[ver('static/'+x) for x in ('css/style.css','js/
 cats={'portraits':'Portraits','events':'Events'}
 G=[]
 for f in glob.glob('content/galleries/*.json'):
-    g=json.load(open(f)); g['slug']=os.path.basename(f)[:-5]; g.setdefault('year',g['date'][:4]); g.setdefault('description',''); g['cover']=str(g.get('cover') or g['images'][0]['id']); G.append(g)
-G=[g for g in G if g['images']]
-GA=G   # every gallery, for the admin's list (galleries-index.json)
-G=[g for g in GA if not g.get('hidden')]   # hidden galleries (T-25) are left out of the built site
+    g=json.load(open(f)); g['slug']=os.path.basename(f)[:-5]; g.setdefault('year',g['date'][:4]); g.setdefault('description',''); g['cover']=str(g.get('cover') or (g['images'][0]['id'] if g['images'] else '')); G.append(g)
+GA=G   # every gallery, for the admin's list (galleries-index.json), including empty ones (T-26)
+G=[g for g in GA if g['images'] and not g.get('hidden')]   # hidden (T-25) and empty galleries are left out of the built site
 SER=json.load(open('content/series.json'))['series']
 ser_by={x['slug']:x for x in SER}
 def slugify(t): return re.sub(r'[^a-z0-9]+','-',t.lower()).strip('-')

@@ -81,6 +81,38 @@
       d.addEventListener('change', function () { if (y.value === '' || y.value === last) y.value = d.value.slice(0, 4); last = d.value.slice(0, 4); });
     });
 
+    // Gallery editor, Photos: drag or Earlier/Later to reorder, then Save order; tick photos, then Remove with a typed REMOVE
+    var pl = document.getElementById('pgphotos');
+    if (pl) {
+      var orderIn = document.getElementById('pgorderv'), saveBtn = document.getElementById('pgordbtn'), first = orderIn.value, said = document.getElementById('pgmoved');
+      var sync = function () {
+        orderIn.value = [].map.call(pl.children, function (li) { return li.getAttribute('data-id'); }).join(',');
+        saveBtn.disabled = orderIn.value === first;
+      };
+      pl.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-move]'); if (!b) return;
+        var li = b.closest('li'), dir = +b.getAttribute('data-move'), to = dir < 0 ? li.previousElementSibling : li.nextElementSibling;
+        if (!to) return;
+        if (dir < 0) pl.insertBefore(li, to); else pl.insertBefore(to, li);
+        b.focus(); sync();
+        said.textContent = 'Photo ' + li.getAttribute('data-id') + ' is now number ' + ([].indexOf.call(pl.children, li) + 1) + ' of ' + pl.children.length + '.';
+      });
+      var dragged = null;
+      pl.addEventListener('dragstart', function (e) { dragged = e.target.closest('li'); if (!dragged) return; dragged.classList.add('drag'); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', dragged.getAttribute('data-id')); } catch (x) {} });
+      pl.addEventListener('dragover', function (e) { var li = e.target.closest('li'); if (!dragged || !li) return; e.preventDefault(); [].forEach.call(pl.children, function (x) { x.classList.toggle('over', x === li && x !== dragged); }); });
+      pl.addEventListener('drop', function (e) {
+        var li = e.target.closest('li'); if (!dragged || !li || li === dragged) return; e.preventDefault();
+        var r = li.getBoundingClientRect(), after = (e.clientX - r.left) > r.width / 2;
+        pl.insertBefore(dragged, after ? li.nextElementSibling : li); sync();
+      });
+      pl.addEventListener('dragend', function () { if (dragged) dragged.classList.remove('drag'); [].forEach.call(pl.children, function (x) { x.classList.remove('over'); }); dragged = null; });
+      var rmOpen = document.getElementById('pgrmopen'), rm = document.getElementById('pgrm'), rmN = document.getElementById('pgrmn');
+      var ticked = function () { return document.querySelectorAll('#pgphotos input[type=checkbox]:checked').length; };
+      pl.addEventListener('change', function () { var n = ticked(); rmOpen.disabled = n === 0; rmOpen.textContent = n ? 'Remove ' + n + ' selected photo' + (n === 1 ? '' : 's') : 'Remove selected photos'; if (!n) rm.hidden = true; rmN.textContent = n; });
+      rmOpen.addEventListener('click', function () { rmN.textContent = ticked(); rm.hidden = false; rm.querySelector('input[name=confirm]').focus(); });
+      document.getElementById('pgrmcancel').addEventListener('click', function () { rm.hidden = true; rmOpen.focus(); });
+    }
+
     // Client gallery: per-photo prices save as you change them; the upload box sends photos one at a time
     var files = document.getElementById('files');
     if (files) {

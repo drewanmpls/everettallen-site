@@ -46,6 +46,65 @@ if ($a === 'pgalleries') {
 <?php endif; afoot(); exit;
 }
 
+// ---------- photos: reorder and remove (T-26) ----------
+function pg_docroot(): string { return rtrim((string)($_SERVER['DOCUMENT_ROOT'] ?? ''), '/'); }
+// A path is only touched when its folder really is <parent>/<name> (no symlinked folder, no ../ tricks).
+function pg_inside(string $file, string $dir): bool { $rp = realpath(dirname($dir)); $rf = realpath(dirname($file)); return $rp !== false && $rf !== false && $rf === $rp . '/' . basename($dir); }
+
+if ($a === 'pgorder' || $a === 'pgremove') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !csrf_ok()) { http_response_code(400); echo 'Session expired. Go back, reload the page and try again.'; exit; }
+    $slug = (string)($_POST['slug'] ?? '');
+    if (!preg_match('/^[a-z0-9]+(-[a-z0-9]+)*$/', $slug) || strlen($slug) > 120) go('/client/admin/?a=pgalleries');
+    $back = '/client/admin/?a=pgallery&slug=' . $slug;
+    $path = 'content/galleries/' . $slug . '.json';
+    [$g, $sha, $err] = content_get($path);   // read first: nothing is touched if the gallery cannot be read
+    if ($g === null) go($back . '&perr=' . rawurlencode('Could not read the gallery from GitHub: ' . $err) . '#photos');
+    $imgs = is_array($g['images'] ?? null) ? $g['images'] : []; $have = [];
+    foreach ($imgs as $im) $have[(string)($im['id'] ?? '')] = $im;
+
+    if ($a === 'pgorder') {
+        $ids = array_values(array_filter(explode(',', (string)($_POST['order'] ?? '')), 'strlen'));
+        $same = count($ids) === count($have) && count(array_unique($ids)) === count($ids) && !array_diff($ids, array_keys($have));
+        if (!$same) go($back . '&perr=' . rawurlencode('The photo list changed since this page was opened. Reload the page and try again.') . '#photos');
+        $g['images'] = array_map(fn($id) => $have[$id], $ids);
+        [$ok, $err] = content_put($path, $g, (string)$sha, 'Photo order: ' . $slug);
+        go($back . ($ok ? '&psaved=order' : '&perr=' . rawurlencode('Could not save the order: ' . $err)) . '#photos');
+    }
+
+    // pgremove
+    if (trim((string)($_POST['confirm'] ?? '')) !== 'REMOVE') go($back . '&perr=' . rawurlencode('Type REMOVE in the box to confirm.') . '#photos');
+    $ids = []; foreach ((array)($_POST['ids'] ?? []) as $id) { $id = (string)$id; if (preg_match('/^\d{3,6}$/', $id) && isset($have[$id])) $ids[$id] = true; }
+    $ids = array_keys($ids);
+    if (!$ids) go($back . '&perr=' . rawurlencode('Tick at least one photo to remove.') . '#photos');
+    $ids = array_map('strval', $ids);
+    $root = pg_docroot(); $pd = $root . '/photos/' . $slug; $pp = $root . '/photo/' . $slug; $md = masters_dir() . '/' . $slug; $rd = masters_dir() . '/_removed/' . $slug;
+    foreach ($ids as $id) {
+        foreach (['-t.jpg', '-l.jpg'] as $suf) { $f = $pd . '/' . $id . $suf; if (is_file($f) && pg_inside($f, $pd)) @unlink($f); }
+        $page = $pp . '/' . $id;
+        if (is_dir($page) && pg_inside($page, $pp) && !is_link($page)) { foreach (glob($page . '/*') ?: [] as $f) if (is_file($f) && !is_link($f)) @unlink($f); @rmdir($page); }
+        $m = $md . '/' . $id . '.jpg';
+        if (is_file($m) && pg_inside($m, $md)) {
+            if (!is_dir($rd)) @mkdir($rd, 0700, true);
+            if (is_dir($rd) && pg_inside($rd . '/x', $rd) && pg_inside($rd, masters_dir() . '/_removed')) @rename($m, $rd . '/' . $id . '.jpg');
+        }
+        db()->prepare('DELETE FROM photo_likes WHERE g = ? AND id = ?')->execute([$slug, $id]);
+    }
+    if (is_dir($md) && is_file($md . '/labels.json')) {   // drop them from the original-name list, under the same lock Publish uses
+        $lockf = fopen($md . '/.lock', 'c'); flock($lockf, LOCK_EX);
+        try {
+            $lab = json_decode((string)file_get_contents($md . '/labels.json'), true);
+            if (is_array($lab) && is_array($lab['files'] ?? null)) { foreach ($ids as $id) unset($lab['files'][$id]); file_put_contents($md . '/labels.json', json_encode($lab, JSON_UNESCAPED_UNICODE)); }
+        } finally { flock($lockf, LOCK_UN); fclose($lockf); }
+    }
+    $left = array_values(array_filter($imgs, fn($im) => !in_array((string)($im['id'] ?? ''), $ids, true)));
+    $g['images'] = $left;
+    if ($left && !in_array((string)($g['cover'] ?? ''), array_map(fn($im) => (string)$im['id'], $left), true)) $g['cover'] = (string)$left[0]['id'];
+    if (!$left) $g['hidden'] = true;   // an empty gallery cannot be shown; keep the cover value as it was
+    [$ok, $err] = content_put($path, $g, (string)$sha, 'Remove photos: ' . $slug . ' (' . implode(', ', $ids) . ')');
+    if (!$ok) go($back . '&perr=' . rawurlencode('The photo files are removed, but the gallery list could not be saved. Press Remove again. (' . $err . ')') . '#photos');
+    go($back . '&premoved=' . count($ids) . ($left ? '' : '&pempty=1') . '#photos');
+}
+
 // ---------- one gallery: details, cover, hide (T-25) ----------
 function pg_series(): array { $o = []; foreach (pg_json('series-index.json') as $x) if (is_array($x) && isset($x['slug'])) $o[(string)$x['slug']] = (string)($x['name'] ?? $x['slug']); return $o; }
 
@@ -115,5 +174,33 @@ if ($a === 'pgsave' || $a === 'pgallery') {
 <p class="hint">Hiding removes the gallery's pages from the site (Events, Portraits, Search and its own address) after the next update. The photo files stay on the server. To take a photo down for good, use Remove on the photo instead.</p>
 <div class="savebar"><button class="btn">Save gallery</button></div>
 </form>
+
+<section class="photos">
+<h2 id="photos">Photos</h2>
+<?php $pmsg = ['order' => 'Order saved. The site updates in a minute or two.']; ?>
+<?php if (isset($pmsg[$_GET['psaved'] ?? ''])): ?><p class="msg good" role="status"><?= $pmsg[$_GET['psaved']] ?></p><?php endif; ?>
+<?php if (!empty($_GET['premoved'])): ?><p class="msg good" role="status"><?= (int)$_GET['premoved'] ?> photo<?= (int)$_GET['premoved'] === 1 ? '' : 's' ?> removed. <?= (int)$_GET['premoved'] === 1 ? 'It is' : 'They are' ?> gone from the site now; the gallery page updates in a minute or two.<?= !empty($_GET['pempty']) ? ' The gallery has no photos left, so it is now hidden.' : '' ?></p><?php endif; ?>
+<?php if (!empty($_GET['perr'])): ?><p class="msg bad" role="alert"><?= h((string)$_GET['perr']) ?></p><?php endif; ?>
+<?php if (!$ids): ?><p>This gallery has no photos. It stays hidden until photos are published to it.</p><?php else: ?>
+<p class="hint">Drag photos to change their order on a computer, or use Earlier and Later on each photo. Then press Save order.</p>
+<p class="hint">Removed photos disappear from the site right away. Copies already delivered to a buyer are not affected. The original is kept in a private removed folder in case it was a mistake.</p>
+<p class="sr" id="pgmoved" role="status" aria-live="polite"></p>
+<ol class="tiles2" id="pgphotos" data-count="<?= count($ids) ?>">
+<?php foreach ($ids as $n => $id): ?><li draggable="true" data-id="<?= h($id) ?>"><img loading="lazy" src="/photos/<?= h($slug) ?>/<?= h($id) ?>-t.jpg" alt="Photo <?= h($id) ?>" draggable="false">
+<label class="check"><input type="checkbox" name="ids[]" value="<?= h($id) ?>" form="pgrm"> <?= h($id) ?></label>
+<span class="mv"><button type="button" class="btn xs alt" data-move="-1" aria-label="Move photo <?= h($id) ?> earlier">Earlier</button><button type="button" class="btn xs alt" data-move="1" aria-label="Move photo <?= h($id) ?> later">Later</button></span></li><?php endforeach; ?>
+</ol>
+<div class="savebar acts">
+<form method="post" id="pgord"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="pgorder"><input type="hidden" name="slug" value="<?= h($slug) ?>"><input type="hidden" name="order" id="pgorderv" value="<?= h(implode(',', $ids)) ?>"><button class="btn" id="pgordbtn" disabled>Save order</button></form>
+<button type="button" class="btn alt" id="pgrmopen" disabled>Remove selected photos</button>
+</div>
+<form method="post" id="pgrm" class="panel confirm" hidden><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="pgremove"><input type="hidden" name="slug" value="<?= h($slug) ?>">
+<h3 id="pgrmh">Remove photos</h3>
+<p>This removes <b id="pgrmn">0</b> photo(s) from the site right away and deletes their web copies. The originals move to the private removed folder.</p>
+<label>Type REMOVE to confirm<input name="confirm" autocomplete="off" required pattern="REMOVE"></label>
+<div class="acts"><button class="btn danger">Remove photos</button><button type="button" class="btn alt" id="pgrmcancel">Cancel</button></div>
+</form>
+<?php endif; ?>
+</section>
 <?php afoot(); exit;
 }

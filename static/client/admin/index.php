@@ -132,7 +132,7 @@ if ($a === 'releasepdf') {
 if (in_array($a, ['publish', 'pubfile', 'pubdone'], true)) require __DIR__ . '/publish.php';
 if (in_array($a, ['library', 'libfile', 'libzip'], true)) require __DIR__ . '/library.php';
 if ($a === 'dashboard') require __DIR__ . '/dashboard.php';
-if (in_array($a, ['pgalleries', 'pgallery', 'pgsave'], true)) require __DIR__ . '/pgalleries.php';
+if (in_array($a, ['pgalleries', 'pgallery', 'pgsave', 'pgorder', 'pgremove'], true)) require __DIR__ . '/pgalleries.php';
 if (in_array($a, ['links', 'linknew', 'linktoggle', 'linkdel'], true)) require __DIR__ . '/links.php';
 
 // ----- POST actions -----
