@@ -337,10 +337,10 @@ if ($a === 'gallery') {
 <?php if (!empty($_GET['saved'])): ?><p class="msg good" role="status">Saved.</p><?php endif; ?>
 <p class="kicker">Client link (send this to <?= h($g['client_name'] ?: 'your client') ?>)<?= $g['password_hash'] ? ', password protected' : '' ?><?= $g['active'] ? '' : ' / currently turned OFF' ?></p>
 <code class="link" id="lnk"><?= h(link_for($g)) ?></code>
-<p><button class="btn sm alt" onclick="navigator.clipboard.writeText(document.getElementById('lnk').textContent).then(()=>this.textContent='Copied')">Copy link</button></p>
+<p><button type="button" class="btn sm alt" data-copy="#lnk">Copy link</button></p>
 
 <h2>Upload photos</h2>
-<div class="drop"><input type="file" id="files" accept="image/jpeg" multiple><p id="prog" class="kicker">JPEGs only. Originals are stored privately; the client sees watermarked copies. Photos upload one at a time in filename order.</p></div>
+<div class="drop"><input type="file" id="files" accept="image/jpeg" multiple data-gid="<?= $gid ?>" data-csrf="<?= h($tok) ?>"><p id="prog" class="kicker">JPEGs only. Originals are stored privately; the client sees watermarked copies. Photos upload one at a time in filename order.</p></div>
 
 <h2>Gallery settings</h2>
 <form method="post" class="cols"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="update"><input type="hidden" name="id" value="<?= $gid ?>">
@@ -365,7 +365,7 @@ if ($a === 'gallery') {
 <label class="check"><input type="checkbox" name="only_fav" value="1"> only favorites (<?= $nfav ?>)</label><button class="btn sm">Apply</button></form>
 <?php $used = claims_used($gid); if ($g['included_count'] > 0): ?>
 <p class="mt"><b>Package:</b> <?= $used ?> of <?= (int)$g['included_count'] ?> included photos used.
-<form method="post" onsubmit="return confirm('Clear all of this client\'s package picks?')" class="acts"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="resetclaims"><input type="hidden" name="id" value="<?= $gid ?>"><button class="btn sm alt">Reset picks</button></form></p>
+<form method="post" data-confirm="Clear all of this client&#39;s package picks?" class="acts"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="resetclaims"><input type="hidden" name="id" value="<?= $gid ?>"><button class="btn sm alt">Reset picks</button></form></p>
 <?php endif; ?>
 
 <h2><?= count($imgs) ?> photos</h2>
@@ -375,7 +375,7 @@ if ($a === 'gallery') {
 <small><?= h($i['label']) ?></small>
 <div class="prices"><span>Web $</span><input value="<?= ($i['price_web_cents'] ?? null) === null ? '' : h(number_format($i['price_web_cents'] / 100, 2)) ?>" placeholder="<?= h(number_format($g['default_web_cents'] / 100, 2)) ?>" data-img="<?= $i['id'] ?>" data-tier="web" class="pr"><span>Full $</span><input value="<?= $i['price_cents'] === null ? '' : h(number_format($i['price_cents'] / 100, 2)) ?>" placeholder="<?= h(number_format($g['default_price_cents'] / 100, 2)) ?>" data-img="<?= $i['id'] ?>" data-tier="full" class="pr"></div>
 <small><?= $i['fav'] ? '&#9829; favorite ' : '' ?><?= $i['claimed'] ? '[in package] ' : '' ?><?= $i['ncom'] ? $i['ncom'] . ' comments ' : '' ?><?= $i['dls'] ? $i['dls'] . ' downloads' : '' ?></small>
-<form method="post" onsubmit="return confirm('Delete this photo and its original?')"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="delimg"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="image" value="<?= $i['id'] ?>"><button class="btn xs alt">Delete</button></form></div>
+<form method="post" data-confirm="Delete this photo and its original?"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="delimg"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="image" value="<?= $i['id'] ?>"><button class="btn xs alt">Delete</button></form></div>
 <?php endforeach; ?></div>
 
 <?php
@@ -398,26 +398,8 @@ $fv = db()->prepare('SELECT i.label FROM favorites f JOIN images i ON i.id = f.i
 <?php if (!$r['from_owner']): ?><form method="post" class="row"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="reply"><input type="hidden" name="id" value="<?= $gid ?>"><input type="hidden" name="image" value="<?= $r['iid'] ?>"><input name="body" placeholder="Reply" required><button class="btn sm">Send</button></form><?php endif; ?></td></tr><?php endforeach; ?></table><?php endif; ?>
 
 <h2>Delete gallery</h2>
-<form method="post" onsubmit="return confirm('This permanently deletes the gallery and all its photos. Continue?')" class="row narrow"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="delgallery"><input type="hidden" name="id" value="<?= $gid ?>"><input name="confirm" placeholder="Type DELETE"><button class="btn sm alt">Delete</button></form>
+<form method="post" data-confirm="This permanently deletes the gallery and all its photos. Continue?" class="row narrow"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="delgallery"><input type="hidden" name="id" value="<?= $gid ?>"><input name="confirm" placeholder="Type DELETE"><button class="btn sm alt">Delete</button></form>
 
-<script>
-var CSRF=<?= json_encode($tok) ?>,GID=<?= $gid ?>,BASE=<?= json_encode($base) ?>;
-document.querySelectorAll('.pr').forEach(function(el){el.addEventListener('change',function(){
-  var f=new URLSearchParams({a:'price',image:el.dataset.img,tier:el.dataset.tier,price:el.value,csrf:CSRF});
-  fetch(BASE,{method:'POST',body:f}).then(function(r){el.style.outline=r.ok?'2px solid #0a6b2d':'2px solid #b00020'});
-})});
-document.getElementById('files').addEventListener('change',async function(e){
-  var fs=Array.from(e.target.files).sort(function(a,b){return a.name.localeCompare(b.name,undefined,{numeric:true})});
-  var p=document.getElementById('prog'),bad=[];
-  for(var i=0;i<fs.length;i++){
-    p.textContent='Uploading '+(i+1)+' of '+fs.length+': '+fs[i].name;
-    var fd=new FormData();fd.append('a','upload');fd.append('id',GID);fd.append('csrf',CSRF);fd.append('photo',fs[i]);
-    try{var r=await fetch(BASE,{method:'POST',body:fd});var j=await r.json();if(!r.ok)bad.push(fs[i].name+': '+(j.error||'failed'))}catch(_){bad.push(fs[i].name+': network error')}
-  }
-  p.textContent=bad.length?('Done with problems: '+bad.join(' | ')):'All uploaded.';
-  if(!bad.length)location.reload();
-});
-</script>
 <?php afoot(); exit;
 }
 
@@ -432,7 +414,7 @@ if ($a === 'clients') {
 <div class="ph"><div><h1>Clients</h1></div><div class="act"><a class="btn" href="#add">Add a client</a></div></div>
 <p class="kicker">New-client form to send people</p>
 <code class="link" id="ilnk"><?= h($intake) ?></code>
-<p><button class="btn sm alt" onclick="navigator.clipboard.writeText(document.getElementById('ilnk').textContent).then(()=>this.textContent='Copied')">Copy link</button> <a class="btn sm alt" target="_blank" href="/client/new/">Open the form</a></p>
+<p><button type="button" class="btn sm alt" data-copy="#ilnk">Copy link</button> <a class="btn sm alt" target="_blank" href="/client/new/">Open the form</a></p>
 <div class="chips mt"><a class="tab <?= $stf === '' ? 'on' : '' ?>"<?= $stf === '' ? ' aria-current="page"' : '' ?> href="?a=clients">Active</a>
 <?php foreach (CLIENT_STATUSES as $k => $lab): ?><a class="tab <?= $stf === $k ? 'on' : '' ?>"<?= $stf === $k ? ' aria-current="page"' : '' ?> href="?a=clients&status=<?= $k ?>"><?= h($lab) ?> <?= (int)($counts[$k] ?? 0) ?></a><?php endforeach; ?></div>
 <form method="get" class="row narrow" role="search"><input type="hidden" name="a" value="clients"><input name="q" value="<?= h($q) ?>" placeholder="Search name, email or service" aria-label="Search clients"><button class="btn sm">Search</button></form>
@@ -493,35 +475,6 @@ if ($a === 'client') {
 <p id="camerr" class="err" role="alert"></p>
 <p class="row"><button type="button" class="btn sm" id="camsnap">Take photo</button><button type="button" class="btn sm alt" id="camcancel">Cancel</button></p>
 </dialog>
-<script>
-(function(){
-  var dlg=document.getElementById('camdlg'),vid=document.getElementById('camvid'),err=document.getElementById('camerr'),title=document.getElementById('camtitle'),stream=null,field=null;
-  function stop(){ if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null} vid.srcObject=null }
-  function close(){ stop(); if(dlg.open) dlg.close() }
-  document.querySelectorAll('[data-cam]').forEach(function(btn){
-    btn.addEventListener('click',function(){
-      field=btn.getAttribute('data-cam'); err.textContent='';
-      title.textContent=field==='idphoto'?'Photo of the ID (fill the frame, check it is readable)':'Photo of the model';
-      if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ alert('This browser cannot use the camera here. Use the file box instead.'); return }
-      dlg.showModal();
-      navigator.mediaDevices.getUserMedia({video:{facingMode:field==='idphoto'?'environment':'user',width:{ideal:1920},height:{ideal:1080}},audio:false}).then(function(st){ stream=st; vid.srcObject=st }).catch(function(e){ err.textContent='Could not open the camera ('+(e&&e.name||'error')+'). Allow camera access for this site in the browser, then try again.' });
-    });
-  });
-  document.getElementById('camcancel').addEventListener('click',close);
-  dlg.addEventListener('cancel',function(){ stop() });
-  document.getElementById('camsnap').addEventListener('click',function(){
-    if(!stream||!vid.videoWidth) return;
-    var cv=document.createElement('canvas'); cv.width=vid.videoWidth; cv.height=vid.videoHeight; cv.getContext('2d').drawImage(vid,0,0);
-    cv.toBlob(function(b){
-      if(!b){ err.textContent='Could not capture. Try again.'; return }
-      var f=new File([b],field+'-camera.jpg',{type:'image/jpeg'}),dt=new DataTransfer(); dt.items.add(f);
-      document.querySelector('input[name="'+field+'"]').files=dt.files;
-      var n=document.querySelector('[data-note="'+field+'"]'); if(n) n.textContent='Photo ready. Click Update release PDF to save it.';
-      close();
-    },'image/jpeg',0.9);
-  });
-})();
-</script>
 <?php if ($ds !== 'saved'): ?><form method="post" class="mt"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="driveretry"><input type="hidden" name="id" value="<?= $c['id'] ?>"><button class="btn sm alt">Save to Google Drive now</button></form><?php endif; ?>
 <?php elseif ($c['share_pref']): ?><p class="kicker">Sharing preference: <?= h($c['share_pref']) ?> (no signed release on file)</p><?php endif; ?>
 <h2>Details</h2>
@@ -540,7 +493,7 @@ if ($a === 'client') {
 
 <h2>Delete client</h2>
 <p>Removes this record only. Their galleries stay and become unlinked.</p>
-<form method="post" onsubmit="return confirm('Delete this client record?')" class="row narrow"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="clientdel"><input type="hidden" name="id" value="<?= $c['id'] ?>"><input name="confirm" placeholder="Type DELETE"><button class="btn sm alt">Delete</button></form>
+<form method="post" data-confirm="Delete this client record?" class="row narrow"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="clientdel"><input type="hidden" name="id" value="<?= $c['id'] ?>"><input name="confirm" placeholder="Type DELETE"><button class="btn sm alt">Delete</button></form>
 <?php afoot(); exit;
 }
 
@@ -608,7 +561,7 @@ if ($a === 'codes') {
 <p>Code: <span class="link inl"><?= h($c['code']) ?></span><?= ($c['expires'] ?? '') !== '' ? ' &nbsp; until ' . h($c['expires']) : '' ?> &nbsp;
 <?= count($uses) ?> use<?= count($uses) === 1 ? '' : 's' ?>, <?= (int)$np ?> photo<?= $np === 1 ? '' : 's' ?>, <?= (int)$nd ?> downloaded</p>
 <?php $lh = preg_replace('/^new\./', 'www.', (string)($_SERVER['HTTP_HOST'] ?? '')); $link = 'https://' . $lh . '/events/?code=' . rawurlencode($c['code']); ?>
-<p>Link to send: <span class="link inl"><?= h($link) ?></span> <button type="button" class="btn sm" onclick="navigator.clipboard.writeText(this.dataset.l).then(()=>{this.textContent='Copied'})" data-l="<?= h($link) ?>">Copy link</button></p>
+<p>Link to send: <span class="link inl"><?= h($link) ?></span> <button type="button" class="btn sm" data-copy-text="<?= h($link) ?>">Copy link</button></p>
 <form method="post"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codetoggle"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>"><button class="btn sm alt"><?= $c['active'] ? 'Turn off' : 'Turn on' ?></button></form>
 <details class="mt"><summary>Change name, code or end date</summary>
 <form method="post" class="form mt"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="codeedit"><input type="hidden" name="cid" value="<?= (int)$c['id'] ?>">

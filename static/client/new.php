@@ -15,17 +15,7 @@ function page_top(string $title): void { ?>
 <meta name="robots" content="noindex,nofollow"><title><?= h($title) ?> | Everett Allen Photography</title>
 <link rel="icon" href="/assets/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Archivo+Narrow:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/client/client.css"><style>
-.intake{max-width:720px;margin:0 auto;padding:0 24px 64px}.row2{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}@media(max-width:600px){.row2{grid-template-columns:1fr}}
-.hp{position:absolute;left:-9999px}select{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--ink);background:#f6f3ec;color:var(--ink);margin-top:4px}
-.opt{font-family:'Archivo',sans-serif;text-transform:none;letter-spacing:0;color:var(--mut);font-size:13px}
-.rel{border:1px solid var(--ink);padding:14px 16px;margin:0 0 14px}.rel legend{font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:14px;padding:0 6px}
-.relbox{background:#f6f3ec;border-left:4px solid var(--blue);padding:10px 14px;font-size:15px;margin:0 0 12px}
-.radio{text-transform:none;letter-spacing:0;font-family:'Archivo',sans-serif;font-size:16px;margin:0 0 8px;display:flex;gap:8px;align-items:flex-start}.radio input{margin-top:5px;width:auto}
-.terms{max-height:260px;overflow:auto;background:#f6f3ec;border:1px solid var(--line);padding:12px 14px;font-size:14px;line-height:1.5;margin:0 0 14px}.terms p{margin:0 0 10px}.terms dt{font-weight:800;display:inline}.terms dd{display:inline;margin:0}.terms dl>div{margin-bottom:6px}
-#sigwrap{border:1px solid var(--ink);background:#fff;touch-action:none}#sig{display:block;width:100%;height:160px}
-.sigbar{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--mut);margin:4px 0 14px}
-</style></head><body>
+<link rel="stylesheet" href="<?= h(asset('/client/client.css')) ?>"></head><body class="newc">
 <header class="top"><a href="/" class="brand">Everett Allen Photography</a><span class="kicker">New client</span></header>
 <?php }
 
@@ -123,11 +113,11 @@ page_top('New client intake'); ?>
 foreach ($opts as $k => $t): ?><label class="radio"><input type="radio" name="share_pref" value="<?= h((string)$k) ?>" <?= (string)$v['share_pref'] === (string)$k ? 'checked' : '' ?>> <?= h($t) ?></label><?php endforeach; ?>
 
 <?php if ($hasRelease): ?>
-<div id="release" style="display:none;margin-top:14px">
-<h3 style="margin:0 0 8px;font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.06em"><?= h($offer['title']) ?></h3>
+<div id="release" class="relform" hidden>
+<h3 class="relh"><?= h($offer['title']) ?></h3>
 <div class="terms" tabindex="0">
 <?php foreach ($offer['terms'] as $t): ?><p><?= h($t) ?></p><?php endforeach; ?>
-<?php if ($offer['definitions']): ?><p><b>Definitions</b></p><dl style="margin:0"><?php foreach ($offer['definitions'] as $df): ?><div><dt><?= h($df['term']) ?>:</dt> <dd><?= h($df['text']) ?></dd></div><?php endforeach; ?></dl><?php endif; ?>
+<?php if ($offer['definitions']): ?><p><b>Definitions</b></p><dl><?php foreach ($offer['definitions'] as $df): ?><div><dt><?= h($df['term']) ?>:</dt> <dd><?= h($df['text']) ?></dd></div><?php endforeach; ?></dl><?php endif; ?>
 <?php if ($offer['consideration'] !== ''): ?><p><b><?= h($offer['consideration']) ?></b></p><?php endif; ?>
 </div>
 <div class="row2"><label>Full legal name<input name="release_name" value="<?= h($v['release_name']) ?>" autocomplete="off"></label>
@@ -135,7 +125,7 @@ foreach ($opts as $k => $t): ?><label class="radio"><input type="radio" name="sh
 <div class="row2"><label>Date of birth<input type="date" name="release_dob" value="<?= h($v['release_dob']) ?>" max="<?= date('Y-m-d') ?>"></label>
 <label><?= h($offer['gallery_question']) ?><select name="release_gallery"><option value="">Choose</option><option <?= $v['release_gallery'] === 'Yes' ? 'selected' : '' ?>>Yes</option><option <?= $v['release_gallery'] === 'No' ? 'selected' : '' ?>>No</option></select></label></div>
 <label class="radio"><input type="checkbox" name="release_age" value="1"> I have read and agree to this release, I am at least 18 years old, and I will show my government-issued ID at the session.</label>
-<p style="margin:10px 0 4px;font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:14px">Sign here (finger or mouse)</p>
+<p class="relh sm">Sign here (finger or mouse)</p>
 <div id="sigwrap"><canvas id="sig" width="640" height="200"></canvas></div>
 <div class="sigbar"><span>Your signature, your full legal name and today's date are saved with this release.</span><button type="button" id="sigclear" class="btn sm alt">Clear</button></div>
 <input type="hidden" name="release_sig" id="release_sig">
@@ -146,21 +136,4 @@ foreach ($opts as $k => $t): ?><label class="radio"><input type="radio" name="sh
 <label>Anything else I should know? <span class="opt">(ideas, mood, outfits, questions)</span><textarea name="message" rows="5"><?= h($v['message']) ?></textarea></label>
 <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
 <button class="btn" type="submit">Send</button></form></div>
-<script>(function(){
-var radios=document.querySelectorAll('input[name=share_pref]'),rel=document.getElementById('release');
-if(!rel)return;
-var cv=document.getElementById('sig'),ctx=cv.getContext('2d'),drawing=false,inked=false;
-ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);ctx.lineWidth=3;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111';
-function pos(e){var r=cv.getBoundingClientRect();return[(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]}
-cv.addEventListener('pointerdown',function(e){drawing=true;inked=true;var p=pos(e);ctx.beginPath();ctx.moveTo(p[0],p[1]);cv.setPointerCapture(e.pointerId);e.preventDefault()});
-cv.addEventListener('pointermove',function(e){if(!drawing)return;var p=pos(e);ctx.lineTo(p[0],p[1]);ctx.stroke();e.preventDefault()});
-['pointerup','pointercancel'].forEach(function(n){cv.addEventListener(n,function(){drawing=false})});
-document.getElementById('sigclear').onclick=function(){ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);inked=false;document.getElementById('release_sig').value=''};
-function show(){var y=false;radios.forEach(function(x){if(x.checked&&x.value==='Yes')y=true});rel.style.display=y?'block':'none'}
-radios.forEach(function(x){x.addEventListener('change',show)});show();
-document.getElementById('intake').addEventListener('submit',function(e){
-  var yes=false;radios.forEach(function(x){if(x.checked&&x.value==='Yes')yes=true});
-  if(yes){if(!inked){e.preventDefault();alert('Please sign in the signature box first.');return}
-    document.getElementById('release_sig').value=cv.toDataURL('image/jpeg',0.85)}
-});
-})();</script></body></html>
+<script src="<?= h(asset('/client/new.js')) ?>"></script></body></html>

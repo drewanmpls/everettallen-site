@@ -9,12 +9,12 @@ start_session();
 $t = (string)($_GET['t'] ?? '');
 $g = gallery_by_token($t);
 
-function page_head(string $title): void { ?>
+function page_head(string $title, string $bodyClass = ''): void { ?>
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title><?= h($title) ?> | Everett Allen Photography</title>
 <link rel="icon" href="/assets/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Archivo+Narrow:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/client/client.css"></head><body>
+<link rel="stylesheet" href="<?= h(asset('/client/client.css')) ?>"></head><body<?= $bodyClass !== '' ? ' class="' . h($bodyClass) . '"' : '' ?>>
 <?php }
 
 if (!$g) { http_response_code(404); page_head('Gallery not found'); ?>
@@ -55,9 +55,8 @@ foreach ($imgs as $i) {
 }
 $cfg = ['token' => $t, 'csrf' => csrf(), 'payments' => payments_enabled(), 'included' => (int)$g['included_count'], 'used' => claims_used((int)$g['id']), 'client' => (string)$g['client_name'], 'images' => $data];
 $isShop = ($g['kind'] ?? '') === 'shop';
-page_head($g['title']); ?>
+page_head($g['title'], $isShop ? 'shop' : ''); ?>
 <header class="top"><a href="/" class="brand">Everett Allen Photography</a><span class="kicker"><?= $isShop ? 'Your photos' : 'Private gallery' ?></span></header>
-<?php if ($isShop): ?><style>.bar,.heart,.cm,#lbh,.side h3,#lbc,#lbf{display:none!important}</style><?php endif; ?>
 <main class="wrap">
 <div class="intro">
   <h1><?= h($g['title']) ?></h1>
@@ -72,7 +71,7 @@ page_head($g['title']); ?>
 </div>
 <div class="grid" id="grid">
 <?php foreach ($data as $n => $d): ?>
-  <figure class="ph" data-id="<?= $d['id'] ?>" style="--r:<?= $d['w'] && $d['h'] ? round($d['w'] / $d['h'], 4) : 1.5 ?>">
+  <figure class="ph" data-id="<?= $d['id'] ?>" data-r="<?= $d['w'] && $d['h'] ? round($d['w'] / $d['h'], 4) : 1.5 ?>">
     <a href="#<?= $d['id'] ?>" data-i="<?= $n ?>"><img loading="lazy" src="/client/img.php?t=<?= h($t) ?>&i=<?= $d['id'] ?>&s=thumb" alt="<?= h($d['label']) ?>" draggable="false"></a>
     <button class="heart" data-id="<?= $d['id'] ?>" aria-label="Favorite" aria-pressed="false">&#9825;</button>
     <span class="tag"><?= $d['claimed'] ? 'Included' : ($d['dlFull'] ? 'Full size ready' : ($d['dlWeb'] ? 'Web size ready' : h($d['pfText']))) ?></span>
@@ -94,6 +93,6 @@ page_head($g['title']); ?>
   </aside>
 </div>
 <div class="toast" id="toast" hidden></div>
-<script>window.EA=<?= json_encode($cfg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
-<script src="/client/client.js"></script>
+<script type="application/json" id="ea-cfg"><?= json_encode($cfg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
+<script src="<?= h(asset('/client/client.js')) ?>"></script>
 </body></html>
