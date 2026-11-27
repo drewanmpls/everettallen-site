@@ -137,6 +137,14 @@ a.tile{text-decoration:none;color:inherit}a.tile:hover{background:var(--hover)}.
 .go{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
 .go a{display:block;padding:14px;background:var(--card);border:1px solid var(--line);border-radius:10px;text-decoration:none;color:var(--ink);font-weight:600}
 .go a small{display:block;font-weight:400;margin-top:2px}.go a:hover{background:var(--hover)}
+/* Today: "Needs you" rows (count, words, arrow) and latest gallery covers */
+.needs{list-style:none;margin:0;padding:0}.needs li+li{border-top:1px solid var(--line)}
+.needs a{display:flex;align-items:center;gap:14px;min-height:48px;padding:8px 4px;color:var(--ink);text-decoration:none}.needs a:hover{background:var(--hover)}
+.needs b{min-width:2.2em;font-size:22px;line-height:1.1;color:var(--acc)}.needs span{flex:1}.needs i{font-style:normal;font-size:22px;color:var(--mut)}
+.latest{list-style:none;margin:12px 0 8px;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.latest a{display:block;color:var(--ink);text-decoration:none}.latest img{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:8px;background:var(--photo);margin-bottom:6px}
+.latest b{display:block;font-size:14px;line-height:1.3}.latest small{display:block}
+@media(max-width:639px){.latest{grid-template-columns:repeat(2,1fr)}}
 
 /* ---------- tablets and smaller: the menu becomes a panel ---------- */
 @media(max-width:1023px){
