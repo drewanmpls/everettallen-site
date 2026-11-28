@@ -101,8 +101,8 @@ footer .fl a{text-decoration:none}footer .fl a:hover{text-decoration:underline}
 .sform input{width:100%;font:inherit;font-size:22px;padding:14px 16px;border:2px solid var(--ink);background:#f6f3ec;color:var(--ink);border-radius:0}
 .sform input:focus{outline:3px solid var(--blue);outline-offset:2px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px}
-.chips a,.tags a{border:2px solid var(--ink);padding:4px 10px;font-family:"Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:14px}
-.chips a:hover,.tags a:hover{background:var(--ink);color:var(--bg)}
+.chips a,.chips button,.tags a{border:2px solid var(--ink);padding:4px 10px;font-family:"Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:14px}
+.chips a:hover,.chips button:hover,.tags a:hover{background:var(--ink);color:var(--bg)}
 .tags{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 16px}
 .share{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0}
 .share .sl{font-family:"Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:14px;margin-right:6px}
@@ -177,3 +177,4 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important;animation:none!important}}
 .ptitle{margin:8px 0 0;font:500 15px/1.5 "Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em}
 .vh{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.chips button{background:transparent;color:var(--ink);cursor:pointer;border-radius:0;font-weight:inherit;line-height:inherit}
