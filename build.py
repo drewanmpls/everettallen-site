@@ -37,8 +37,8 @@ def page(title,body,path,section,desc='',image='',url=''):
 <script>try{{var u=new URL(location.href),c=u.searchParams.get("code");if(c){{localStorage.setItem("eaCode",c.trim());u.searchParams.delete("code");history.replaceState(null,"",u.pathname+u.search+u.hash)}}}}catch(e){{}}</script>
 <title>{e(t)}</title><meta name="description" content="{d}"><link rel="canonical" href="{site['base_url']}{canon}">
 <meta property="og:title" content="{e(t)}"><meta property="og:description" content="{d}"><meta property="og:type" content="website"><meta property="og:site_name" content="{e(site['title'])}"><meta property="og:url" content="{site['base_url']}{canon}"><meta property="og:image" content="{site['base_url']}{image or '/assets/og-default.jpg'}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{e(t)}"><meta name="twitter:description" content="{d}"><meta name="twitter:image" content="{site['base_url']}{image or '/assets/og-default.jpg'}">
-<link rel="icon" href="/assets/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Archivo+Narrow:wght@500&display=swap" rel="stylesheet"><link rel="stylesheet" href="/css/style.css?v={VCSS}"></head>
+<link rel="icon" href="/assets/icon.png">
+<link rel="preload" href="/fonts/archivo-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/css/style.css?v={VCSS}"></head>
 <body><a class="skip" href="#content">Skip to content</a>
 <header class="top"><span class="brand">{'<a href="/">EA</a>' if path=='/' else '<a href="/">Everett Allen Photography</a>'} / {section}</span><nav>{nav}</nav></header>
 <main id="content">{body}</main>
