@@ -123,6 +123,7 @@ content:
     format: json
     fields:
       - { name: tagline, label: Home tagline, type: string }
+      - { name: home_descriptor, label: Home page descriptor line (what you do and where), type: string }
       - { name: featured_portraits, label: Featured portraits on the home page (gallery names, in order), type: string, list: true }
       - { name: contact_intro, label: Contact page intro, type: text }
       - { name: usage_note, label: Note under each gallery, type: text }
