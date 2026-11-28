@@ -175,7 +175,16 @@ w('/404.html',page('Not found','<div class="wrap narrow"><h1 class="h1">Page not
 urls=['/','/portraits/','/events/','/search/','/services/','/contact/']+[f'/tag/{t}/' for t in TAGS]+[f'/{k}/' for k in TP]+[f'/series/{x["slug"]}/' for x in active]+[f'/gallery/{g["slug"]}/' for g in G]
 open('dist/sitemap.xml','w').write('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+''.join(f'<url><loc>{site["base_url"]}{u}</loc></url>' for u in urls)+'</urlset>')
 open('dist/robots.txt','w').write(f'User-agent: *\nAllow: /\nDisallow: /client/\nSitemap: {site["base_url"]}/sitemap.xml\n')
-ht=['ErrorDocument 404 /404.html','RewriteEngine On','# The new. address uses a separate private database; send it to the main domain','RewriteCond %{HTTP_HOST} ^new\\.everettallenphotography\\.com$ [NC]','RewriteRule ^ https://www.everettallenphotography.com%{REQUEST_URI} [L,R=301]','RewriteCond %{HTTPS} off','RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]',
+ht=['ErrorDocument 404 /404.html',
+'# Security headers (Section 3.6). The Content-Security-Policy line comes with T-19.',
+'<IfModule mod_headers.c>',
+'Header always set X-Content-Type-Options "nosniff"',
+'Header always set Referrer-Policy "strict-origin-when-cross-origin"',
+'Header always set X-Frame-Options "DENY"',
+'Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"',
+'Header always set Strict-Transport-Security "max-age=15552000"',
+'</IfModule>',
+'RewriteEngine On','# The new. address uses a separate private database; send it to the main domain','RewriteCond %{HTTP_HOST} ^new\\.everettallenphotography\\.com$ [NC]','RewriteRule ^ https://www.everettallenphotography.com%{REQUEST_URI} [L,R=301]','RewriteCond %{HTTPS} off','RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]',
 '# Short links made in Admin > Links',
 'RewriteRule ^go/([A-Za-z0-9-]+)/?$ /client/go.php?s=$1 [L,QSA]',
 '# Hotlink protection: other websites cannot embed /photos/ images. Allowed: this site, empty referrers (direct visits, privacy browsers, messaging apps), search engines and social/link-preview crawlers.',
