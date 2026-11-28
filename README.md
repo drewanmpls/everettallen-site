@@ -72,6 +72,16 @@ php8.3 /home/dh_dbvmkc/new.everettallenphotography.com/client/cli/backup.php /ho
 
 The web folder really is `new.everettallenphotography.com` (the live domain's web directory). Confirm the PHP command name in the panel; if `php8.3` is not found, use `/usr/local/php83/bin/php`. To restore, copy a backup over `data.sqlite` (keep the current one first).
 
+## Client email outbox
+
+Email to clients (from Admin > Studio > Outbox, and "Email this client" once T-35 is in) waits in a queue and is sent by `client/cli/send-outbox.php`. Add a second DreamHost cron job (Panel > Advanced > Cron Jobs, user `dh_dbvmkc`) that runs every 5 minutes (`*/5 * * * *`):
+
+```
+php8.3 /home/dh_dbvmkc/new.everettallenphotography.com/client/cli/send-outbox.php /home/dh_dbvmkc/everettallen-private/everettallenphotography.com
+```
+
+Without the cron job nothing is lost: emails wait in the Outbox until you press Send now. An email that fails 5 times moves to Failed, where Retry puts it back in line.
+
 ## Admin and Pages CMS quick guide
 
 Admin: https://www.everettallenphotography.com/client/admin/ (Publish, Codes, Stats, Settings, Clients). Pages CMS: https://app.pagescms.org (sign in with GitHub, repo `drewanmpls/everettallen-site`). Edits in Pages CMS commit to GitHub and go live in a minute or two.
