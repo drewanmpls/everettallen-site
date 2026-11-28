@@ -65,7 +65,8 @@ home=f'''<section class="homehead"><h1 class="giant">Everett<br>Allen<span class
 <p class="allp"><a href="/portraits/">All portraits A to Z</a></p>
 <a class="band" href="/events/"><span class="bigword">Events</span><span class="bandtxt">Pride, TCLFW, contests and community nights, by year &rarr;</span></a>
 <section class="cta"><span>Book a portrait session</span><a class="btn" href="/contact/">Contact me</a></section>'''
-w('/',page('',home,'/','Portraits'))
+ld='<script type="application/ld+json">'+json.dumps({"@context":"https://schema.org","@type":"ProfessionalService","name":site["title"],"url":site["base_url"]+"/","description":site.get("home_descriptor") or site["tagline"],"areaServed":"Minneapolis, Minnesota","sameAs":[site["facebook"],site["instagram"]]}).replace("</","<\\/")+'</script>'
+w('/',page('',home,'/','Portraits').replace('</head>',ld+'</head>',1))
 # ---- Portraits A-Z
 pa=''.join(f'<a class="card" href="/gallery/{g["slug"]}/"><img loading="lazy" src="{img(g,"t")}" alt=""><span><b>{e(g["title"])}</b><small>{g["year"]} / {len(g["images"])} photos</small></span></a>' for g in sorted(portraits,key=lambda g:g['title'].lower()))
 w('/portraits/',page('Portraits',f'<div class="wrap"><h1 class="h1">Portraits</h1><p class="meta">A to Z</p><div class="cards">{pa}</div></div>','/portraits/','Portraits','Portrait galleries by Everett Allen Photography'))
