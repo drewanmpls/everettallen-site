@@ -5,13 +5,16 @@ R=os.path.dirname(os.path.abspath(__file__)); os.chdir(R)
 site=json.load(open('content/site.json'))
 e=html.escape
 def ver(path): return hashlib.md5(open(path,'rb').read()).hexdigest()[:8]  # cache-busting stamp so browsers never mix old CSS with new JS
-VCSS,VSITE,VSHOP,VSEARCH,VLIKES,VCONTACT=[ver('static/'+x) for x in ('css/style.css','js/site.js','js/shop.js','js/search.js','js/likes.js','js/contact.js')]
+VSITE,VSHOP,VSEARCH,VLIKES,VCONTACT,VCODE=[ver('static/'+x) for x in ('js/site.js','js/shop.js','js/search.js','js/likes.js','js/contact.js','js/code.js')]
 cats={'portraits':'Portraits','events':'Events'}
 G=[]
 for f in glob.glob('content/galleries/*.json'):
     g=json.load(open(f)); g['slug']=os.path.basename(f)[:-5]; g.setdefault('year',g['date'][:4]); g.setdefault('description',''); g['cover']=str(g.get('cover') or (g['images'][0]['id'] if g['images'] else '')); G.append(g)
 GA=G   # every gallery, for the admin's list (galleries-index.json), including empty ones (T-26)
 G=[g for g in GA if g['images'] and not g.get('hidden')]   # hidden (T-25) and empty galleries are left out of the built site
+def rc(r): return round(r*100)   # grid tile ratio as a class number (r67 = .67), so pages need no style attributes under the CSP (T-19)
+CSS=open('static/css/style.css').read()+''.join(f'.r{n}{{--r:{n/100:g}}}' for n in sorted({rc(i['ratio']) for g in G for i in g['images']}))+'\n'
+VCSS=hashlib.md5(CSS.encode()).hexdigest()[:8]
 SER=json.load(open('content/series.json'))['series']
 ser_by={x['slug']:x for x in SER}
 def slugify(t): return re.sub(r'[^a-z0-9]+','-',t.lower()).strip('-')
@@ -34,7 +37,7 @@ def page(title,body,path,section,desc='',image='',url=''):
     elif section=='Events': nav='<a href="/">&larr; Portraits</a><a href="/search/">Search</a><a href="/about/">About</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
     else: nav='<a href="/">Portraits</a><a href="/events/">Events</a><a href="/search/">Search</a><a href="/about/">About</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<script>try{{var u=new URL(location.href),c=u.searchParams.get("code");if(c){{localStorage.setItem("eaCode",c.trim());u.searchParams.delete("code");history.replaceState(null,"",u.pathname+u.search+u.hash)}}}}catch(e){{}}</script>
+<script src="/js/code.js?v={VCODE}"></script>
 <title>{e(t)}</title><meta name="description" content="{d}"><link rel="canonical" href="{site['base_url']}{canon}">
 <meta property="og:title" content="{e(t)}"><meta property="og:description" content="{d}"><meta property="og:type" content="website"><meta property="og:site_name" content="{e(site['title'])}"><meta property="og:url" content="{site['base_url']}{canon}"><meta property="og:image" content="{site['base_url']}{image or '/assets/og-default.jpg'}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{e(t)}"><meta name="twitter:description" content="{d}"><meta name="twitter:image" content="{site['base_url']}{image or '/assets/og-default.jpg'}">
 <link rel="icon" href="/assets/icon.png">
@@ -48,7 +51,7 @@ def w(path,content):
     p=os.path.join('dist',path.strip('/'),'index.html') if not path.endswith('.html') else os.path.join('dist',path.lstrip('/'))
     os.makedirs(os.path.dirname(p),exist_ok=True); open(p,'w').write(content)
 def img(g,size): return f'/photos/{g["slug"]}/{g["cover"]}-{size}.jpg'
-shutil.rmtree('dist',ignore_errors=True); shutil.copytree('static','dist')
+shutil.rmtree('dist',ignore_errors=True); shutil.copytree('static','dist'); open('dist/css/style.css','w').write(CSS)
 portraits=[g for g in G if g['category']=='portraits']
 tag_lines=''.join(f'<span class="ln">{e(x)}</span>' for x in re.split(r'(?<=[.!?])\s+',site['tagline'].strip()))
 events=sorted([g for g in G if g['category']=='events'],key=newest,reverse=True)
@@ -100,11 +103,11 @@ for ts,tv in TAGS.items():
 idx=[{'t':g['title'],'u':f'/gallery/{g["slug"]}/','i':img(g,'t'),'y':g['year'],'c':cats[g['category']],'s':ser_by[g['series']]['name'] if g.get('series') in ser_by else '','g':g['tags'],'k':ser_by[g['series']]['short'] if g.get('series') in ser_by else '','n':len(g['images']),'v':str(g.get('venue','')).strip() if g['category']=='events' else ''} for g in sorted(G,key=newest,reverse=True)]
 open('dist/search-index.json','w').write(json.dumps(idx,separators=(',',':')))
 chips=''.join(f'<button type="button" data-q="{e(x["short"])}">{e(x["short"])}</button>' for x in active)+''.join(f'<button type="button" data-q="{e(tv["name"])}">{e(tv["name"])}</button>' for tv in sorted(TAGS.values(),key=lambda v:v['name'].lower()))+''.join(f'<button type="button" data-q="{y}">{y}</button>' for y in sorted({g['year'] for g in G},reverse=True))
-w('/search/',page('Search',f'<div class="wrap"><h1 class="h1">Search</h1><p class="meta">Find a gallery by name, year, event or tag</p><form class="sform" role="search" onsubmit="return false"><input id="q" type="search" placeholder="Try a name, TCLFW, Pride, 2025..." autocomplete="off" aria-label="Search galleries"></form><div class="chips">{chips}</div><p class="meta" id="rc" aria-live="polite"></p><div class="cards" id="res"></div><noscript><p class="lede2">Search needs JavaScript. Browse <a href="/portraits/">Portraits</a> or <a href="/events/">Events</a> instead.</p></noscript></div><script src="/js/search.js?v={VSEARCH}" defer></script>','/search/','Events','Search galleries by name, year, event or tag'))
+w('/search/',page('Search',f'<div class="wrap"><h1 class="h1">Search</h1><p class="meta">Find a gallery by name, year, event or tag</p><form class="sform" role="search"><input id="q" type="search" placeholder="Try a name, TCLFW, Pride, 2025..." autocomplete="off" aria-label="Search galleries"></form><div class="chips">{chips}</div><p class="meta" id="rc" aria-live="polite"></p><div class="cards" id="res"></div><noscript><p class="lede2">Search needs JavaScript. Browse <a href="/portraits/">Portraits</a> or <a href="/events/">Events</a> instead.</p></noscript></div><script src="/js/search.js?v={VSEARCH}" defer></script>','/search/','Events','Search galleries by name, year, event or tag'))
 # ---- Gallery pages
 for g in G:
     s=g['slug']; sec=cats[g['category']]
-    items=''.join(f'<a class="ph" href="/photos/{s}/{i["id"]}-l.jpg" style="--r:{i["ratio"]}" data-n="{k}"><img loading="lazy" src="/photos/{s}/{i["id"]}-t.jpg" alt="{e(g["title"])}, photo {k}" width="400" height="{round(400/i["ratio"])}"></a>' for k,i in enumerate(g['images'],1))
+    items=''.join(f'<a class="ph r{rc(i["ratio"])}" href="/photos/{s}/{i["id"]}-l.jpg" data-n="{k}"><img loading="lazy" src="/photos/{s}/{i["id"]}-t.jpg" alt="{e(g["title"])}, photo {k}" width="400" height="{round(400/i["ratio"])}"></a>' for k,i in enumerate(g['images'],1))
     d=esc_desc(g['description'])
     sr=ser_by.get(g.get('series'))
     sx=f' / <a href="/series/{sr["slug"]}/">More from {e(sr["name"])}</a>' if sr else ''
@@ -121,7 +124,7 @@ for g in G:
         pv=g['images'][k-1]['id'] if k>0 else None; nx=g['images'][k+1]['id'] if k<n-1 else None
         nav=(f'<a href="/photo/{s}/{pv}/">&larr; Previous</a> ' if pv else '')+f'<span>{k+1} / {n}</span>'+(f' <a href="/photo/{s}/{nx}/">Next &rarr;</a>' if nx else '')
         body=(f'<div class="wrap pp"><p class="meta"><a href="/gallery/{s}/">&larr; {e(g["title"])}</a></p>'
-              f'<h1 class="ptitle">{e(title)}</h1><img class="pimg" src="/photos/{s}/{pid}-l.jpg" alt="{e(title)}" style="aspect-ratio:{i["ratio"]}">'
+              f'<h1 class="ptitle">{e(title)}</h1><img class="pimg" src="/photos/{s}/{pid}-l.jpg" alt="{e(title)}" width="{1000 if i["ratio"]>=1 else round(1000*i["ratio"])}" height="{round(1000/i["ratio"]) if i["ratio"]>=1 else 1000}">'
               f'<p class="meta pnav">{nav}</p>'
               f'<div class="share" data-label="Share this photo" data-path="/photo/{s}/{pid}/" data-title="{e(g["title"])}" data-media="/photos/{s}/{pid}-l.jpg"></div>'
               f'<p class="note">{e(site["usage_note"])} <a href="/contact/">Get in touch</a>.</p></div><script src="/js/shop.js?v={VSHOP}" defer></script><script src="/js/likes.js?v={VLIKES}" defer></script>')
@@ -176,13 +179,14 @@ urls=['/','/portraits/','/events/','/search/','/services/','/contact/']+[f'/tag/
 open('dist/sitemap.xml','w').write('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+''.join(f'<url><loc>{site["base_url"]}{u}</loc></url>' for u in urls)+'</urlset>')
 open('dist/robots.txt','w').write(f'User-agent: *\nAllow: /\nDisallow: /client/\nSitemap: {site["base_url"]}/sitemap.xml\n')
 ht=['ErrorDocument 404 /404.html',
-'# Security headers (Section 3.6). The Content-Security-Policy line comes with T-19.',
+'# Security headers (Section 3.6). /client/ has its own relaxed policy until T-22.',
 '<IfModule mod_headers.c>',
 'Header always set X-Content-Type-Options "nosniff"',
 'Header always set Referrer-Policy "strict-origin-when-cross-origin"',
 'Header always set X-Frame-Options "DENY"',
 'Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"',
 'Header always set Strict-Transport-Security "max-age=15552000"',
+'Header always set Content-Security-Policy "default-src \'self\'; script-src \'self\'; style-src \'self\'; img-src \'self\' data:; font-src \'self\'; connect-src \'self\'; form-action \'self\'; base-uri \'self\'; frame-ancestors \'none\'; object-src \'none\'"',
 '</IfModule>',
 'RewriteEngine On','# The new. address uses a separate private database; send it to the main domain','RewriteCond %{HTTP_HOST} ^new\\.everettallenphotography\\.com$ [NC]','RewriteRule ^ https://www.everettallenphotography.com%{REQUEST_URI} [L,R=301]','RewriteCond %{HTTPS} off','RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]',
 '# Short links made in Admin > Links',
