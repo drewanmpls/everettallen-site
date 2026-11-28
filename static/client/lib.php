@@ -27,7 +27,7 @@ function masters_dir(): string {
 
 // Database layout version. To add a table or column: put it in the migration block in db() (CREATE TABLE IF NOT EXISTS,
 // or a row in the add-column list) and raise SCHEMA_VERSION by one. The block then runs once per database, not on every request.
-const SCHEMA_VERSION = 5;   // 3: galleries.shoot_date and shoot_location (T-41 Sessions); 4: orders.price_cents (T-33 Sales); 5: outbox (T-34)
+const SCHEMA_VERSION = 6;   // 3: galleries.shoot_date and shoot_location (T-41 Sessions); 4: orders.price_cents (T-33 Sales); 5: outbox (T-34); 6: email_templates (T-35)
 
 function db(): PDO {
     static $pdo = null;
@@ -77,6 +77,7 @@ function db(): PDO {
     CREATE TABLE IF NOT EXISTS login_fails (scope TEXT NOT NULL, h TEXT NOT NULL, t INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS login_fails_i ON login_fails (scope, h, t);
     CREATE TABLE IF NOT EXISTS outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER, to_email TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'queued', attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT DEFAULT '', created INTEGER NOT NULL, sent INTEGER);
+    CREATE TABLE IF NOT EXISTS email_templates (k TEXT PRIMARY KEY, name TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL);
     ");
     foreach ([['galleries', 'included_count', 'INTEGER NOT NULL DEFAULT 0'], ['galleries', 'default_web_cents', 'INTEGER NOT NULL DEFAULT 0'],
               ['images', 'price_web_cents', 'INTEGER'], ['galleries', 'shoot_date', "TEXT DEFAULT ''"], ['galleries', 'shoot_location', "TEXT DEFAULT ''"], ['galleries', 'client_id', 'INTEGER'], ['galleries', 'code_id', 'INTEGER'], ['clients', 'release_text', "TEXT DEFAULT ''"], ['clients', 'release_stage', "TEXT DEFAULT ''"], ['clients', 'release_dob', "TEXT DEFAULT ''"], ['clients', 'release_gallery', "TEXT DEFAULT ''"], ['clients', 'release_version', "TEXT DEFAULT ''"], ['clients', 'release_pdf', "TEXT DEFAULT ''"], ['clients', 'release_sig', "TEXT DEFAULT ''"], ['clients', 'drive_status', "TEXT DEFAULT ''"], ['clients', 'drive_url', "TEXT DEFAULT ''"], ['clients', 'shoot_date', "TEXT DEFAULT ''"], ['clients', 'shoot_location', "TEXT DEFAULT ''"], ['clients', 'id_verified', "TEXT DEFAULT ''"], ['clients', 'release_name', "TEXT DEFAULT ''"], ['clients', 'release_at', 'INTEGER'], ['clients', 'photo_path', "TEXT DEFAULT ''"], ['clients', 'idphoto_path', "TEXT DEFAULT ''"], ['clients', 'discount_percent', 'INTEGER NOT NULL DEFAULT 0'], ['orders', 'tier', "TEXT NOT NULL DEFAULT 'full'"], ['orders', 'price_cents', 'INTEGER'], ['galleries', 'kind', "TEXT NOT NULL DEFAULT ''"]] as [$t, $c, $def]) {
@@ -252,6 +253,34 @@ function outbox_send_due(int $max = 20): array {
         }
     } finally { flock($lock, LOCK_UN); fclose($lock); }
     return $out;
+}
+
+// ---------- client email templates (T-35) ----------
+// Admin > Outbox > Templates edits them; "Email this client" on a client page fills the placeholders and queues the result.
+const EMAIL_DRAFT = '[Draft wording needed from Andrew]';   // seeded wording; an email that still contains it cannot be queued
+const EMAIL_PLACEHOLDERS = ['{name}' => 'full name', '{first_name}' => 'first name', '{gallery_title}' => 'session title', '{gallery_link}' => 'private gallery link', '{release_link}' => 'new client form (release) link'];
+
+// All templates in their seeded order. The three starting rows are added on first use; Andrew writes the wording.
+function email_templates(): array {
+    $ins = db()->prepare('INSERT OR IGNORE INTO email_templates (k, name, subject, body) VALUES (?,?,?,?)');
+    if (!db()->query('SELECT COUNT(*) FROM email_templates')->fetchColumn())
+        foreach ([['gallery_ready', 'Gallery ready', "{first_name}\n\n{gallery_title}\n{gallery_link}"], ['thanks', 'Thanks', "{first_name}"], ['release_reminder', 'Release reminder', "{first_name}\n\n{release_link}"]] as [$k, $n, $ph])
+            $ins->execute([$k, $n, EMAIL_DRAFT, EMAIL_DRAFT . "\n\n" . $ph]);
+    $out = []; foreach (db()->query('SELECT * FROM email_templates ORDER BY rowid') as $r) $out[$r['k']] = $r;
+    return $out;
+}
+
+// Replaces {placeholders} that have a value. Returns [text, left] where left maps each placeholder still in the text
+// to 'unknown' (not one of EMAIL_PLACEHOLDERS) or 'empty' (no value for this client, such as a gallery link with no session).
+function email_fill(string $s, array $vals): array {
+    $left = [];
+    $s = preg_replace_callback('/\{[^{}\r\n]{1,40}\}/', function ($m) use ($vals, &$left) {
+        $k = substr($m[0], 1, -1);
+        if (($vals[$k] ?? '') !== '') return $vals[$k];
+        $left[$m[0]] = isset(EMAIL_PLACEHOLDERS[$m[0]]) ? 'empty' : 'unknown';
+        return $m[0];
+    }, $s);
+    return [$s, $left];
 }
 
 function gdir(int $gid, string $kind): string {

@@ -15,7 +15,7 @@ function go(string $to): void { header('Location: ' . $to); exit; }
 // Later tickets add one line here when their page exists (Sessions, Sales, Galleries, Event series, Pages, Services).
 const ADMIN_MENU = [
     '' => [['Today', 'dashboard', []]],
-    'Studio' => [['Clients', 'clients', ['client']], ['Sessions', 'sessions', ['gallery', 'list']], ['Sales', 'orders', []], ['Outbox', 'outbox', []], ['Codes', 'codes', []]],
+    'Studio' => [['Clients', 'clients', ['client']], ['Sessions', 'sessions', ['gallery', 'list']], ['Sales', 'orders', []], ['Outbox', 'outbox', ['templates', 'templatesave']], ['Codes', 'codes', []]],
     'Portfolio' => [['Galleries', 'pgalleries', ['pgallery']], ['Publish', 'publish', []], ['Event series', 'series', []], ['Library', 'library', []]],
     'Website' => [['Pages', 'pages', []], ['Services', 'services', []], ['Short links', 'links', []], ['Stats', 'stats', []], ['Settings', 'settings', []]],
 ];
@@ -142,7 +142,7 @@ if (in_array($a, ['library', 'libfile', 'libzip'], true)) require __DIR__ . '/li
 if ($a === 'dashboard') require __DIR__ . '/dashboard.php';
 if ($a === 'sessions') require __DIR__ . '/sessions.php';
 if ($a === 'orders' || $a === 'orderscsv') require __DIR__ . '/orders.php';
-if (in_array($a, ['outbox', 'mailsend', 'mailretry'], true)) require __DIR__ . '/outbox.php';
+if (in_array($a, ['outbox', 'mailsend', 'mailretry', 'mailqueue', 'templates', 'templatesave'], true)) require __DIR__ . '/outbox.php';
 if ($a === 'pgsuggest') require __DIR__ . '/ai.php';
 if (in_array($a, ['pgalleries', 'pgallery', 'pgsave', 'pgorder', 'pgremove'], true)) require __DIR__ . '/pgalleries.php';
 if (in_array($a, ['series', 'seriessave', 'pages', 'pagesave', 'sitesave', 'services', 'servicessave'], true)) require __DIR__ . '/content-editors.php';
@@ -546,6 +546,13 @@ if ($a === 'client') {
             foreach ($ob->fetchAll() as $m) $tl[] = [(int)($m['sent'] ?: $m['created']), 'Email "' . $m['subject'] . '": ' . $m['status'] . '.', ''];
         }
         usort($tl, fn($x, $y) => $y[0] <=> $x[0]);   // newest first
+        // Email this client (T-35): pick a template (and a session when there are several), then an editable preview with placeholders filled.
+        $etpls = email_templates(); $md = $mailDraft ?? null; $ek = (string)($md['tpl'] ?? ($_GET['tpl'] ?? '')); if (!isset($etpls[$ek])) $ek = '';
+        $egid = (int)($md['g'] ?? ($_GET['g'] ?? 0)); $eg = null; foreach ($gals as $g) if ((int)$g['id'] === $egid) $eg = $g; if (!$eg && $gals) $eg = $gals[0];
+        $evals = ['name' => (string)$c['name'], 'first_name' => (string)strtok(trim((string)$c['name']), ' '), 'gallery_title' => $eg ? (string)$eg['title'] : '', 'gallery_link' => $eg ? link_for($eg) : '', 'release_link' => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/client/new/'];
+        $eprev = null;   // [subject, body, placeholders left]
+        if ($md) { $eprev = [$md['subject'], $md['body'], email_fill($md['subject'] . "\n" . $md['body'], [])[1]]; }
+        elseif ($ek !== '') { [$es, $l1] = email_fill($etpls[$ek]['subject'], $evals); [$eb, $l2] = email_fill($etpls[$ek]['body'], $evals); $eprev = [$es, $eb, $l1 + $l2]; }
     }
     ahead($c['name']); $tok = csrf(); ?>
 <div class="ph"><div><p class="back"><a href="?a=clients">&larr; All clients</a></p><h1><?= h($c['name']) ?></h1><span class="tag"><?= h(CLIENT_STATUSES[$c['status']] ?? $c['status']) ?></span></div>
@@ -574,6 +581,23 @@ if ($a === 'client') {
 <select name="gallery" aria-label="Gallery to link"><?php foreach ($free as $f): ?><option value="<?= $f['id'] ?>"><?= h($f['title']) ?></option><?php endforeach; ?></select><button class="btn sm alt">Link existing gallery</button></form><?php endif; ?></div>
 
 </section>
+<section class="panel full" id="email"><h2 class="mt0">Email this client</h2>
+<?php if (!empty($_GET['queued'])): ?><p class="msg good" role="status">Queued. It goes out within 5 minutes, or right away with Send now in <a href="?a=outbox">Outbox</a>.</p><?php endif; ?>
+<?php if ($c['email'] === ''): ?><p class="hint">Add an email address on the <a href="?a=client&amp;id=<?= (int)$c['id'] ?>&amp;tab=details">Details</a> tab to email this client.</p>
+<?php else: ?><form method="get" action="#email" class="row"><input type="hidden" name="a" value="client"><input type="hidden" name="id" value="<?= (int)$c['id'] ?>">
+<label>Template <select name="tpl"><?php foreach ($etpls as $k => $t): ?><option value="<?= h($k) ?>"<?= $k === $ek ? ' selected' : '' ?>><?= h($t['name']) ?></option><?php endforeach; ?></select></label>
+<?php if (count($gals) > 1): ?><label>Session <select name="g"><?php foreach ($gals as $g): ?><option value="<?= (int)$g['id'] ?>"<?= $eg && (int)$g['id'] === (int)$eg['id'] ? ' selected' : '' ?>><?= h($g['title']) ?></option><?php endforeach; ?></select></label><?php endif; ?>
+<button class="btn sm alt">Preview</button> <a href="?a=templates">Edit templates</a></form>
+<?php if ($eprev): [$es, $eb, $left] = $eprev; $unk = array_keys(array_filter($left, fn($v) => $v === 'unknown')); $emp = array_keys(array_filter($left, fn($v) => $v === 'empty')); ?>
+<?php if (!empty($md['err'])): ?><p class="msg bad mt" role="alert"><?= h($md['err']) ?></p><?php elseif (str_contains($es . $eb, '[Draft wording needed')): ?><p class="msg wait mt" role="status">This template still has the draft marker, so it cannot be queued. Write the real wording in <a href="?a=templates">Templates</a>, or replace the marker here.</p><?php endif; ?>
+<?php if ($unk): ?><p class="msg wait mt">Not a placeholder, left as typed: <?= h(implode(' ', $unk)) ?>. The ones that work are <?= h(implode(' ', array_keys(EMAIL_PLACEHOLDERS))) ?>.</p><?php endif; ?>
+<?php if ($emp): ?><p class="msg wait mt">Nothing to fill in for <?= h(implode(' ', $emp)) ?><?= $gals ? '' : ' because this client has no session yet' ?>. Edit the text below before queueing.</p><?php endif; ?>
+<form method="post" action="<?= h($base) ?>" class="cols mt"><input type="hidden" name="csrf" value="<?= h($tok) ?>"><input type="hidden" name="a" value="mailqueue"><input type="hidden" name="id" value="<?= (int)$c['id'] ?>"><input type="hidden" name="tpl" value="<?= h($ek) ?>"><input type="hidden" name="g" value="<?= $eg ? (int)$eg['id'] : 0 ?>">
+<p class="full">To: <b><?= h($c['email']) ?></b></p>
+<label class="full">Subject<input name="subject" value="<?= h($es) ?>" maxlength="200" required></label>
+<label class="full">Message (plain text)<textarea name="body" rows="12" maxlength="10000" required><?= h($eb) ?></textarea></label>
+<div class="full row"><button class="btn sm">Queue email</button> <a href="?a=client&amp;id=<?= (int)$c['id'] ?>#email">Cancel</a></div></form>
+<?php endif; ?><?php endif; ?></section>
 <section class="panel full"><h2 class="mt0">Notes</h2>
 <?php if ($c['message'] !== ''): ?><p class="kicker">What they wrote</p><p class="pre"><?= h($c['message']) ?></p><?php endif; ?>
 <p class="kicker">Your private notes</p><?= $c['notes'] !== '' ? '<p class="pre">' . h($c['notes']) . '</p>' : '<p class="hint">No notes yet.</p>' ?>
