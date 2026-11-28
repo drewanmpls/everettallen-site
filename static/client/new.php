@@ -13,8 +13,7 @@ $fields = ['name', 'email', 'phone', 'pronouns', 'service', 'timeframe', 'locati
 function page_top(string $title): void { ?>
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title><?= h($title) ?> | Everett Allen Photography</title>
-<link rel="icon" href="/assets/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Archivo+Narrow:wght@500&display=swap" rel="stylesheet">
+<link rel="icon" href="/assets/icon.png">
 <link rel="stylesheet" href="<?= h(asset('/client/client.css')) ?>"></head><body class="newc">
 <header class="top"><a href="/" class="brand">Everett Allen Photography</a><span class="kicker">New client</span></header>
 <?php }
