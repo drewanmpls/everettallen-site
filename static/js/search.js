@@ -20,5 +20,5 @@
     data=j; var m=/[?&]q=([^&]*)/.exec(location.search); if(m) q.value=decodeURIComponent(m[1].replace(/\+/g,' ')); render();
   });
   q.addEventListener('input',render);
-  document.querySelectorAll('.chips a').forEach(function(a){a.addEventListener('click',function(ev){ev.preventDefault(); q.value=a.getAttribute('data-q'); render(); q.focus()})});
+  document.querySelectorAll('.chips button').forEach(function(a){a.addEventListener('click',function(ev){ev.preventDefault(); q.value=a.getAttribute('data-q'); render(); q.focus()})});
 })();
