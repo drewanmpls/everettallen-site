@@ -178,6 +178,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,
 .ptitle{margin:8px 0 0;font:500 15px/1.5 "Archivo Narrow",Archivo,sans-serif;text-transform:uppercase;letter-spacing:.08em}
 .vh{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .chips button{background:transparent;color:var(--ink);cursor:pointer;border-radius:0;font-weight:inherit;line-height:inherit}
+.chips button[aria-pressed=true]{background:var(--ink);color:var(--bg)}.sort{margin:16px 0 0}.sort[hidden]{display:none}
 /* T-13: bigger tap areas. An invisible ::after around each link grows the hit area without moving the text or underline. */
 .top a,footer a,.yj a,.allp a,.pnav a,.wrap>.meta:first-child a,.chips a,.chips button,.tags a,.share a,.share button,.byevent a{position:relative}
 .top a::after,footer a::after,.yj a::after,.allp a::after,.pnav a::after,.wrap>.meta:first-child a::after{content:"";position:absolute;inset:-3px -6px}

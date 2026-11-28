@@ -5,7 +5,7 @@ R=os.path.dirname(os.path.abspath(__file__)); os.chdir(R)
 site=json.load(open('content/site.json'))
 e=html.escape
 def ver(path): return hashlib.md5(open(path,'rb').read()).hexdigest()[:8]  # cache-busting stamp so browsers never mix old CSS with new JS
-VSITE,VSHOP,VSEARCH,VLIKES,VCONTACT,VCODE=[ver('static/'+x) for x in ('js/site.js','js/shop.js','js/search.js','js/likes.js','js/contact.js','js/code.js')]
+VSITE,VSHOP,VSEARCH,VLIKES,VCONTACT,VCODE,VSORT=[ver('static/'+x) for x in ('js/site.js','js/shop.js','js/search.js','js/likes.js','js/contact.js','js/code.js','js/sort.js')]
 cats={'portraits':'Portraits','events':'Events'}
 G=[]
 for f in glob.glob('content/galleries/*.json'):
@@ -51,6 +51,8 @@ def w(path,content):
     p=os.path.join('dist',path.strip('/'),'index.html') if not path.endswith('.html') else os.path.join('dist',path.lstrip('/'))
     os.makedirs(os.path.dirname(p),exist_ok=True); open(p,'w').write(content)
 def img(g,size): return f'/photos/{g["slug"]}/{g["cover"]}-{size}.jpg'
+CSIZES='(max-width:571px) 100vw,(max-width:883px) 50vw,(max-width:1155px) 33vw,300px'   # matches .cards: 1 column under 572px, 2 to 883px, 3 to 1155px, then 4 at about 290px (T-36)
+def card(g,data=''): return f'<a class="card" href="/gallery/{g["slug"]}/"{data}><img loading="lazy" src="{img(g,"t")}" srcset="{img(g,"t")} 400w,{img(g,"l")} 1000w" sizes="{CSIZES}" alt=""><span><b>{e(g["title"])}</b><small>{g["year"]} / {len(g["images"])} photos</small></span></a>'
 shutil.rmtree('dist',ignore_errors=True); shutil.copytree('static','dist'); open('dist/css/style.css','w').write(CSS)
 portraits=[g for g in G if g['category']=='portraits']
 tag_lines=''.join(f'<span class="ln">{e(x)}</span>' for x in re.split(r'(?<=[.!?])\s+',site['tagline'].strip()))
@@ -71,8 +73,9 @@ home=f'''<section class="homehead"><h1 class="giant">Everett<br>Allen<span class
 ld='<script type="application/ld+json">'+json.dumps({"@context":"https://schema.org","@type":"ProfessionalService","name":site["title"],"url":site["base_url"]+"/","description":site.get("home_descriptor") or site["tagline"],"areaServed":"Minneapolis, Minnesota","sameAs":[site["facebook"],site["instagram"]]}).replace("</","<\\/")+'</script>'
 w('/',page('',home,'/','Portraits').replace('</head>',ld+'</head>',1))
 # ---- Portraits A-Z
-pa=''.join(f'<a class="card" href="/gallery/{g["slug"]}/"><img loading="lazy" src="{img(g,"t")}" alt=""><span><b>{e(g["title"])}</b><small>{g["year"]} / {len(g["images"])} photos</small></span></a>' for g in sorted(portraits,key=lambda g:g['title'].lower()))
-w('/portraits/',page('Portraits',f'<div class="wrap"><h1 class="h1">Portraits</h1><p class="meta">A to Z</p><div class="cards">{pa}</div></div>','/portraits/','Portraits','Portrait galleries by Everett Allen Photography'))
+pa=''.join(card(g,f' data-title="{e(g["title"].lower())}" data-date="{e(g["date"])}"') for g in sorted(portraits,key=lambda g:g['title'].lower()))
+srt='<div class="chips sort" role="group" aria-label="Sort portraits" hidden><button type="button" data-sort="az" aria-pressed="true">A to Z</button><button type="button" data-sort="new" aria-pressed="false">Newest</button></div>'   # sort.js shows it; without JS the page stays A to Z (T-36)
+w('/portraits/',page('Portraits',f'<div class="wrap"><h1 class="h1">Portraits</h1><p class="meta" id="so">A to Z</p>{srt}<div class="cards" id="pc">{pa}</div></div><script src="/js/sort.js?v={VSORT}" defer></script>','/portraits/','Portraits','Portrait galleries by Everett Allen Photography'))
 # ---- Events front page
 def tile(g,big=False):
     cls='tile big' if big else 'tile'
@@ -92,13 +95,13 @@ w('/events/',page('Events',f'<div class="evhead"><h1 class="giant sm">Events</h1
 for x in active:
     gs=in_series[x['slug']]
     yrs=sorted({g['year'] for g in gs},reverse=True)
-    cards=''.join(f'<a class="card" href="/gallery/{g["slug"]}/"><img loading="lazy" src="{img(g,"t")}" alt=""><span><b>{e(g["title"])}</b><small>{g["year"]} / {len(g["images"])} photos</small></span></a>' for g in gs)
+    cards=''.join(card(g) for g in gs)
     n=sum(len(g['images']) for g in gs)
     w(f'/series/{x["slug"]}/',page(x['name'],f'<div class="wrap"><p class="meta"><a href="/events/">&larr; Events</a></p><h1 class="h1">{e(x["name"])}</h1><p class="meta">{len(gs)} galleries / {n} photos / {yrs[-1]}{"" if yrs[-1]==yrs[0] else " &ndash; "+yrs[0]}</p><div class="desc"><p>{e(x["desc"])}</p></div><div class="cards">{cards}</div></div>','/events/','Events',x['desc'][:160],img(gs[0],'l'),f'/series/{x["slug"]}/'))
 # ---- Tag pages, search page and index
 for ts,tv in TAGS.items():
     gs=sorted(tv['g'],key=newest,reverse=True)
-    cards=''.join(f'<a class="card" href="/gallery/{g["slug"]}/"><img loading="lazy" src="{img(g,"t")}" alt=""><span><b>{e(g["title"])}</b><small>{g["year"]} / {len(g["images"])} photos</small></span></a>' for g in gs)
+    cards=''.join(card(g) for g in gs)
     w(f'/tag/{ts}/',page(tv['name'],f'<div class="wrap"><p class="meta"><a href="/search/">&larr; Search</a></p><h1 class="h1">{e(tv["name"])}</h1><p class="meta">{len(gs)} galleries</p><div class="cards">{cards}</div></div>','/search/','Events',f'Galleries tagged {tv["name"]}',img(gs[0],'l')))
 idx=[{'t':g['title'],'u':f'/gallery/{g["slug"]}/','i':img(g,'t'),'y':g['year'],'c':cats[g['category']],'s':ser_by[g['series']]['name'] if g.get('series') in ser_by else '','g':g['tags'],'k':ser_by[g['series']]['short'] if g.get('series') in ser_by else '','n':len(g['images']),'v':str(g.get('venue','')).strip() if g['category']=='events' else ''} for g in sorted(G,key=newest,reverse=True)]
 open('dist/search-index.json','w').write(json.dumps(idx,separators=(',',':')))
