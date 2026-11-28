@@ -20,5 +20,6 @@
     data=j; var m=/[?&]q=([^&]*)/.exec(location.search); if(m) q.value=decodeURIComponent(m[1].replace(/\+/g,' ')); render();
   });
   q.addEventListener('input',render);
+  if(q.form) q.form.addEventListener('submit',function(ev){ev.preventDefault()});   // Enter in the box just searches (was an inline onsubmit, T-19)
   document.querySelectorAll('.chips button').forEach(function(a){a.addEventListener('click',function(ev){ev.preventDefault(); q.value=a.getAttribute('data-q'); render(); q.focus()})});
 })();

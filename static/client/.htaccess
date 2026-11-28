@@ -8,6 +8,10 @@ RewriteRule ^g/([a-f0-9]{24})/?$ index.php?t=$1 [L,QSA]
 # New-client intake form: /client/new/
 RewriteRule ^new/?$ new.php [L,QSA]
 Header set X-Robots-Tag "noindex, nofollow, noarchive"
+# Temporary until T-22: the root policy plus 'unsafe-inline' for scripts and styles, because the admin and client pages still use inline code
+<IfModule mod_headers.c>
+Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'"
+</IfModule>
 <FilesMatch "\.(sqlite|db|log)$">
   Require all denied
 </FilesMatch>
