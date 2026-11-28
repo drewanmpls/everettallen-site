@@ -30,9 +30,9 @@ def page(title,body,path,section,desc='',image='',url=''):
     canon=url or path
     t=site['title'] if not title else f"{title} | {site['title']}"
     d=e(desc or site['tagline'])
-    if section=='Portraits': nav='<a href="/events/">Events &rarr;</a><a href="/search/">Search</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
-    elif section=='Events': nav='<a href="/">&larr; Portraits</a><a href="/search/">Search</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
-    else: nav='<a href="/">Portraits</a><a href="/events/">Events</a><a href="/search/">Search</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
+    if section=='Portraits': nav='<a href="/events/">Events &rarr;</a><a href="/search/">Search</a><a href="/about/">About</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
+    elif section=='Events': nav='<a href="/">&larr; Portraits</a><a href="/search/">Search</a><a href="/about/">About</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
+    else: nav='<a href="/">Portraits</a><a href="/events/">Events</a><a href="/search/">Search</a><a href="/about/">About</a><a href="/services/">Services</a><a href="/contact/">Contact</a>'
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <script>try{{var u=new URL(location.href),c=u.searchParams.get("code");if(c){{localStorage.setItem("eaCode",c.trim());u.searchParams.delete("code");history.replaceState(null,"",u.pathname+u.search+u.hash)}}}}catch(e){{}}</script>
 <title>{e(t)}</title><meta name="description" content="{d}"><link rel="canonical" href="{site['base_url']}{canon}">
@@ -57,8 +57,9 @@ active=[x for x in SER if in_series[x['slug']]]
 # ---- Home (portraits face)
 feat=[by_slug[s] for s in site['featured_portraits'] if s in by_slug]
 strip=''.join(f'<a class="fcard" href="/gallery/{g["slug"]}/"><img loading="lazy" src="{img(g,"l")}" alt=""><span>{e(g["title"])} / {g["year"]}</span></a>' for g in feat)
+what=f'<p class="what">{e(site["home_descriptor"])}</p>' if site.get('home_descriptor','').strip() else ''
 home=f'''<section class="homehead"><h1 class="giant">Everett<br>Allen<span class="photo">Photography</span></h1>
-<div class="sub"><p class="lede">{tag_lines}</p><p class="meta">{len(portraits)} portrait sessions / {min(g["year"] for g in portraits)} &ndash; {max(g["year"] for g in portraits)} / Scroll &rarr;</p></div></section>
+<div class="sub">{what}<p class="lede">{tag_lines}</p><a class="btn" href="/services/">Book a portrait session</a><p class="meta">{len(portraits)} portrait sessions / {min(g["year"] for g in portraits)} &ndash; {max(g["year"] for g in portraits)} / Scroll &rarr;</p></div></section>
 <div class="strip" tabindex="0" aria-label="Featured portraits">{strip}</div>
 <p class="allp"><a href="/portraits/">All portraits A to Z</a></p>
 <a class="band" href="/events/"><span class="bigword">Events</span><span class="bandtxt">Pride, TCLFW, contests and community nights, by year &rarr;</span></a>
