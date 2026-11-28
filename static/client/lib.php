@@ -27,7 +27,7 @@ function masters_dir(): string {
 
 // Database layout version. To add a table or column: put it in the migration block in db() (CREATE TABLE IF NOT EXISTS,
 // or a row in the add-column list) and raise SCHEMA_VERSION by one. The block then runs once per database, not on every request.
-const SCHEMA_VERSION = 4;   // 3: galleries.shoot_date and shoot_location (T-41 Sessions); 4: orders.price_cents (T-33 Sales)
+const SCHEMA_VERSION = 5;   // 3: galleries.shoot_date and shoot_location (T-41 Sessions); 4: orders.price_cents (T-33 Sales); 5: outbox (T-34)
 
 function db(): PDO {
     static $pdo = null;
@@ -76,6 +76,7 @@ function db(): PDO {
     CREATE TABLE IF NOT EXISTS claims (image_id INTEGER PRIMARY KEY REFERENCES images(id) ON DELETE CASCADE, created INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS login_fails (scope TEXT NOT NULL, h TEXT NOT NULL, t INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS login_fails_i ON login_fails (scope, h, t);
+    CREATE TABLE IF NOT EXISTS outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER, to_email TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'queued', attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT DEFAULT '', created INTEGER NOT NULL, sent INTEGER);
     ");
     foreach ([['galleries', 'included_count', 'INTEGER NOT NULL DEFAULT 0'], ['galleries', 'default_web_cents', 'INTEGER NOT NULL DEFAULT 0'],
               ['images', 'price_web_cents', 'INTEGER'], ['galleries', 'shoot_date', "TEXT DEFAULT ''"], ['galleries', 'shoot_location', "TEXT DEFAULT ''"], ['galleries', 'client_id', 'INTEGER'], ['galleries', 'code_id', 'INTEGER'], ['clients', 'release_text', "TEXT DEFAULT ''"], ['clients', 'release_stage', "TEXT DEFAULT ''"], ['clients', 'release_dob', "TEXT DEFAULT ''"], ['clients', 'release_gallery', "TEXT DEFAULT ''"], ['clients', 'release_version', "TEXT DEFAULT ''"], ['clients', 'release_pdf', "TEXT DEFAULT ''"], ['clients', 'release_sig', "TEXT DEFAULT ''"], ['clients', 'drive_status', "TEXT DEFAULT ''"], ['clients', 'drive_url', "TEXT DEFAULT ''"], ['clients', 'shoot_date', "TEXT DEFAULT ''"], ['clients', 'shoot_location', "TEXT DEFAULT ''"], ['clients', 'id_verified', "TEXT DEFAULT ''"], ['clients', 'release_name', "TEXT DEFAULT ''"], ['clients', 'release_at', 'INTEGER'], ['clients', 'photo_path', "TEXT DEFAULT ''"], ['clients', 'idphoto_path', "TEXT DEFAULT ''"], ['clients', 'discount_percent', 'INTEGER NOT NULL DEFAULT 0'], ['orders', 'tier', "TEXT NOT NULL DEFAULT 'full'"], ['orders', 'price_cents', 'INTEGER'], ['galleries', 'kind', "TEXT NOT NULL DEFAULT ''"]] as [$t, $c, $def]) {
@@ -208,6 +209,49 @@ function send_owner_mail(string $subject, string $body, string $replyTo = ''): v
     $headers = "From: " . MAIL_FROM . "\r\nBcc: " . OWNER_BCC . "\r\nContent-Type: text/plain; charset=UTF-8\r\n";
     if ($replyTo !== '' && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) $headers .= "Reply-To: $replyTo\r\n";
     @mail(OWNER_EMAIL, $subject, $body, $headers);
+}
+
+// ---------- client email outbox (T-34) ----------
+// Client email is queued in `outbox` and sent by cli/send-outbox.php (cron, every 5 minutes) or Admin > Outbox > Send now.
+// mail_transport() is the only place that actually sends, so a later switch to SES changes just that function.
+
+function mail_transport(string $to, string $subject, string $body): bool {
+    if (preg_match('/[^\x20-\x7e]/', $subject)) $subject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
+    return @mail($to, $subject, $body, "From: " . MAIL_FROM . "\r\nReply-To: " . OWNER_EMAIL . "\r\nContent-Type: text/plain; charset=UTF-8\r\n");
+}
+
+// Adds one email to the queue and returns its id. Throws InvalidArgumentException with a plain sentence when the input is not usable.
+function outbox_queue(?int $clientId, string $to, string $subject, string $body): int {
+    $to = trim($to); $subject = trim($subject); $body = str_replace("\r\n", "\n", $body);
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL) || preg_match('/[\r\n,;]/', $to)) throw new InvalidArgumentException('That email address does not look right.');
+    if ($subject === '' || preg_match('/[\r\n]/', $subject) || mb_strlen($subject) > 200) throw new InvalidArgumentException('The subject needs to be one line of 200 characters or fewer.');
+    if (trim($body) === '' || mb_strlen($body) > 10000) throw new InvalidArgumentException('The message needs to be between 1 and 10,000 characters.');
+    db()->prepare('INSERT INTO outbox (client_id, to_email, subject, body, created) VALUES (?,?,?,?,?)')->execute([$clientId, $to, $subject, $body, time()]);
+    return (int)db()->lastInsertId();
+}
+
+// Sends up to $max queued emails, oldest first. A failure raises attempts and keeps the error; the 5th failure marks it failed.
+// A lock file stops cron and "Send now" from sending the same email twice. Returns ['sent' => n, 'failed' => n, 'busy' => bool].
+function outbox_send_due(int $max = 20): array {
+    $out = ['sent' => 0, 'failed' => 0, 'busy' => false];
+    $lock = @fopen(priv_dir() . '/outbox.lock', 'c');
+    if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) { $out['busy'] = true; return $out; }
+    try {
+        $q = db()->prepare("SELECT * FROM outbox WHERE status = 'queued' ORDER BY created, id LIMIT ?"); $q->execute([max(1, $max)]);
+        foreach ($q->fetchAll() as $r) {
+            error_clear_last();
+            if (mail_transport($r['to_email'], $r['subject'], $r['body'])) {
+                db()->prepare("UPDATE outbox SET status = 'sent', attempts = attempts + 1, last_error = '', sent = ? WHERE id = ?")->execute([time(), $r['id']]);
+                $out['sent']++;
+            } else {
+                $n = (int)$r['attempts'] + 1; $e = error_get_last();
+                $msg = mb_substr(date('M j g:ia') . ': ' . ($e['message'] ?? 'the mail server did not accept it'), 0, 500);
+                db()->prepare('UPDATE outbox SET status = ?, attempts = ?, last_error = ? WHERE id = ?')->execute([$n >= 5 ? 'failed' : 'queued', $n, $msg, $r['id']]);
+                $out['failed']++;
+            }
+        }
+    } finally { flock($lock, LOCK_UN); fclose($lock); }
+    return $out;
 }
 
 function gdir(int $gid, string $kind): string {

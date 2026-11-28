@@ -15,7 +15,7 @@ function go(string $to): void { header('Location: ' . $to); exit; }
 // Later tickets add one line here when their page exists (Sessions, Sales, Galleries, Event series, Pages, Services).
 const ADMIN_MENU = [
     '' => [['Today', 'dashboard', []]],
-    'Studio' => [['Clients', 'clients', ['client']], ['Sessions', 'sessions', ['gallery', 'list']], ['Sales', 'orders', []], ['Codes', 'codes', []]],
+    'Studio' => [['Clients', 'clients', ['client']], ['Sessions', 'sessions', ['gallery', 'list']], ['Sales', 'orders', []], ['Outbox', 'outbox', []], ['Codes', 'codes', []]],
     'Portfolio' => [['Galleries', 'pgalleries', ['pgallery']], ['Publish', 'publish', []], ['Event series', 'series', []], ['Library', 'library', []]],
     'Website' => [['Pages', 'pages', []], ['Services', 'services', []], ['Short links', 'links', []], ['Stats', 'stats', []], ['Settings', 'settings', []]],
 ];
@@ -142,6 +142,7 @@ if (in_array($a, ['library', 'libfile', 'libzip'], true)) require __DIR__ . '/li
 if ($a === 'dashboard') require __DIR__ . '/dashboard.php';
 if ($a === 'sessions') require __DIR__ . '/sessions.php';
 if ($a === 'orders' || $a === 'orderscsv') require __DIR__ . '/orders.php';
+if (in_array($a, ['outbox', 'mailsend', 'mailretry'], true)) require __DIR__ . '/outbox.php';
 if ($a === 'pgsuggest') require __DIR__ . '/ai.php';
 if (in_array($a, ['pgalleries', 'pgallery', 'pgsave', 'pgorder', 'pgremove'], true)) require __DIR__ . '/pgalleries.php';
 if (in_array($a, ['series', 'seriessave', 'pages', 'pagesave', 'sitesave', 'services', 'servicessave'], true)) require __DIR__ . '/content-editors.php';
@@ -540,7 +541,7 @@ if ($a === 'client') {
         $dls = db()->prepare('SELECT d.created, g.id AS gid, g.title FROM downloads d JOIN images i ON i.id = d.image_id JOIN galleries g ON g.id = i.gallery_id WHERE g.client_id = ? ORDER BY d.created'); $dls->execute([$c['id']]);
         $days = []; foreach ($dls->fetchAll() as $d) { $k = $d['gid'] . '|' . (new DateTime('@' . $d['created']))->setTimezone($tz)->format('Y-m-d'); $days[$k] = $days[$k] ?? [(int)$d['created'], 0, $d['title'], (int)$d['gid']]; $days[$k][1]++; }
         foreach ($days as [$t, $n, $ti, $gid]) $tl[] = [$t, $n . ($n === 1 ? ' download' : ' downloads') . ' from "' . $ti . '".', '?a=gallery&id=' . $gid . '&tab=activity'];
-        if (db()->query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'outbox'")->fetchColumn()) {   // outbox arrives with T-34
+        if (db()->query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'outbox'")->fetchColumn()) {
             $ob = db()->prepare('SELECT created, sent, subject, status FROM outbox WHERE client_id = ?'); $ob->execute([$c['id']]);
             foreach ($ob->fetchAll() as $m) $tl[] = [(int)($m['sent'] ?: $m['created']), 'Email "' . $m['subject'] . '": ' . $m['status'] . '.', ''];
         }
