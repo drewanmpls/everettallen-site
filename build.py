@@ -56,7 +56,8 @@ in_series={x['slug']:sorted([g for g in G if g.get('series')==x['slug']],key=new
 active=[x for x in SER if in_series[x['slug']]]
 # ---- Home (portraits face)
 feat=[by_slug[s] for s in site['featured_portraits'] if s in by_slug]
-strip=''.join(f'<a class="fcard" href="/gallery/{g["slug"]}/"><img loading="lazy" src="{img(g,"l")}" alt=""><span>{e(g["title"])} / {g["year"]}</span></a>' for g in feat)
+def lz(n): return 'fetchpriority="high"' if n==0 else ('' if n<3 else 'loading="lazy"')
+strip=''.join(f'<a class="fcard" href="/gallery/{g["slug"]}/"><img {lz(n)} src="{img(g,"l")}" alt=""><span>{e(g["title"])} / {g["year"]}</span></a>' for n,g in enumerate(feat))
 what=f'<p class="what">{e(site["home_descriptor"])}</p>' if site.get('home_descriptor','').strip() else ''
 home=f'''<section class="homehead"><h1 class="giant">Everett<br>Allen<span class="photo">Photography</span></h1>
 <div class="sub">{what}<p class="lede">{tag_lines}</p><a class="btn" href="/services/">Book a portrait session</a><p class="meta">{len(portraits)} portrait sessions / {min(g["year"] for g in portraits)} &ndash; {max(g["year"] for g in portraits)} / Scroll &rarr;</p></div></section>
@@ -72,7 +73,7 @@ w('/portraits/',page('Portraits',f'<div class="wrap"><h1 class="h1">Portraits</h
 def tile(g,big=False):
     cls='tile big' if big else 'tile'
     badge=f'<em>New / {g["date"][:7]}</em>' if big else ''
-    return f'<a class="{cls}" href="/gallery/{g["slug"]}/"><img loading="lazy" src="{img(g,"l")}" alt=""><span>{badge}<b>{e(g["title"])}</b></span></a>'
+    return f'<a class="{cls}" href="/gallery/{g["slug"]}/"><img {"fetchpriority=high" if big else "loading=lazy"} src="{img(g,"l")}" alt=""><span>{badge}<b>{e(g["title"])}</b></span></a>'
 top=events[:3]
 news=f'<div class="news">{tile(top[0],True)}<div class="side">{"".join(tile(g) for g in top[1:])}</div></div>' if len(top)==3 else ''
 years=sorted({g['year'] for g in events},reverse=True)
